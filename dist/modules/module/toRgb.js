@@ -8,7 +8,8 @@
  * const rgbArray = toRgb(hexColor);
  * console.log(rgbArray); // Output: [52, 152, 219]
  */
-export function toRgb(hex) {
+
+export const toRgb = () => {
   // Chia tách mã màu hex và phân tích cú pháp số nguyên.
   const color1 = parseInt(hex.slice(1, 3), 16);
   const color2 = parseInt(hex.slice(3, 5), 16);
