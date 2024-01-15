@@ -1,0 +1,44 @@
+{
+  "name": "blackcat.js",
+  "version": "1.0.0",
+  "description": "BlackCat-Club DiscordBot v14",
+  "main": "./dist/modules/index.js",
+  "types": "./typings/index.d.ts",
+  "type": "module",
+  "exports": {
+    "import": "./dist/modules/index.js",
+    "require": "./dist/commonjs/index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist/",
+    "typings/"
+  ],
+  "keywords": [
+    "BlackCat-Club",
+    "Discord V14",
+    "symply-djs",
+    "discord.js"
+  ],
+  "author": "Nguyễn Vinh",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VinhBot/BlackCat-Djs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VinhBot/BlackCat-Djs/issues"
+  },
+  "homepage": "https://github.com/VinhBot/BlackCat-Djs#readme",
+  "dependencies": {
+    "ascii-table3": "^0.9.0",
+    "chalk": "^5.3.0",
+    "discord.js": "^14.14.1"
+  },
+  "engines": {
+    "node": ">=16.11.0"
+  }
+}
