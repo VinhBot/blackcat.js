@@ -38,17 +38,7 @@ export class commandBuilder {
    * const commandJSON = builder.toJSON();
    */
   toJSON() {
-    return {
-      owner: this.owner,
-      cooldown: this.cooldown,
-      permissions: this.permissions,
-      description: this.description,
-      category: this.category,
-      aliases: this.aliases,
-      command: this.command,
-      usage: this.usage,
-      name: this.name,
-    };
+    return {...this};
   };
 
   /**
@@ -85,7 +75,7 @@ export class commandBuilder {
       console.log("Tên lệnh phụ không nhỏ quá 1 chữ cái");
     } else {
       this.aliases = aliases;
-    }
+    };
     return this;
   }
 
@@ -178,9 +168,9 @@ export class commandBuilder {
    * @returns {commandBuilder} Phiên bản của commandBuilder sau khi được sửa đổi.
    * @example
    * // Đặt hàm thực hiện lệnh
-   * const builder = new commandBuilder().addCommand((client, message, args, prefix) => message.reply('Command executed!'));
+   * const builder = new commandBuilder().executeCommand((client, message, args, prefix) => message.reply('Command executed!'));
    */
-  addCommand(command) {
+  executeCommand(command) {
     this.command = command;
     return this;
   }

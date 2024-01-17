@@ -23,7 +23,7 @@
 
 ## Installation 
 ```js
-npm install blackcat-djs
+npm install blackcat.js
 ```
 
 ## Examples
@@ -90,7 +90,7 @@ const commands = new commandBuilders({
   cooldown: 5, // Command cooldown time
   owner: false, // Developer mode toggle
   permissions: [] // Permissions required when using the command
-}).addCommand(async (client, message, args, prefix) => {
+}).addCommand(async({ client, message, args, prefix }) => {
   // code
 });
 // console.log(commands.toJSON()); // Display command information in JSON format

@@ -1,7 +1,8 @@
 import { Client as DiscordClient, GatewayIntentBits, PermissionsBitField, InteractionType } from "discord.js";
+import { ParsedPath } from "node:path";
 
 declare module "blackcat-djs" {
-  // Định nghĩa các tùy chọn để tạo lệnh
+  // Định nghĩa các tùy chọn để tạo CommandBuilder
   interface CommandBuilderOptions {
     owner?: boolean;       // Nếu lệnh chỉ dành cho chủ sở hữu
     cooldown?: number;     // Thời gian chờ giữa các lần thực hiện lệnh
@@ -13,7 +14,7 @@ declare module "blackcat-djs" {
     category?: string;     // Danh mục của lệnh
     command?: () => void;  // Hàm thực hiện lệnh
   }
-  // Định nghĩa các tùy chọn để tạo lệnh slash
+  // Định nghĩa các tùy chọn để tạo lệnh SlashCommandBuilder
   interface SlashCommandBuilderOptions {
     name: string;
     description: string;
@@ -24,7 +25,12 @@ declare module "blackcat-djs" {
     options?: Record<string, any>;  // Các tùy chọn cụ thể cho lệnh slash
     run: () => void;  // Hàm thực hiện lệnh slash
   }
-
+  // Định nghĩa cho các tùy chọn FileNameAndFolder
+  interface FileNameAndFolder {
+    fileName: ParsedPath;
+    folderName: ParsedPath;
+  }
+  // 
   export class Client extends DiscordClient {
     constructor(options: {
       discordClient?: {
@@ -50,7 +56,7 @@ declare module "blackcat-djs" {
         developer: string;
       };
     });
-  };
+  }
   // Định nghĩa một class để xây dựng lệnh
   export class CommandBuilder {
     constructor(options?: CommandBuilderOptions);
@@ -88,6 +94,15 @@ declare module "blackcat-djs" {
     addSlashCommand(slashCommand: () => void): this;
     toJSON(): SlashCommandBuilderOptions;
   }
-  // chuyển đổi mã hex sang rgb
+  /**
+   * @param hex - thực hiện yêu cầu mã hex
+   * @returns trả về rgb
+   */
   export const toRgb: (hex: string) => number[];
+  /**
+    * Hàm lấy thông tin về tên file và thư mục chứa file từ một URL file.
+    * @param currentFileUrl - URL của file hiện tại.
+    * @returns Đối tượng chứa fileName và folderName.
+    */
+  export function getFileNameAndFolder(currentFileUrl: string): FileNameAndFolder;
 }

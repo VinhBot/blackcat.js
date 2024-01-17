@@ -178,9 +178,9 @@ class commandBuilder {
    * @returns {commandBuilder} Phiên bản của commandBuilder sau khi được sửa đổi.
    * @example
    * // Đặt hàm thực hiện lệnh
-   * const builder = new commandBuilder().addCommand((client, message, args, prefix) => message.reply('Command executed!'));
+   * const builder = new commandBuilder().executeCommand((client, message, args, prefix) => message.reply('Command executed!'));
    */
-  addCommand(command) {
+  executeCommand(command) {
     this.command = command;
     return this;
   }

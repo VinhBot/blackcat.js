@@ -128,7 +128,8 @@ export class Client extends Discord.Client {
                             }))]
                         });
                         // Nếu tìm thấy lệnh, thực thi lệnh đó bằng cách gọi hàm command.command và truyền vào các đối số như this (đối tượng bot cách gọi khác là client), message (đối tượng tin nhắn), args (mảng tham số), và prefix (tiền tố của lệnh).
-                        command.command(this, message, args, prefix);
+                        const options = { client: this, message, args, prefix};
+                        command.command(options);
                         // Nếu không tìm thấy lệnh, bot sẽ gửi một tin nhắn phản hồi nói rằng lệnh không hợp lệ và sau đó tự động xóa tin nhắn phản hồi đó sau 10 giây.
                     } else return message.reply({ content: this.getLocalizedString("commandHander.prefix.mes5", { prefix: prefix }) }).then((msg) => {
                         setTimeout(() => msg.delete(), ms("5s")); // tự động xóa sau 5 giây

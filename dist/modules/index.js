@@ -1,6 +1,7 @@
 import Discord from "discord.js";
 import chalk from "chalk";
 // Import các files
+export { getFileNameAndFolder } from "./module/getFileNameAndFolder.js";
 export { slashCommandBuilder } from "./module/slashCommandBuilder.js";
 export { commandBuilder } from "./module/commandBuilder.js";
 export { Client } from "./module/Client.js";

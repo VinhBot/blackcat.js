@@ -1,6 +1,7 @@
 const Discord = require("discord.js");
 const chalk = require("chalk");
 // xuất module
+exports.getFileNameAndFolder = require("./module/getFileNameAndFolder.js");
 exports.slashCommandBuilder = require("./module/slashCommandBuilder.js");
 exports.commandBuilder = require("./module/commandBuilder.js");
 exports.Client = require("./module/Client.js");
