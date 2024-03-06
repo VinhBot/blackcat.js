@@ -1,20 +1,16 @@
 {
   "name": "blackcat.js",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "BlackCat-Club DiscordBot v14",
-  "main": "./dist/modules/index.js",
-  "types": "./typings/index.d.ts",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "type": "module",
-  "exports": {
-    "import": "./dist/modules/index.js",
-    "require": "./dist/commonjs/index.js"
-  },
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "files": [
-    "dist/",
+    "lib/",
     "typings/"
   ],
   "keywords": [
