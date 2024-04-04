@@ -78,16 +78,12 @@ client.on("ready", async (bot) => {
 
 ## Prefix Commands
 ```js
-import { commandBuilders } from "blackcat.js";
-import { fileURLToPath } from 'node:url';
-import path from "node:path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { commandBuilders, getFileNameAndFolder } from "blackcat.js";
+const cmdName = getFileNameAndFolder(import.meta.url);
 const commands = new CommandBuilder({
-  name: path.parse(__filename).name, // Tên chính của lệnh
-  usage: path.parse(__filename).name, // Cách sử dụng khi sử dụng lệnh trợ giúp
-  category: path.parse(__dirname).name, // Thể loại của lệnh
+  name: cmdName.fileName.name, // Tên chính của lệnh
+  usage: cmdName.fileName.name, // Cách sử dụng khi sử dụng lệnh trợ giúp
+  category: cmdName.folderName.name, // Thể loại của lệnh
   aliases: [], // Bí danh cho lệnh
   description: "", // Mô tả cho lệnh
   cooldown: 5, // Thời gian cooldown của lệnh
@@ -113,19 +109,19 @@ export default commands;
 ## slash Commands
 ```js
 import { SlashCommandBuilder, Discord } from "blackcat.js";
-import { fileURLToPath } from 'node:url';
-import path from "node:path";
+
 // Request structure
 const slashCommand = new SlashCommandBuilder({
-  name: path.parse(fileURLToPath(import.meta.url)).name, // Tên lệnh, có thể viết hoa hoặc viết thường tùy ý
+  name: getFileNameAndFolder(import.meta.url).fileName.name, // Tên lệnh, có thể viết hoa hoặc viết thường tùy ý
   description: "", // Mô tả lệnh
   userPerms: [], // Quyền cần thiết cho các thành viên để sử dụng lệnh
   owner: false, // Đặt thành true để biến nó thành lệnh của chủ sở hữu bot, false để tắt
   cooldown: 3, // Thời gian hồi lệnh
   type: "",
-  // options: []
-}).addSlashCommand((client, interaction) => {
-  // code
+  // options: [],
+  executeCommand: ({ client, interaction }) => {
+    // code 
+  },
 });
 // console.log(slashCommand.toJSON());
 export default slashCommand;

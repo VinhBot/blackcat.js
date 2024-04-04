@@ -5,7 +5,7 @@ export default class PingCommands extends CommandBuilder {
         super({ 
             name: "ping",
             aliases: [],
-            cooldown: 3000
+            cooldown: 3000,
         });
         // console.log(this.toJSON());
     };

@@ -17,14 +17,21 @@ declare class CommandBuilder {
     constructor(options?: {
         owner?: boolean;
         cooldown?: number;
-        permissions?: any[];
+        permissions?: Array[];
         description: string;
         category: string;
-        aliases?: any[];
-        executeCommand: Function;
+        aliases?: Array[];
         usage: string;
         name: string;
+        executeCommand: Function;
     });
+    /**
+     * Hàm thực thi các code chính của bạn
+     * @param {string} client - Discord.Client
+     * @param {string} message - Discord.Events.MessageCreate
+     * @param {Array} args - đối số
+     */
+    executeCommand({ client: string, message: string, args: string }): void;
     /**
      * @param {string} json: hiển thị lệnh của bạn dưới dạng json 
      * @returns {Object} - Biểu diễn JSON của bộ xây dựng lệnh.

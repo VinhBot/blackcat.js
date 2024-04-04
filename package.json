@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "BlackCat-Club DiscordBot v14",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -23,12 +23,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VinhBot/BlackCat-Djs.git"
+    "url": "git+https://github.com/VinhBot/blackcat.js.git"
   },
   "bugs": {
-    "url": "https://github.com/VinhBot/BlackCat-Djs/issues"
+    "url": "https://github.com/VinhBot/blackcat.js/issues"
   },
-  "homepage": "https://github.com/VinhBot/BlackCat-Djs#readme",
+  "homepage": "https://github.com/VinhBot/blackcat.js#readme",
   "dependencies": {
     "ascii-table3": "^0.9.0",
     "chalk": "^5.3.0",
