@@ -129,7 +129,7 @@ const Commands = new SlashCommandBuilder({
     },
 });
 
-export default new Commands;
+export default Commands;
 ```
 - Kiểu 2
 ```js
