@@ -30,8 +30,6 @@
 npm install blackcat.js
 ```
 
-## Thí dụ về cài đặt bot 
-Bạn có thể lấy thông tin của bot qua Github sau: [BlackCat-Bot](https://github.com/VinhBot/BlackCat-DJS/blob/main/test/index.js)
 
 
 ## Thí dụ 
@@ -41,111 +39,7 @@ import { Client } from "blackcat.js";
 const { Client } = require("blackcat.js");
 ```
 
-### Ra mắt mô-đun
-```js
-import { Client as BlackCatClient, chalk } from "blackcat.js";
-// hàm chalk được lấy từ chalk (https://github.com/chalk/chalk)
-
-const client = new BlackCatClient({
-  /* 
-  discordClient: {
-    // Discord.Client
-  }, 
-  */
-  config: {
-    tokenBot: "Token Bot",
-    prefix: "!",
-    developer: "owner id",
-		// bạn có thể thêm bất cứ gì bạn thích 
-		// đầu ra: client.config.etc
-  },
-  // Chạy các sự kiện được đề xuất bởi blackcat
-  commandHandler: {
-    setCurrentLanguage: "en", // ngôn ngữ tùy chỉnh của gói. Hiện tại chỉ hỗ trợ 2 ngôn ngữ: vi: Tiếng Việt và en: Tiếng Anh
-    prefixCommand: true, // bật hoặc tắt lệnh chạy bằng tiền tố
-    slashCommand: true, // bật hoặc tắt các lệnh gạch chéo đang chạy
-    pathToCommand: {
-      prefixCommand: "./Commands", // đường dẫn đến các lệnh tiền tố
-      slashCommand: "./slashCommands", // đường dẫn lệnh gạch chéo
-    },
-  },
-});
-
-client.on("ready", async (bot) => {
-  console.log(chalk.blue(bot.user.username + " sẵn sàng hoạt động"));
-});
-```
-
-## Prefix Commands
-```js
-import { commandBuilders, getFileNameAndFolder } from "blackcat.js";
-const cmdName = getFileNameAndFolder(import.meta.url);
-const commands = new CommandBuilder({
-  name: cmdName.fileName.name, // Tên chính của lệnh
-  usage: cmdName.fileName.name, // Cách sử dụng khi sử dụng lệnh trợ giúp
-  category: cmdName.folderName.name, // Thể loại của lệnh
-  aliases: [], // Bí danh cho lệnh
-  description: "", // Mô tả cho lệnh
-  cooldown: 5, // Thời gian cooldown của lệnh
-  owner: false, // Chế độ phát triển viên
-  permissions: [] // Quyền yêu cầu khi sử dụng lệnh
-  /*
-   * @
-   */
-  executeCommand: async({ client, message, args }) => {
-    // đoạn code mà bạn muốn thực thi
-  },
-});
-
-// console.log(commands.toJSON()); // Hiển thị thông tin lệnh ở định dạng JSON
-export default commands;
-```
----
-**NOTE**
-- Các mô-đun 'path' và 'url' sẽ giúp bạn truy xuất tên lệnh và danh mục nhanh hơn, loại bỏ nhu cầu xử lý thủ công. Bạn có thể tự tin sử dụng chúng mà không cần thực hiện các tác vụ này một cách thủ công.
-- [Bạn có thể xem hướng dẫn sau](https://github.com/VinhBot/BlackCat-DJS/blob/main/test/Commands/Utility/ping.js)
----
-
-## slash Commands
-```js
-import { SlashCommandBuilder, Discord } from "blackcat.js";
-
-// Request structure
-const slashCommand = new SlashCommandBuilder({
-  name: getFileNameAndFolder(import.meta.url).fileName.name, // Tên lệnh, có thể viết hoa hoặc viết thường tùy ý
-  description: "", // Mô tả lệnh
-  userPerms: [], // Quyền cần thiết cho các thành viên để sử dụng lệnh
-  owner: false, // Đặt thành true để biến nó thành lệnh của chủ sở hữu bot, false để tắt
-  cooldown: 3, // Thời gian hồi lệnh
-  type: "",
-  // options: [],
-  executeCommand: ({ client, interaction }) => {
-    // code 
-  },
-});
-// console.log(slashCommand.toJSON());
-export default slashCommand;
-
-```
----
-**NOTE**
-- Các mô-đun 'path' và 'url' sẽ giúp bạn truy xuất tên lệnh và danh mục nhanh hơn, loại bỏ nhu cầu xử lý thủ công. Bạn có thể tự tin sử dụng chúng mà không cần thực hiện các tác vụ này một cách thủ công.
-- [Bạn có thể xem hướng dẫn sau](https://github.com/VinhBot/BlackCat-DJS/blob/main/test/slashCommands/Utility/ping.js)
----
-
-## Chuyển đổi mã màu hex sang định dạng RGB.
-```js
-import { toRgb } from "blackcat.js";
-const hexColor = "#3498db";
-const rgbArray = toRgb(hexColor);
-console.log(rgbArray); // Output: [52, 152, 219]
-```
-
-## Chuyển đổi chuỗi thời gian thành giá trị tương ứng tính bằng mili giây.
-```js
-import { ms } from "blackcat.js";
-
-const timeString = "1w 3d 5h";
-const totalTimeInMs = ms(timeString);
-console.log(totalTimeInMs); // Output: 910800000 (tổng thời gian tính bằng mili giây)
-```
+## Thiết lập bot 
+Bạn có thể lấy thông tin của bot qua Github sau: [BlackCat-Bot](https://github.com/VinhBot/blackcat.js/tree/main/test)
+<br>
+Các [Function](https://github.com/VinhBot/blackcat.js/tree/main/test/Function) hữu có thể hữu ích dành cho bạn

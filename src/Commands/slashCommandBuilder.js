@@ -1,5 +1,4 @@
 import Discord from "discord.js";
-
 /**
  * Đại diện cho một bộ xây dựng (builder) cho các lệnh slash (slash commands) trên Discord.
  * @class
@@ -15,29 +14,18 @@ import Discord from "discord.js";
  * @param {function} options.executeCommand - Hàm sẽ được thực thi khi lệnh được gọi.
  * @returns {SlashCommandBuilder} Một phiên bản mới của SlashCommandBuilder.
  */
-
 export class SlashCommandBuilder {
-  constructor({
-    name,
-    description,
-    userPerms = [Discord.PermissionFlagsBits.SendMessages],
-    owner = false,
-    cooldown = 3000,
-    category,
-    type,
-    options,
-    executeCommand
-  }) {
-    this.name = name; // Đặt tên
-    this.description = description; // Đặt mô tả cho lệnh
-    this.userPerms = userPerms; // Đặt quyền cần thiết cho người dùng để thực hiện lệnh
-    this.owner = owner; // Đặt thành true để lệnh chỉ dành cho chủ bot, false để tắt
-    this.cooldown = Number(cooldown); // Đặt thời gian chờ
-    this.options = options; // Đặt các tùy chọn bổ sung
-    this.category = category; // Đặt thư mục chứa lệnh
-    this.type = type; // Đặt loại lệnh
-    if (typeof executeCommand === "function") {
-      this.executeCommand = executeCommand; // Đặt hàm sẽ được thực thi khi lệnh được gọi
+  constructor(options = {}) {
+    this.name = options.name; // Đặt tên
+    this.description = options.description; // Đặt mô tả cho lệnh
+    this.userPerms = options.userPerms || Discord.PermissionFlagsBits.SendMessages; // Đặt quyền cần thiết cho người dùng để thực hiện lệnh
+    this.owner = options.owner || false; // Đặt thành true để lệnh chỉ dành cho chủ bot, false để tắt
+    this.cooldown = Number(options.cooldown || 3); // Đặt thời gian chờ
+    this.options = options.options; // Đặt các tùy chọn bổ sung
+    this.category = options.category; // Đặt thư mục chứa lệnh
+    this.type = options.type || Discord.ApplicationCommandType.ChatInput; // Đặt loại lệnh
+    if (typeof options.executeCommand === "function") {
+      this.executeCommand = options.executeCommand; // Đặt hàm sẽ được thực thi khi lệnh được gọi
     } else return;
   };
   /**

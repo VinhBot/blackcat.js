@@ -1,3 +1,4 @@
+import Discord from "discord.js";
 /**
  * Đại diện cho một bộ xây dựng (builder) cho các lệnh bot.
  * @class
@@ -13,7 +14,6 @@
  * @param {string} options.name - Tên của lệnh.
  * @returns {commandBuilder} Một phiên bản mới của commandBuilder.
  */
-
 export class CommandBuilder {
     constructor(options = {}) {
         this.cooldown = Number(options.cooldown || 3000); // Thời gian hồi lệnh
@@ -30,12 +30,12 @@ export class CommandBuilder {
         } else return;
     };
     /**
-     * Hàm thực thi các code chính của bạn
-     * @param {string} client - Discord.Client
-     * @param {string} message - Discord.Events.MessageCreate
-     * @param {Array} args - Cắt bỏ tiền tố và khoảng trắng ở đầu và cuối nội dung tin nhắn, sau đó chia thành mảng các tham số (args).  
+     * Hàm thực thi chính của lệnh
+     * @param {Discord.Client} client - Đối tượng Discord Client
+     * @param {Discord.Message} message - Đối tượng Discord Message
+     * @param {string} args - Các đối số được truyền cho lệnh
      */
-    executeCommand({ client, message, args }) {}
+    executeCommand({ client, message, args }) {/***/};
     /**
      * @param {string} json - hiển thị lệnh của bạn dưới dạng json 
      * @returns {json}

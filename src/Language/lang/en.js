@@ -27,6 +27,7 @@ export default {
             slash2: "I'm not a foolish bot, only the owner can use this command",
             slash3: "Sorry, you don't have the {cmd1} permission in <#{cmd2}> to use the {cmd3} command",
             slash4: "An error occurred while executing the command. Apologies for the inconvenience <3",
+            slash5: "You use the command `{commandName}` too quickly. Please use again in `{cooldown}` seconds."
         }
     }
 }
