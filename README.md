@@ -6,7 +6,7 @@
 	<br />
 	<p>
 		<a href="https://discord.com/invite/tSTY36dPWa"><img src="https://img.shields.io/discord/222078108977594368?color=5865F2&logo=discord&logoColor=white" alt="Discord server" /></a>
-		<a href="https://www.npmjs.com/package/blackcat-djs"><img src="https://raw.githubusercontent.com/VinhBot/BlackCat-DJS/45b90ba964b8a6468d4001f10fa4fe776ca549fd/assets/logoDownload.svg" alt="npm downloads" /></a>
+		<a href="https://www.npmjs.com/package/blackcat.js"><img src="https://raw.githubusercontent.com/VinhBot/blackcat.js/7f26728efdef2663d6c36f9987f7324973787ba0/assets/logoDownload.svg" alt="npm downloads" /></a>
 	</p>
 	<p>
 		<a href="https://blackcat-profile.vercel.app/"><img src="https://cdn.discordapp.com/attachments/1092880002695036950/1157163138228174898/f49e344952ef03656682df9af7d7e65a.jpg?ex=65729327&is=65601e27&hm=910512a26e1b9cecfe323f1f2a869c85c5e111a16474bc6278b1b71e8468a9de&" alt="Cloudflare Workers" height="44" /></a>
@@ -26,11 +26,11 @@
   * Đối số vô hạn (đối số chấp nhận nhiều giá trị được cung cấp)
 
 ## Cài đặt 
+Điều đầu tiên bạn phải hiểu về [ECMAScript modules](https://nodejs.org/api/esm.html) trước khi sử dụng modules
+
 ```js
 npm install blackcat.js
 ```
-
-
 
 ## Thí dụ 
 ```js

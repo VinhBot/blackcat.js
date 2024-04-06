@@ -35,7 +35,7 @@ async function InteractionCreate(client, options) {
                         },
                     }),
                 });
-                SlashCommands.executeCommand({ client, interaction });
+                SlashCommands.executeCommand(client, interaction);
             } catch (error) {
                 if (interaction.replied) return await interaction.editReply({
                     embeds: [new Discord.EmbedBuilder().setDescription(getLocalizedString({ lang: client.currentLanguage, key: "commandHander.slash.slash4" }))],

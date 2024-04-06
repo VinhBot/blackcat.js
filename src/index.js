@@ -5,6 +5,8 @@ import chalk from "chalk";
 export { Discord, chalk };
 // Function 
 export { getFileNameAndFolder } from "./Function/getFileNameAndFolder.js";
+export { ComponentBuilder } from "./Function/ComponentBuilder.js";
+export { toButtonStyle } from "./Function/toButtonStyle.js";
 export { toRgb } from "./Function/toRgb.js";
 export { ms } from "./Function/ms.js";
 // Commands
