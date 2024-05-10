@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     tokenBot: "You haven't added a token for the bot yet",
     commandHander: {
         prefix: {
@@ -29,5 +29,10 @@ export default {
             slash4: "An error occurred while executing the command. Apologies for the inconvenience <3",
             slash5: "You use the command `{commandName}` too quickly. Please use again in `{cooldown}` seconds."
         }
+    },
+    eventHandler: {
+        event1: "Event Name",
+        event2: "Status",
+        event3: "✔️ Ready",
     }
 }

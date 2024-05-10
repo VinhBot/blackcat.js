@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     tokenBot: "Bạn vẫn chưa thêm token cho bot",
     commandHander: {
         prefix: {
@@ -28,6 +28,11 @@ export default {
             slash3: "Xin lỗi, bạn không có quyền {cmd1} trong <#{cmd2}> để sử dụng lệnh {cmd3} này",
             slash4: "Đã xảy ra lỗi khi thực hiện lệnh, xin lỗi vì sự bất tiện <3",
             slash5: "Bạn sử dụng lệnh `{commandName}` quá nhanh. vui lòng sử dụng lại sau `{cooldown}` giây."
-        }
+        },
+    },
+    eventHandler: {
+        event1: "Tên events",
+        event2: "Trạng thái",
+        event3: "✔️ sẵn sàng",
     }
 }

@@ -1,5 +1,5 @@
-import vi from "./lang/vi.js";
-import en from "./lang/en.js";
+const vi = require("./lang/vi.js");
+const en = require("./lang/en.js");
 /**
  * Lấy chuỗi dựa trên thông tin được cung cấp
  * @param {object} options - Đối tượng chứa thông tin cần thiết để lấy chuỗi
@@ -8,7 +8,7 @@ import en from "./lang/en.js";
  * @param {object} [options.replacements={}] - Đối tượng chứa các giá trị thay thế (mặc định là đối tượng trống)
  * @returns {string} - Chuỗi đã được dịch
  */
-export default function getLocalizedString(options = {}) {
+module.exports = function getLocalizedString(options = {}) {
     const languageStrings = {
         "en": en, // tiếng anh 
         "vi": vi, // tiếng việt

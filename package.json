@@ -1,15 +1,16 @@
 {
   "name": "blackcat.js",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "BlackCat-Club DiscordBot v14",
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
-  "type": "module",
+  "main": "./src/blackcat.js",
+  "types": "./typings/index.d.ts",
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "files": ["src/"],
+  "files": [
+    "src/"
+  ],
   "keywords": [
     "BlackCat-Club",
     "Discord V14",
@@ -28,9 +29,8 @@
   "homepage": "https://github.com/VinhBot/blackcat.js#readme",
   "dependencies": {
     "ascii-table3": "^0.9.0",
-    "chalk": "^5.3.0",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5"
+    "chalk": "^4.1.2",
+    "discord.js": "^14.14.1"
   },
   "engines": {
     "node": ">=16.11.0"
