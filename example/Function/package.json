@@ -2,8 +2,7 @@
   "name": "function",
   "version": "1.0.0",
   "description": "test các function",
-  "main": "ComponentBuilder.js",
-  "type": "module",
+  "main": "MessageEmbed.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

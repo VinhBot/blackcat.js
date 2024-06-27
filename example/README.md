@@ -40,9 +40,9 @@ client.build({ login: false });
 > [!WARNING]  
 > trong phần commandHandler.messageCreate của client ban đầu hãy đặt thành false
 ```js
-import { MessageCreate, Discord } from "blackcat.js";
+import { MessageCreate, Events } from "blackcat.js";
 // Khi này bot sẽ chạy theo prefix mà bạn cung cấp qua mongoose
-client.on(Discord.Events.MessageCreate, (message) => {
+client.on(Events.MessageCreate, (message) => {
     const prefix = prefix.findOne({ guild: message.guild.id });
     return MessageCreate(client, message, prefix);
 });
@@ -121,11 +121,6 @@ const Commands = new SlashCommandBuilders({
     owner: false, // Lệnh chỉ dành cho chủ bot
     cooldown: 10, // Thời gian tái sử dụng lệnh
     // options: [], // Các tùy chọn khác của lệnh 
-    /**
-     * Hàm thực thi chính của lệnh
-     * @param {Discord.Client} client - Đối tượng Discord Client
-     * @param {Discord.Interaction} interaction - Đối tượng Discord Interaction
-     */
     executeCommand(client, interaction) {
         // code
     },
@@ -135,7 +130,7 @@ export default Commands;
 ```
 - Kiểu 2
 ```js
-import { SlashCommandBuilder, getFileNameAndFolder, ApplicationCommandType, Interaction, Client } from "blackcat.js";
+import { SlashCommandBuilder, getFileNameAndFolder, ApplicationCommandType, Interaction, RegistrationClient } from "blackcat.js";
 
 const PingCommands = class extends SlashCommandBuilder {
     constructor () {
@@ -152,7 +147,7 @@ const PingCommands = class extends SlashCommandBuilder {
     };
     /**
      * Hàm thực thi chính của lệnh
-     * @param {Client} client - Đối tượng Discord Client
+     * @param {RegistrationClient} client - Đối tượng Discord Client
      * @param {Interaction} interaction - Đối tượng Discord Interaction
      */
     executeCommand(client, interaction) {
@@ -163,4 +158,4 @@ const PingCommands = class extends SlashCommandBuilder {
 export default new PingCommands;
 ```
 
-## Một số [Function](https://github.com/VinhBot/blackcat.js/tree/main/test/Function) có thể hữu ích với bạn.
+## Một số [Function](https://github.com/VinhBot/blackcat.js/tree/main/example/Function) có thể hữu ích với bạn.

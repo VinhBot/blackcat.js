@@ -1,4 +1,4 @@
-import { CommandBuilder, Discord } from "../../../src/blackcat.js"; // blackcat.js
+const { CommandBuilder, Discord } = require("../../../src/blackcat.js"); // blackcat.js.
 
 const PingCommands = new CommandBuilder({
     name: "ping", // Tên của lệnh
@@ -12,9 +12,4 @@ const PingCommands = new CommandBuilder({
     },
 });
 
-// hoặc
-// PingCommands.executeCommand((client, message, args) => {
-//     return message.reply({ content: `${client.ws.ping} ms...` });
-// });
-
-console.log(PingCommands.toJSON()); // Hiển thị lệnh dưới dạng JSON.
+module.exports = PingCommands;

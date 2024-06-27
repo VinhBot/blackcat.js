@@ -26,7 +26,6 @@
   * Đối số vô hạn (đối số chấp nhận nhiều giá trị được cung cấp)
 
 ## Cài đặt 
-Điều đầu tiên bạn phải hiểu về [ECMAScript modules](https://nodejs.org/api/esm.html) trước khi sử dụng modules
 
 ```js
 npm install blackcat.js
@@ -40,6 +39,6 @@ const { Client } = require("blackcat.js");
 ```
 
 ## Thiết lập bot 
-Bạn có thể lấy thông tin của bot qua Github sau: [BlackCat-Bot](https://github.com/VinhBot/blackcat.js/tree/main/test)
+Bạn có thể lấy thông tin của bot qua Github sau: [BlackCat-Bot](https://github.com/VinhBot/blackcat.js/tree/main/example)
 <br>
-Các [Function](https://github.com/VinhBot/blackcat.js/tree/main/test/Function) hữu có thể hữu ích dành cho bạn
+Các [Function](https://github.com/VinhBot/blackcat.js/tree/main/example/Function) hữu có thể hữu ích dành cho bạn

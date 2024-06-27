@@ -1,19 +1,6 @@
 ## Một số Function hữu ích
 
 > [!TIP]
-> lấy thông tin về tên của file và tên của folder chứa file một cách nhanh chóng.
-
-```js
-import { getFileNameAndFolder } from "blackcat.js";
-
-const getName = getFileNameAndFolder(import.meta.url).fileName.name; // lấy tên của file
-const getFolderName = getFileNameAndFolder(import.meta.url).folderName.name; // lấy tên của folder
-
-console.log(getName); // Output: getFileNameAndFolder.js
-console.log(getFolderName); // Output: Function
-```
-
-> [!TIP]
 > Chuyển đổi chuỗi thời gian thành tổng thời gian tính bằng mili giây.
 
 ```js
@@ -36,9 +23,9 @@ console.log(rgbArray); // Output: [52, 152, 219]
 > Khởi tạo nhanh tương tác button hoặc menu discordBot
 
 ```js
-import { ComponentBuilder, Discord } from "blackcat.js";
+import { ComponentBuilders } from "blackcat.js";
 
-const createComponent = new ComponentBuilder([
+const createComponent = new ComponentBuilders([
     // https://discordjs.guide/message-components/buttons.html#building-buttons
     {
         type: "ButtonBuilder", // Kiểu của thành phần (ButtonBuilder).
@@ -82,4 +69,45 @@ import { toButtonStyle } from "blackcat.js";
 
 const styles = toButtonStyle("Secondary");
 console.log(styles); // Output: 2
+```
+
+>[!TIP]
+> Tạo 1 tin nhắn embeds.
+```js
+const { MessageEmbed } = require("../../src/blackcat"); // blackcat.js
+
+const embeds = new MessageEmbed({
+    title: {
+        text: "Tiêu đề của embed",
+        url: "https://discord.js.org"
+    },
+    description: "mô tả ",
+    timestamp: Date.now(),
+    color: "Màu tùy chọn",
+    author: {
+        name: "Tên của tác giả",
+        iconURL: "https://i.imgur.com/AfFp7pu.png",
+        url: "https://discord.js.org",
+    },
+    thumbnail: "https://i.imgur.com/AfFp7pu.png",
+    fields: [
+        {
+            name: "name 1",
+            value: "value 1",
+            inline: false
+        },
+        {
+            name: "name 2",
+            value: "value 2",
+            inline: false
+        }
+    ],
+    footer: {
+        text: "văn bản của footer.",
+        iconURL: "https://i.imgur.com/AfFp7pu.png"
+    },
+    images: "https://i.imgur.com/AfFp7pu.png"
+});
+
+console.log(embeds);
 ```

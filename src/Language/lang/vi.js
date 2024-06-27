@@ -7,6 +7,8 @@ module.exports = {
             cmd2: "Trạng thái",
             cmd3: "✔️ sẵn sàng",
             cmd4: "❌ Lỗi",
+            cmd5: "[blackcat-prefixCommand]: vui lòng kiểm tra lại đường dẫn đến thư mục lệnh của bạn.",
+            cmd6: "[blackcat-MessageCreate]: Bạn chỉ có thể gán 2 giá trị boolean thôi.",
             // tin nhắn trong messageCreate
             mes1: "Thiếu quyền",
             mes2: "Bạn không có quyền {permissions} để sử dụng lệnh này",
@@ -34,5 +36,8 @@ module.exports = {
         event1: "Tên events",
         event2: "Trạng thái",
         event3: "✔️ sẵn sàng",
+        event4: "[BlackCat-EVENTS]: Bạn vẫn chưa thêm tên thư mục cho event",
+        event5: "[BlackCat-EVENTS]: Đầu vào phải là giá trị như sau eventFolder: ['Tên thư mục']",
+        event6: "[BlackCat-EVENTS]: Bạn vẫn chưa thêm đường dẫn cụ thể hoặc đã bị sai vui lòng kiểm trai lại"
     }
 }

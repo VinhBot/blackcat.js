@@ -1,8 +1,9 @@
 // Import file
-const { Client, AllowedMentionsTypes, Partials, Collection, Events, REST, Routes, PermissionsBitField, EmbedBuilder, ApplicationCommandType, InteractionType, GatewayIntentBits } = require("discord.js");
+const { Client, AllowedMentionsTypes, Partials, Collection, Events, REST, Routes, PermissionsBitField, ApplicationCommandType, InteractionType, GatewayIntentBits } = require("discord.js");
 const getLocalizedString = require("./Language/getLocalizedString.js");
 const globalFilePath = require("./Functions/globalFilePath.js");
 const MessageCreate = require("./Functions/MessageCreate.js");
+const MessageEmbed = require("./Functions/MessageEmbed.js");
 // Import package theo yêu cầu
 const { AsciiTable3 } = require("ascii-table3");
 const chalk = require("chalk");
@@ -17,7 +18,7 @@ module.exports = class RegistrationClient extends Client {
      * @param {Object} options.config - Cấu hình bot.
      * @param {Object} options.commandHandler - Tùy chọn cho commandHandler.
      */
-    constructor (options = {}) {
+    constructor (options) {
         super(options.discordClient || {
             allowedMentions: {
                 parse: [
@@ -28,65 +29,36 @@ module.exports = class RegistrationClient extends Client {
                 repliedUser: false,
             },
             partials: [Object.keys(Partials)],
-            intents: [
-                GatewayIntentBits.Guilds,
-                GatewayIntentBits.GuildMessages,
-                GatewayIntentBits.MessageContent,
-                GatewayIntentBits.GuildMembers,
-                GatewayIntentBits.GuildVoiceStates
-            ],
+            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
         });
         // thiết lập cấu hình collection
         this.slashCommands = new Collection(); // Lưu trữ các slash commands.
         this.cooldowns = new Collection(); // Quản lý cooldown của lệnh.
         this.commands = new Collection(); // Lưu trữ các lệnh thông thường.
         this.aliases = new Collection(); // Lưu trữ các bí danh của lệnh.
-        // Thiết lập tùy chọn.
-        this.options = options;
-        // Thiết lập cấu hình cho bot.
+        // Thiết lập tùy chọn cài đặt lệnh cho bot.
+        this.commandHandler = options.commandHandler;
+        // thêm cấu hình cho bot,
         this.config = options.config;
-        // lấy token của bot.
-        this.token = this.config.botToken;
     };
     /**
-     * 
+     * Thiết lập tùy chọn cài đặt lệnh cho bot.
      */
     setCommandHandler(options = {}) {
-        return this.options.commandHandler = options;
+        return this.commandHandler = options;
     };
     /**
      * Thiết lập token cho bot.
      */
     setToken(options) {
-        return this.token = options;
+        return this.config.botToken = options;
     };
     /**
-     * 
-     */
-    setPrefixCommand(options = {}) {
-        return {
-            messageCreate: false,
-            pathToCommand: "./commands/",
-            registerCommmand: options.registerCommmand,
-        };
-    };
-    /**
-     * 
-     */
-    setSlashCommand(options = {}) {
-        const ops = {
-            restVersion: "10",
-            guildCommands: "",
-            pathToCommand: "commands",
-            registerCommmand: options.registerCommmand,
-        };
-    };
-    /**
-     * 
+     * Thực thi và đăng nhập vào discord api.
      */
     build(options = {}) {
         return new Promise((resolve, reject) => {
-            const commandHandler = this.options.commandHandler || {};
+            const commandHandler = this.commandHandler || {};
             // Thiết lập ngôn ngữ của modules 
             if (!commandHandler.setCurrentLanguage) {
                 this.currentLanguage = "vi";
@@ -105,7 +77,27 @@ module.exports = class RegistrationClient extends Client {
                     this.#SlashCommand(commandHandler.slashCommand);
                 };
                 if (options.login) {
-                    this.login(this.token);
+                    this.login(this.config.botToken);
+                };
+                if (options.checkUpdate) {
+                    const _packages = require("../package.json");
+                    const info = {
+                        version: _packages.version,
+                        author: _packages.author,
+                        releaseDate: "16-6-2024",
+                        changes: [
+                            "Cải thiện hiệu suất",
+                            "Sửa một số lỗi",
+                            "Thêm một số tính năng mới"
+                        ],
+                    };
+                    console.log(chalk.red("Phiên bản mới đã được phát hành!"));
+                    console.table([
+                        { "Thuộc tính": "Phiên bản", "Giá trị": info.version },
+                        { "Thuộc tính": "Ngày phát hành", "Giá trị": info.releaseDate },
+                        { "Thuộc tính": "Thay đổi", "Giá trị": info.changes.join(", ") },
+                        { "Thuộc tính": "Tác giả", "Giá trị": info.author }
+                    ]);
                 };
                 resolve(this);
             } catch (error) {
@@ -127,17 +119,17 @@ module.exports = class RegistrationClient extends Client {
      */
     #EventHandler(options = {}) {
         // Đọc nội dung của file package.json để xác định loại module (CommonJS hoặc ECMAScript).
-        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", (error, database) => {
+        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", (error, json) => {
             if (error) return console.error(chalk.red(error));
             // Kiểm tra nếu không có tên thư mục cho sự kiện, hiển thị thông báo lỗi.
             if (!options.eventFolder) {
-                return console.log(chalk.red("[BlackCat-EVENTS]: Bạn vẫn chưa thêm tên thư mục cho event"));
+                return console.log(chalk.red(getLocalizedString({ lang: this.currentLanguage, key: "eventHandler.event4" })));
             } else if (!Array.isArray(options.eventFolder)) {
-                return console.log(chalk.red("[BlackCat-EVENTS]: Đầu vào phải là giá trị như sau eventFolder: ['Tên thư mục']"));
+                return console.log(chalk.red(getLocalizedString({ lang: this.currentLanguage, key: "eventHandler.event5" })));
             };
             // Kiểm tra nếu không có đường dẫn cụ thể hoặc đã bị sai, hiển thị thông báo lỗi.
-            if (!options.pathToEvent) return console.log(chalk.red("[BlackCat-EVENTS]: Bạn vẫn chưa thêm đường dẫn cụ thể hoặc đã bị sai vui lòng kiểm trai lại"));
-            const parsedDatabase = JSON.parse(database);
+            if (!options.pathToEvent) return console.log(chalk.red(getLocalizedString({ lang: this.currentLanguage, key: "eventHandler.event6" })));
+            const parsedDatabase = JSON.parse(json);
             const type = parsedDatabase.type === undefined ? "CommonJS" : parsedDatabase.type === "commonjs" ? "CommonJS" : parsedDatabase.type === "module" ? "ECMAScript" : "";
             // Duyệt qua từng thư mục chứa sự kiện.
             options.eventFolder.forEach(async (eventsDir) => {
@@ -172,10 +164,15 @@ module.exports = class RegistrationClient extends Client {
      */
     #PrefixCommand(options = {}) {
         // Đọc nội dung của file package.json để xác định loại module (CommonJS hoặc ECMAScript).
-        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", async (error, database) => {
+        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", async (error, json) => {
             if (error) return console.error(chalk.red(error));
-            const parsedDatabase = JSON.parse(database);
+            const parsedDatabase = JSON.parse(json);
             const type = parsedDatabase.type === undefined ? "CommonJS" : parsedDatabase.type === "commonjs" ? "CommonJS" : parsedDatabase.type === "module" ? "ECMAScript" : "";
+            // Lấy các chuỗi ngôn ngữ dùng để tạo tiêu đề và dòng trong bảng lệnh.
+            const headingLang1 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd1" });
+            const headingLang2 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd2" });
+            const rowLang1 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd3" });
+            const rowLang2 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd4" });
             /**
              * Kiểm tra xem một đường dẫn có phải là thư mục hay không.
              * @param {string} path - Đường dẫn cần kiểm tra.
@@ -188,15 +185,10 @@ module.exports = class RegistrationClient extends Client {
                     return stats.isDirectory(); // Trả về true nếu đường dẫn là thư mục, ngược lại trả về false
                 } catch (error) {
                     // Xử lý lỗi nếu có
-                    console.error(chalk.red("[blackcat-prefixCommand]: vui lòng kiểm tra lại đường dẫn đến thư mục lệnh của bạn."));
+                    console.error(chalk.red(getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd5" })));
                     return false; // Trả về false nếu xảy ra lỗi
                 };
             };
-            // Lấy các chuỗi ngôn ngữ dùng để tạo tiêu đề và dòng trong bảng lệnh.
-            const headingLang1 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd1" });
-            const headingLang2 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd2" });
-            const rowLang1 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd3" });
-            const rowLang2 = getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd4" });
             // Tạo bảng lệnh để hiển thị thông tin về các lệnh.
             const commandTable = new AsciiTable3('Commands').setHeading(headingLang1, headingLang2).setStyle('unicode-round');
             // Kiểm tra xem đường dẫn đến thư mục lệnh có phải là một chuỗi hợp lệ và là thư mục hay không.
@@ -229,27 +221,27 @@ module.exports = class RegistrationClient extends Client {
         });
         if (typeof options.messageCreate === "boolean") {
             this.on(Events.MessageCreate, (message) => MessageCreate(this, message));
-        } else return console.log(chalk.redBright("[blackcat-MessageCreate]: Bạn chỉ có thể gán 2 giá trị boolean thôi."));
+        } else return console.log(chalk.redBright(getLocalizedString({ lang: this.currentLanguage, key: "commandHander.prefix.cmd6" })));
     };
     /**
      * 
      */
     #SlashCommand(options = {}) {
-        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", async (error, database) => {
+        // Khởi tạo một mảng để lưu trữ tất cả thông tin về slashCommands (allSlashCommands).
+        const allSlashCommands = [];
+        fs.readFile(path.resolve(process.cwd(), "package.json"), "utf-8", async (error, json) => {
             if (error) return console.error(chalk.red(error));
-            const parsedDatabase = JSON.parse(database);
+            const parsedDatabase = JSON.parse(json);
             const type = parsedDatabase.type === undefined ? "CommonJS" : parsedDatabase.type === "commonjs" ? "CommonJS" : parsedDatabase.type === "module" ? "ECMAScript" : "";
-            // Khởi tạo một mảng để lưu trữ tất cả thông tin về slashCommands (allSlashCommands).
-            const allSlashCommands = [];
             // Tạo bảng lệnh để hiển thị thông tin về các lệnh.
             const commandTable = new AsciiTable3('SlashCommands').setHeading("Tên lệnh", "Trạng thái").setStyle('unicode-round');
             // Lặp qua từng thư mục trong thư mục slashCommands và xử lý từng file.
             for (const dir of fs.readdirSync(options.pathToCommand)) {
                 // Lặp qua từng file command đã lọc.
                 for (const slashCmds of fs.readdirSync(`${options.pathToCommand}/${dir}/`).filter((file) => file.endsWith(".js"))) {
+                    // Thử import từng file slash command và lấy default export của nó.
+                    const command = type === "CommonJS" ? require(`${process.cwd()}/${options.pathToCommand}/${dir}/${slashCmds}`) : type === "ECMAScript" ? await import(globalFilePath(`${options.pathToCommand}/${dir}/${slashCmds}`)).then((e) => e.default) : "";
                     try {
-                        // Thử import từng file slash command và lấy default export của nó.
-                        const command = type === "CommonJS" ? require(`${process.cwd()}/${options.pathToCommand}/${dir}/${slashCmds}`) : type === "ECMAScript" ? await import(globalFilePath(`${options.pathToCommand}/${dir}/${slashCmds}`)).then((e) => e.default) : "";
                         // Lưu command vào collection slashCommands của bot.
                         this.slashCommands.set(command.name, command);
                         commandTable.addRowMatrix([[command.name, "✔️ Sẵn sàng"]]);
@@ -360,7 +352,7 @@ module.exports = class RegistrationClient extends Client {
                     } catch (error) {
                         // Xử lý lỗi
                         if (interaction.replied) return await interaction.editReply({
-                            embeds: [new EmbedBuilder().setDescription(getLocalizedString({ lang: this.currentLanguage, key: "commandHander.slash.slash4" }))],
+                            embeds: [new MessageEmbed().setDescription(getLocalizedString({ lang: this.currentLanguage, key: "commandHander.slash.slash4" }))],
                             ephemeral: true,
                         });
                         console.log(error);

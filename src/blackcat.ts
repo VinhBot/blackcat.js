@@ -1,2 +1,1 @@
-export * from "../typings/index"; 
-export * from "discord.js";
+export * from "../typings/index";

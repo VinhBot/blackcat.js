@@ -1,9 +1,9 @@
-import { SlashCommandBuilders, getFileNameAndFolder, ApplicationCommandType, RegistrationClient } from "../../../src/blackcat.js"; // blackcat.js
+const { SlashCommandBuilder, Discord } = require("../../../src/blackcat.js"); // blackcat.js
 
-const PingCommands = new SlashCommandBuilders({
-    name: getFileNameAndFolder(import.meta.url).fileName.name, // Tên của lệnh slash
-    category: getFileNameAndFolder(import.meta.url).folderName.name, // Thư mục chứa lệnh
-    type: ApplicationCommandType.ChatInput, // Kiểu lệnh
+module.exports = new SlashCommandBuilder({
+    name: "pings", // Tên của lệnh slash
+    category: "Utility", // Thư mục chứa lệnh
+    type: Discord.ApplicationCommandType.ChatInput, // Kiểu lệnh
     description: "Hiển thị độ trễ phản hồi của bot", // Mô tả của lệnh
     userPerms: ["SendMessages"], // Các quyền đề sử dụng lệnh, mặc định sẽ là "SendMessage"
     owner: false, // Lệnh chỉ dành cho chủ bot
@@ -13,9 +13,3 @@ const PingCommands = new SlashCommandBuilders({
         return interaction.reply({ content: `${client.ws.ping} ms....` });
     },
 });
-
-PingCommands.executeCommand((client, interaction) => {
-    // code.
-});
-
-export default PingCommands;
