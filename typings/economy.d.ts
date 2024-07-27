@@ -58,9 +58,6 @@ interface BalanceData {
     networth: number
 }
 interface Events {
-    /**
-     * tét
-     */
     userUpdate: [oldData1: UserData, data1: UserData, oldData2: UserData, data2: UserData];
     balanceUpdate: [functionName: string, data: UserData];
     userFetch: [functionName: string, data: UserData];
@@ -70,9 +67,7 @@ interface Events {
     userCreate: [newUser: UserData];
     debug: [message: string];
 }
-/**
- * 
- */
+
 interface BuySettings {
     user: Discord.User;
     guild: Discord.Guild | { id: null };
@@ -85,9 +80,6 @@ interface BuySettings {
 }
 
 interface BuyResult {
-    /**
-     * Lỗi
-     */
     error: boolean;
     type: string;
     inventory?: {
@@ -148,7 +140,6 @@ declare class CurrencySystem extends EventEmitter {
      * });
      */
     public buy(settings: BuySettings): Promise<BuyResult>;
-
 
     public addItem(settings: any): Promise<{
         error: boolean;

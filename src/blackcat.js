@@ -3,7 +3,7 @@ const { __exportStar } = require("tslib");
 exports.RegistrationClient = require("./RegistrationClient.js");
 // Builds.
 exports.SlashCommandBuilder = require("./Builder/SlashCommandBuilder.js");
-exports.ComponentBuilders = require("./Builder/ComponentBuilder.js");
+exports.ComponentBuilder = require("./Builder/ComponentBuilder.js");
 exports.CommandBuilder = require("./Builder/CommandBuilder.js");
 exports.EventBuilder = require("./Builder/EventBuilder.js");
 // Module

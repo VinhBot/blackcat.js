@@ -1,53 +1,58 @@
 const EventEmitter = require("node:events").EventEmitter;
 const mongoose = require("mongoose");
 
-const inventory = mongoose.model("inventory", new mongoose.Schema({
-    lastUpdated: { type: mongoose.SchemaTypes.Date, default: new Date() },
-    guildID: { type: mongoose.SchemaTypes.String, default: null },
-    inventory: { type: mongoose.SchemaTypes.Array },
-}));
-
-const currency = mongoose.model("currency", new mongoose.Schema({
-    userName: mongoose.SchemaTypes.String,
-    userID: mongoose.SchemaTypes.String, 
-    guildID: mongoose.SchemaTypes.String,
-    inventory: mongoose.SchemaTypes.Array,
-    begTimeout: { type: mongoose.SchemaTypes.Number, default: 240 },
-    bankSpace: { type: mongoose.SchemaTypes.Number, default: 0 },
-    networth: { type: mongoose.SchemaTypes.Number, default: 0 },
-    wallet: { type: mongoose.SchemaTypes.Number, default: 0 },
-    bank: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastUpdated: { type: mongoose.SchemaTypes.Date, default: new Date() },
-    lastQuaterly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastMonthly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastGamble: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastHourly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastYearly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastBegged: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastWeekly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastDaily: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastHafly: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastWork: { type: mongoose.SchemaTypes.Number, default: 0 },
-    lastRob: { type: mongoose.SchemaTypes.Number, default: 0 },
-    streak: {
-        quaterly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        monthly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        yearly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        hourly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        weekly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        hafly: { type: mongoose.SchemaTypes.Number, default: 1 },
-        daily: { type: mongoose.SchemaTypes.Number, default: 1 },
-    }
-}));
-
 const CurrencySystem = class extends EventEmitter {
-    constructor () {
+    constructor() {
         super();
         this.maxWallet = 0;
         this.workCooldown = 0;
         this.wallet = 0;
         this.bank = 0;
         this.maxBank = 0;
+        this.inventory = mongoose.model("inventory", new mongoose.Schema({
+            lastUpdated: { type: mongoose.SchemaTypes.Date, default: new Date() },
+            guildID: { type: mongoose.SchemaTypes.String, default: null },
+            inventory: { type: mongoose.SchemaTypes.Array },
+        }));
+        this.currency = mongoose.model("currency", new mongoose.Schema({
+            userName: mongoose.SchemaTypes.String,
+            userID: mongoose.SchemaTypes.String,
+            guildID: mongoose.SchemaTypes.String,
+            inventory: mongoose.SchemaTypes.Array,
+            begTimeout: { type: mongoose.SchemaTypes.Number, default: 240 },
+            bankSpace: { type: mongoose.SchemaTypes.Number, default: 0 },
+            networth: { type: mongoose.SchemaTypes.Number, default: 0 },
+            wallet: { type: mongoose.SchemaTypes.Number, default: 0 },
+            bank: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastUpdated: { type: mongoose.SchemaTypes.Date, default: new Date() },
+            lastQuaterly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastMonthly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastGamble: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastHourly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastYearly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastBegged: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastWeekly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastDaily: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastHafly: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastWork: { type: mongoose.SchemaTypes.Number, default: 0 },
+            lastRob: { type: mongoose.SchemaTypes.Number, default: 0 },
+            streak: {
+                quaterly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                monthly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                yearly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                hourly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                weekly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                hafly: { type: mongoose.SchemaTypes.Number, default: 1 },
+                daily: { type: mongoose.SchemaTypes.Number, default: 1 },
+            },
+        }));
+    };
+    /**
+     * Kết nối đến mongoose.
+     * @param {string} mongourl link mongoose của bạn.
+     */
+    setMongoURL(mongourl) {
+
     };
     /**
      * Thiết lập số tiền tối đa được phép trong ví.
@@ -125,19 +130,11 @@ const CurrencySystem = class extends EventEmitter {
             id: null,
         };
         // Cập nhật inventory trong cơ sở dữ liệu
-        await inventory.findOneAndUpdate(
+        await this.inventory.findOneAndUpdate({ guildID: settings.guild.id || null },
             {
-                guildID: settings.guild.id || null,
+                $push: { inventory: item },
             },
-            {
-                $push: {
-                    inventory: item,
-                },
-            },
-            {
-                upsert: true,
-                useFindAndModify: false,
-            }
+            { upsert: true, useFindAndModify: false }
         );
         return {
             error: false,
@@ -201,24 +198,18 @@ const CurrencySystem = class extends EventEmitter {
             };
         };
         // Cập nhật danh sách mặt hàng vào cơ sở dữ liệu
-        inventory.findOneAndUpdate(
+        this.inventory.findOneAndUpdate({ guildID: settings.guild.id || null },
             {
-                guildID: settings.guild.id || null,
-            },
-            {
-                $set: {
-                    inventory: settings.shop,
-                },
+                $set: { inventory: settings.shop },
             },
             {
                 upsert: true,
                 useFindAndModify: false,
-            }
-        ).catch((e, d) => {
-            if (e) {
-                console.error("Đã sảy ra lỗi:", e);
-            };
-        });
+            }).catch((e, d) => {
+                if (e) {
+                    console.error("Đã sảy ra lỗi:", e);
+                };
+            });
         return {
             error: false,
             type: "success",
@@ -313,7 +304,7 @@ const CurrencySystem = class extends EventEmitter {
                 type: "Invalid-Operation",
             };
             // Lưu cập nhật vào cơ sở dữ liệu
-            await currency.findOneAndUpdate(
+            await this.currency.findOneAndUpdate(
                 {
                     guildID: settings.guild.id || null,
                     userID: settings.user.id || null,
@@ -384,7 +375,7 @@ const CurrencySystem = class extends EventEmitter {
         // Cộng dồn số tiền vào tài khoản người dùng (sau khi đã trừ giảm giá)
         data.wallet += discountedPrice;
         // Cập nhật dữ liệu người dùng
-        await currency.findOneAndUpdate(
+        await this.currency.findOneAndUpdate(
             {
                 guildID: settings.guild.id || null,
                 userID: settings.user.id || null,
@@ -426,7 +417,7 @@ const CurrencySystem = class extends EventEmitter {
         // Tìm người dùng user1 và user2
         let user1 = await this.findUser({ user: settings.user1, guild: settings.guild }, null, null, "transferItem");
         let user2 = await this.findUser({ user: settings.user2, guild: settings.guild }, null, null, "transferItem");
-        let name, amount_to_transfer, itemsLeft;
+        let name, amountToTransfer, itemsLeft;
         // Kiểm tra và xử lý item
         let thing = parseInt(settings.item);
         if (!thing || isNaN(thing) || thing <= 0 || thing > user1.inventory.length) return {
@@ -439,10 +430,10 @@ const CurrencySystem = class extends EventEmitter {
             error: true,
             type: "Invalid-Item",
         };
-        // Xử lý amount_to_transfer
-        amount_to_transfer = settings.amount;
-        if (amount_to_transfer === "all" || amount_to_transfer === "max") {
-            amount_to_transfer = user1.inventory[thing].amount;
+        // Xử lý amountToTransfer
+        amountToTransfer = settings.amount;
+        if (amountToTransfer === "all" || amountToTransfer === "max") {
+            amountToTransfer = user1.inventory[thing].amount;
             name = user1.inventory[thing].name;
             itemsLeft = 0;
             // Kiểm tra xem user2 có item này không
@@ -450,20 +441,20 @@ const CurrencySystem = class extends EventEmitter {
             if (user2ItemIndex === -1) {
                 user2.inventory.push({
                     name: user1.inventory[thing].name,
-                    amount: amount_to_transfer,
+                    amount: amountToTransfer,
                 });
             } else {
-                user2.inventory[user2ItemIndex].amount += amount_to_transfer;
+                user2.inventory[user2ItemIndex].amount += amountToTransfer;
             };
             // Xóa item khỏi inventory của user1
             user1.inventory.splice(thing, 1);
         } else {
-            amount_to_transfer = parseInt(amount_to_transfer) || 1;
-            if (amount_to_transfer <= 0) return {
+            amountToTransfer = parseInt(amountToTransfer) || 1;
+            if (amountToTransfer <= 0) return {
                 error: true,
                 type: "Invalid-Amount",
             };
-            if (amount_to_transfer > user1.inventory[thing].amount) return {
+            if (amountToTransfer > user1.inventory[thing].amount) return {
                 error: true,
                 type: "In-Sufficient-Amount",
             };
@@ -472,12 +463,12 @@ const CurrencySystem = class extends EventEmitter {
             if (user2ItemIndex === -1) {
                 user2.inventory.push({
                     name: user1.inventory[thing].name,
-                    amount: amount_to_transfer,
+                    amount: amountToTransfer,
                 });
             } else {
-                user2.inventory[user2ItemIndex].amount += amount_to_transfer;
+                user2.inventory[user2ItemIndex].amount += amountToTransfer;
             };
-            user1.inventory[thing].amount -= amount_to_transfer;
+            user1.inventory[thing].amount -= amountToTransfer;
             itemsLeft = user1.inventory[thing].amount;
         };
         // Đánh dấu inventory đã được thay đổi
@@ -488,12 +479,11 @@ const CurrencySystem = class extends EventEmitter {
         return {
             error: false,
             type: "success",
-            transferred: amount_to_transfer,
+            transferred: amountToTransfer,
             itemName: name,
             itemsLeft: itemsLeft,
         };
     };
-    //#region global.js
     /**
      * Trả về thông tin chi tiết về các hoạt động của người dùng (hourly, hafly, daily, ...).
      * @param {Object} settings - Cài đặt cho người dùng.
@@ -627,7 +617,6 @@ const CurrencySystem = class extends EventEmitter {
         };
         return `${seconds} giây`;
     };
-    //#region management.js
     /**
      * Tìm kiếm người dùng trong cơ sở dữ liệu. Nếu không tìm thấy, tạo người dùng mới.
      * @param {Object} settings - Cài đặt cho người dùng.
@@ -641,7 +630,7 @@ const CurrencySystem = class extends EventEmitter {
         settings.user = typeof settings.user === "string" ? { id: settings.user } : settings.user || { id: null };
         settings.guild = typeof settings.guild === "string" ? { id: settings.guild } : settings.guild || { id: null };
         // Tìm kiếm người dùng trong cơ sở dữ liệu
-        let find = await currency.findOne({
+        let find = await this.currency.findOne({
             userID: uid || settings.user.id,
             guildID: gid || settings.guild.id || null,
         });
@@ -670,21 +659,21 @@ const CurrencySystem = class extends EventEmitter {
      * Tạo người dùng mới trong cơ sở dữ liệu.
      * @param {Object} settings - Cài đặt cho người dùng.
      * @param {boolean} [user2=false] - Xác định có phải là người dùng thứ hai không.
-     * @param {string} [uid] - ID người dùng.
-     * @param {string} [gid] - ID guild.
+     * @param {string} [userID] - ID người dùng.
+     * @param {string} [guildID] - ID guild.
      * @returns {Object} - Người dùng mới tạo.
      */
-    async makeUser(settings, user2 = false, uid, gid) {
+    async makeUser(settings, user2 = false, userID, guildID) {
         // Kiểm tra và định dạng lại các thuộc tính user và guild trong settings
         settings.user = typeof settings.user === "string" ? { id: settings.user } : settings.user || { id: null };
         settings.guild = typeof settings.guild === "string" ? { id: settings.guild } : settings.guild || { id: null };
         // Lấy thông tin người dùng dựa trên tham số đầu vào
-        const user = user2 ? settings.user2 : uid || settings.user;
+        const user = user2 ? settings.user2 : userID || settings.user;
         // Tạo người dùng mới trong cơ sở dữ liệu
-        const newUser = await currency.create({
+        const newUser = await this.currency.create({
             userName: user.globalName,
             userID: user.id,
-            guildID: gid || settings.guild.id || null,
+            guildID: guildID || settings.guild.id || null,
             wallet: this.wallet || 0,
             bank: this.bank || 0,
             bankSpace: this.maxBank || 0,
@@ -707,19 +696,21 @@ const CurrencySystem = class extends EventEmitter {
         return newUser;
     };
     /**
+     * Hàm sleep để đợi một khoảng thời gian nhất định.
+     * @param {number} milliseconds - Số mili giây cần đợi.
+     * @returns {Promise} - Một Promise giải quyết sau khoảng thời gian đã đợi.
+     */
+    sleep(milliseconds) {
+        return new Promise((resolve) => setTimeout(resolve, milliseconds))
+    };
+    /**
      * Lưu dữ liệu người dùng với thời gian đợi ngẫu nhiên.
      * @param {Object} data - Dữ liệu người dùng đầu tiên.
      * @param {Object} [data2] - Dữ liệu người dùng thứ hai, nếu có.
      */
     async saveUser(data, data2) {
-        /**
-         * Hàm sleep để đợi một khoảng thời gian nhất định.
-         * @param {number} milliseconds - Số mili giây cần đợi.
-         * @returns {Promise} - Một Promise giải quyết sau khoảng thời gian đã đợi.
-         */
-        const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
         // Đợi một khoảng thời gian ngẫu nhiên từ 100ms đến 1000ms
-        await sleep(Math.floor(Math.random() * 10 + 1) * 100);
+        await this.sleep(Math.floor(Math.random() * 10 + 1) * 100);
         // Thử lưu dữ liệu người dùng đầu tiên
         try {
             await data.save();
@@ -989,7 +980,7 @@ const CurrencySystem = class extends EventEmitter {
         // Thiết lập giá trị cho settings.guild
         settings.guild = typeof settings.guild === "string" ? { id: settings.guild } : settings.guild || { id: null };
         // Tìm tất cả người dùng có trong guild
-        let data = await currency.find({ guildID: settings.guild.id || null });
+        let data = await this.currency.find({ guildID: settings.guild.id || null });
         // Kiểm tra nếu không có dữ liệu
         if (!data || data.length === 0) return {
             error: true,
@@ -1094,7 +1085,7 @@ const CurrencySystem = class extends EventEmitter {
         // Thiết lập giá trị cho settings.guild
         settings.guild = typeof settings.guild === "string" ? { id: settings.guild } : settings.guild || { id: null };
         // Tìm tất cả người dùng có trong guild
-        let data = await currency.find({ guildID: settings.guild.id || null });
+        let data = await this.currency.find({ guildID: settings.guild.id || null });
         // Kiểm tra nếu không có dữ liệu
         if (!data || data.length === 0) return {
             error: true,
@@ -1141,7 +1132,7 @@ const CurrencySystem = class extends EventEmitter {
         let user1 = await this.findUser(settings, null, null, "transferMoney");
         const oldData = user1;
         // Tìm user2 hoặc tạo mới nếu chưa tồn tại và lấy dữ liệu cũ của user2
-        let user2 = await currency.findOne({ userID: settings.user2.id, guildID: settings.guild.id || null }) || await this.makeUser(settings, true);
+        let user2 = await this.currency.findOne({ userID: settings.user2.id, guildID: settings.guild.id || null }) || await this.makeUser(settings, true);
         const oldData1 = user2;
         // Chuyển đổi amount sang kiểu số nguyên
         let money = parseInt(settings.amount);
@@ -1168,7 +1159,6 @@ const CurrencySystem = class extends EventEmitter {
             rawData1: user2,
         };
     }
-    //#region moneyMaking.js
     /**
      * Hàm xử lý hành động xin xỏ tiền từ người dùng.
      * @param {Object} settings - Các thiết lập cho hành động xin xỏ.
@@ -1515,7 +1505,7 @@ const CurrencySystem = class extends EventEmitter {
         let user1 = await this.findUser(settings, null, null, "rob");
         const oldData = { ...user1 }; // Sao chép dữ liệu cũ để so sánh
         // Tìm thông tin người dùng thứ hai
-        let user2 = await currency.findOne({ userID: settings.user2.id, guildID: settings.guild.id || null });
+        let user2 = await this.currency.findOne({ userID: settings.user2.id, guildID: settings.guild.id || null });
         if (!user2) user2 = await this.makeUser(settings, true);
         const oldData2 = { ...user2 }; // Sao chép dữ liệu cũ để so sánh
         let lastRob = user1.lastRob;
@@ -1573,7 +1563,6 @@ const CurrencySystem = class extends EventEmitter {
             amount: random,
         };
     };
-    //#region infomative.js
     /**
      * Lấy số dư hiện tại của người dùng và cập nhật giá trị tài sản ròng.
      * @param {Object} settings - Thông tin  cấu hình để tìm người dùng.
@@ -1607,7 +1596,7 @@ const CurrencySystem = class extends EventEmitter {
         // Tìm tất cả người dùng trong guild hoặc tất cả người dùng nếu guildID không được cung cấp
         let query = guildID ? { guildID } : {};
         // Tìm và sắp xếp dữ liệu theo networth giảm dần
-        let data = await currency.find(query).sort({ networth: -1 });
+        let data = await this.currency.find(query).sort({ networth: -1 });
         return data;
     };
     /**
@@ -1659,7 +1648,7 @@ const CurrencySystem = class extends EventEmitter {
             id: null
         };
         // Tìm kho hàng trong cơ sở dữ liệu dựa trên guildID
-        let find = await inventory.findOne({ guildID: settings.guild.id || null });
+        let find = await this.inventory.findOne({ guildID: settings.guild.id || null });
         // Nếu không tìm thấy kho hàng, tạo mới kho hàng và trả về
         if (!find) find = await this.makeInventory(settings);
         // Kiểm tra và thiết lập mô tả mặc định cho các mặt hàng nếu cần
@@ -1693,7 +1682,7 @@ const CurrencySystem = class extends EventEmitter {
             settings.guild = { id: null };
         };
         // Tạo một đối tượng kho hàng mới
-        const inv = new inventory({
+        const inv = new this.inventory({
             guildID: settings.guild.id || null,
             inventory: [],
         });
@@ -1752,7 +1741,7 @@ const CurrencySystem = class extends EventEmitter {
             itemId: item.itemId || this.makeid(),
         });
         // Cập nhật dữ liệu người dùng trong cơ sở dữ liệu
-        await currency.findOneAndUpdate(
+        await this.currency.findOneAndUpdate(
             {
                 guildID: settings.guild.id || null,
                 userID: settings.user.id || null,

@@ -1,6 +1,6 @@
-import { ComponentBuilders } from "../../src/blackcat.js";
+import { ComponentBuilder } from "../../src/blackcat";
 
-const createComponent = new ComponentBuilders([
+const createComponent = new ComponentBuilder([
     // https://discordjs.guide/message-components/buttons.html#building-buttons
     {
         type: "ButtonBuilder", // Kiểu của thành phần (ButtonBuilder).
@@ -8,7 +8,7 @@ const createComponent = new ComponentBuilders([
             {
                 customId: "button1", // ID tùy chỉnh cho button.
                 label: "Button 1", // tên được hiển thị trên button.
-                style: "Secondary", // Kiểu của button. Có thể là "Primary", "Secondary", "Success", "Danger" hoặc "Link".
+                style: 1, // Kiểu của button. Có thể là "Primary", "Secondary", "Success", "Danger" hoặc "Link".
                 disabled: false, // Cho biết button có bị vô hiệu hóa không.
             },
             {

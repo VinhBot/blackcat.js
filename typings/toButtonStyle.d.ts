@@ -1,5 +1,4 @@
 import { ButtonStyle } from "discord.js";
-
 /**
  * Chuyển đổi kiểu của button thành giá trị hợp lệ.
  * @param {string} style - Kiểu của button.

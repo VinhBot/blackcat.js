@@ -17,21 +17,21 @@ const client = new RegistrationClient({
         developer: "788208207465938954", // ID discord của chủ bot.
         prefixCommand: "sdsdsdsd"
     },
-    commandHandler: { // Các tùy chọn mặc định của lệnh.
-        setCurrentLanguage: "vi",
-        prefixCommand: {
-            messageCreate: false,
-            pathToCommand: "./PrefixCommands",
-        },
-        slashCommand: {
-            restVersion: "10",
-            pathToCommand: "./SlashCommands",
-        },
-        eventHandler: {
-            eventFolder: ["Guilds"],
-            pathToEvent: "./Events"
-        }
-    },
+    // commandHandler: { // Các tùy chọn mặc định của lệnh.
+    //     setCurrentLanguage: "vi",
+    //     prefixCommand: {
+    //         messageCreate: false,
+    //         pathToCommand: "./PrefixCommands",
+    //     },
+    //     slashCommand: {
+    //         restVersion: "10",
+    //         pathToCommand: "./SlashCommands",
+    //     },
+    //     eventHandler: {
+    //         eventFolder: ["Guilds"],
+    //         pathToEvent: "./Events"
+    //     }
+    // },
 });
 
 client.build({ login: false, checkUpdate: true });

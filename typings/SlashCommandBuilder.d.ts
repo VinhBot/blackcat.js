@@ -1,29 +1,29 @@
-import { PermissionsString, Interaction, ApplicationCommandType } from "discord.js";
+import { PermissionsString, Interaction, ApplicationCommandType, ApplicationCommandOptionType } from "discord.js";
 import { RegistrationClient  } from "./RegistrationClient";
 
 interface SlashCommandBuilderOptions {
     /**
-     * Tên của lệnh 
+     * Tên của lệnh.
      */
     name: string;
     /**
-     * Mô tả của lệnh
+     * Mô tả của lệnh.
      */
     description: string;
     /**
-     * Quyền cần thiết để người dùng có thể sử dụng lệnh
+     * Quyền cần thiết để người dùng có thể sử dụng lệnh.
      */
     userPerms?: Array<PermissionsString>;
     /**
-     * Lệnh chỉ dành cho chủ bot
+     * Lệnh chỉ dành cho chủ bot.
      */
     owner: boolean;
     /**
-     * Thời gian chờ tái sử dụng lệnh
+     * Thời gian chờ tái sử dụng lệnh.
      */
     cooldown: number;
     /**
-     * Thư mục chứa lệnh
+     * Thư mục chứa lệnh.
      */
     category: string;
     /**
@@ -35,7 +35,7 @@ interface SlashCommandBuilderOptions {
      */
     options: Array<{
         name: string;
-        type: "Subcommand" | "SubcommandGroup" | "String" | "Integer" | "Boolean" | "User" | "Channel" | "Role" | "Mentionable" | "Number" | "Attachment";
+        type: ApplicationCommandOptionType | "Subcommand" | "SubcommandGroup" | "String" | "Integer" | "Boolean" | "User" | "Channel" | "Role" | "Mentionable" | "Number" | "Attachment";
         description: string;
         required: boolean;
         options?: Array<any>;
@@ -71,10 +71,6 @@ export declare class SlashCommandBuilder {
      * export default PingCommands;
      */
     constructor(options: SlashCommandBuilderOptions);
-    /**
-     * Hàm thực thi lệnh của bạn  
-     */
-    public executeCommand(callback: (client: RegistrationClient, interaction: Interaction) => void): void; // Thêm kiểu dữ liệu cho các tham số
     /**
      * Chuyển đổi bộ xây dựng lệnh slash thành đối tượng JSON.
      * @returns {Object} Biểu diễn JSON của bộ xây dựng lệnh slash.

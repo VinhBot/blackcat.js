@@ -1,4 +1,4 @@
-import { EmojiIdentifierResolvable } from "discord.js";
+import { EmojiIdentifierResolvable, ButtonStyle } from "discord.js";
 
 interface ButtonBuilder {
     /**
@@ -24,7 +24,7 @@ interface ButtonBuilder {
         /**
          * Kiểu của button. Có thể là "Primary", "Secondary", "Success", "Danger" hoặc "Link".
          */
-        style: "Primary" | "Secondary" | "Success" | "Danger" | "Link";
+        style: ButtonStyle | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
         /**
          * Emoji được hiển thị trên button.
          */

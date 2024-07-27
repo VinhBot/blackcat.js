@@ -33,7 +33,7 @@ const client = new RegistrationClient({
     },
 });
 
-client.build({ login: false });
+client.build({ login: false, checkUpdate: true });
 ```
 ## nếu bạn muốn chạy prefix theo database.
 ### ví dụ: mongoose 

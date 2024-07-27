@@ -126,7 +126,7 @@ interface CommandHandlerOptions {
 /**
  * 
  */
-interface ClientOptions<T extends ClientConfig> {
+interface ClientOptions<Config extends ClientConfig> {
     /**
      * Thiết lập tùy chọn cho Client của bạn
      * @see https://discord.js.org/docs/packages/discord.js/14.14.1/Client:Class
@@ -135,7 +135,7 @@ interface ClientOptions<T extends ClientConfig> {
     /**
      * Định dạng cấu hình cho bot
      */
-    config: T | DefaultConfig,
+    config: Config | DefaultConfig,
     /**
      * thiết lập các cài đặt mặc định của modules
      */

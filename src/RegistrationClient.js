@@ -1,9 +1,7 @@
 // Import file
-const { Client, AllowedMentionsTypes, Partials, Collection, Events, REST, Routes, PermissionsBitField, ApplicationCommandType, InteractionType, GatewayIntentBits } = require("discord.js");
+const { Client, AllowedMentionsTypes, Partials, Collection, Events, REST, Routes, PermissionsBitField, ApplicationCommandType, InteractionType, GatewayIntentBits, EmbedBuilder } = require("discord.js");
+const { globalFilePath, MessageCreate, MessageEmbed } = require("./Functions/functions.js");
 const getLocalizedString = require("./Language/getLocalizedString.js");
-const globalFilePath = require("./Functions/globalFilePath.js");
-const MessageCreate = require("./Functions/MessageCreate.js");
-const MessageEmbed = require("./Functions/MessageEmbed.js");
 // Import package theo yêu cầu
 const { AsciiTable3 } = require("ascii-table3");
 const chalk = require("chalk");
@@ -18,7 +16,7 @@ module.exports = class RegistrationClient extends Client {
      * @param {Object} options.config - Cấu hình bot.
      * @param {Object} options.commandHandler - Tùy chọn cho commandHandler.
      */
-    constructor (options) {
+    constructor(options) {
         super(options.discordClient || {
             allowedMentions: {
                 parse: [
@@ -80,24 +78,30 @@ module.exports = class RegistrationClient extends Client {
                     this.login(this.config.botToken);
                 };
                 if (options.checkUpdate) {
-                    const _packages = require("../package.json");
-                    const info = {
-                        version: _packages.version,
-                        author: _packages.author,
-                        releaseDate: "16-6-2024",
-                        changes: [
-                            "Cải thiện hiệu suất",
-                            "Sửa một số lỗi",
-                            "Thêm một số tính năng mới"
-                        ],
-                    };
-                    console.log(chalk.red("Phiên bản mới đã được phát hành!"));
-                    console.table([
-                        { "Thuộc tính": "Phiên bản", "Giá trị": info.version },
-                        { "Thuộc tính": "Ngày phát hành", "Giá trị": info.releaseDate },
-                        { "Thuộc tính": "Thay đổi", "Giá trị": info.changes.join(", ") },
-                        { "Thuộc tính": "Tác giả", "Giá trị": info.author }
-                    ]);
+                    const axios = require("axios");
+                    axios.get("https://registry.npmjs.com/blackcat.js").then((data) => {
+                        const _packages = require("../package.json");
+                        const dpackageData = data.data["dist-tags"].latest;
+                        if (_packages.version !== dpackageData) {
+                            const info = {
+                                version: _packages.version,
+                                author: _packages.author,
+                                releaseDate: "16-6-2024",
+                                changes: [
+                                    "Cải thiện hiệu suất",
+                                    "Sửa một số lỗi",
+                                    "Thêm một số tính năng mới"
+                                ],
+                            };
+                            console.log(chalk.red("Phiên bản mới đã được phát hành!"));
+                            console.table([
+                                { "Thuộc tính": "Phiên bản", "Giá trị": info.version },
+                                { "Thuộc tính": "Ngày phát hành", "Giá trị": info.releaseDate },
+                                { "Thuộc tính": "Thay đổi", "Giá trị": info.changes.join(", ") },
+                                { "Thuộc tính": "Tác giả", "Giá trị": info.author }
+                            ]);
+                        };
+                    });
                 };
                 resolve(this);
             } catch (error) {
@@ -291,12 +295,12 @@ module.exports = class RegistrationClient extends Client {
              * @param {number} cooldownTime - Thời gian cooldown cho lệnh (đơn vị: giây).
              * @returns {number | null} - Thời gian còn lại cho cooldown (nếu có), null nếu đã hết cooldown.
              */
-            function checkCooldown(commandName, cooldownTime) {
-                if (!this.cooldowns.has(commandName.name)) {
-                    this.cooldowns.set(commandName.name, new Collection());
+            function checkCooldown(client, commandName, cooldownTime) {
+                if (!client.cooldowns.has(commandName.name)) {
+                    client.cooldowns.set(commandName.name, new Collection());
                 };
                 const now = Date.now();
-                const timestamps = this.cooldowns.get(commandName.name);
+                const timestamps = client.cooldowns.get(commandName.name);
                 const cooldownAmount = cooldownTime * 1000; // chuyển cooldownTime từ giây sang milliseconds
                 if (timestamps.has(interaction.user.id)) {
                     const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
@@ -336,7 +340,7 @@ module.exports = class RegistrationClient extends Client {
                             }))]
                         });
                         // Kiểm tra cooldown
-                        const remainingTime = checkCooldown(SlashCommands, SlashCommands.cooldown);
+                        const remainingTime = checkCooldown(this, SlashCommands, SlashCommands.cooldown);
                         if (remainingTime !== null) return await interaction.reply({
                             content: getLocalizedString({
                                 lang: this.currentLanguage,
