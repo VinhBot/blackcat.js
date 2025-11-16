@@ -1,0 +1,23 @@
+{
+  "name": "blackcat-database",
+  "author": "",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "",
+  "scripts": {
+    "build": "npx tsup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "esbuild-plugin-version-injector": "^1.2.1",
+    "mongoose": "^8.19.4",
+    "tsup": "^8.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,65 @@
+{
+    "name": "blackcat.js-music",
+    "version": "1.0.0",
+    "description": "A powerful Discord.js module for simplifying music commands and effortless playback of various sources with integrated audio filters.",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "require": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "import": {
+                "types": "./dist/index.d.mts",
+                "default": "./dist/index.mjs"
+            }
+        }
+    },
+    "directories": {
+        "lib": "src",
+        "test": "tests"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/skick1234/DisTube.git"
+    },
+    "keywords": [
+        "youtube",
+        "music",
+        "discord",
+        "discordjs",
+        "bot",
+        "queue",
+        "musicbot",
+        "discord-music-bot",
+        "music-bot",
+        "discord-js"
+    ],
+    "author": "Skick (https://github.com/skick1234)",
+    "license": "MIT",
+    "dependencies": {
+        "tiny-typed-emitter": "^2.1.0",
+        "undici": "^7.7.0"
+    },
+    "devDependencies": {
+        "@discordjs/opus": "^0.10.0",
+        "@discordjs/voice": "^0.18.0",
+        "@types/node": "^22.14.0",
+        "discord.js": "^14.18.0",
+        "esbuild-plugin-version-injector": "^1.2.1",
+        "tsup": "^8.4.0",
+        "typescript": "^5.8.3"
+    },
+    "peerDependencies": {
+        "@discordjs/voice": "*",
+        "discord.js": "14"
+    }
+}
