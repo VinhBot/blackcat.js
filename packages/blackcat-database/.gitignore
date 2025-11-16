@@ -1,0 +1,13 @@
+# Coverage directory
+coverage
+
+# Compiled folder
+dist
+
+# Dependency directories
+node_modules
+
+# Output of 'npm pack'
+*.tgz
+
+/docs
