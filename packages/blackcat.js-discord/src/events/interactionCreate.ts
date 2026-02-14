@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import type { Client, SlashCommandBuilderOptions } from ".."
+import type { Client } from ".."
 
 
 export default (client: Client, interaction: ChatInputCommandInteraction) => {

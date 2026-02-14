@@ -1,11 +1,11 @@
 
-import { Client as DiscordClient, Collection, Events, REST, Routes, SlashCommandBuilder } from "discord.js";
+import { Client as DiscordClient, Collection, Events, REST, Routes, SlashCommandBuilder as DiscordSlashCommandBuilder } from "discord.js";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import fs from "node:fs";
 
 import type { Config, ClientOptions, RegisterEventsOptions, RegisterCommandsOptions, RegisterSlashCommandsOptions } from "./type";
-import type { CommandBuilderOptions, EventBuilderOptions, SlashCommandBuilderOptions } from "./builder";
+import type { CommandBuilderOptions, EventBuilderOptions, SlashCommandBuilder } from "./builder";
 export * from "./builder";
 export * from "./events";
 export * from "./manager";
@@ -16,7 +16,7 @@ export class Client extends DiscordClient<boolean> {
     public readonly config?: Config;
     public readonly commands?: Collection<string, CommandBuilderOptions>;
     public readonly aliases?: Collection<string, string>;
-    public readonly slashCommands?: Collection<string, SlashCommandBuilderOptions>;
+    public readonly slashCommands?: Collection<string, SlashCommandBuilder>;
     public readonly prefix: string;
     constructor(options: ClientOptions) {
         super(options);
@@ -121,26 +121,25 @@ export class Client extends DiscordClient<boolean> {
     /* =======================
      * slash Command Loader
      * ======================= */
-    private registerSlashCommands(options: RegisterSlashCommandsOptions): Collection<string, SlashCommandBuilderOptions> {
-        const slashCommands = new Collection<string, SlashCommandBuilderOptions>();
-        const builtCommands: ReturnType<SlashCommandBuilder["toJSON"]>[] = [];
-        for (const dir of fs.readdirSync(options.directory)) {
+    private registerSlashCommands(options: RegisterSlashCommandsOptions): Collection<string, SlashCommandBuilder<any>> {
+        const slashCommands = new Collection<string, SlashCommandBuilder<any>>();
+        const builtCommands: ReturnType<DiscordSlashCommandBuilder["toJSON"]>[] = [];
+        fs.readdirSync(options.directory).forEach(async(dir) => {
             const dirPath = join(options.directory, dir);
             for (const file of fs.readdirSync(dirPath).filter((file) => file.endsWith("js") || file.endsWith("ts"))) {
                 try {
-                    const modulePath = pathToFileURL(join(dirPath, file)).href;
-                    const command: SlashCommandBuilderOptions & { build(): SlashCommandBuilder } = require(modulePath).default ?? require(modulePath);
+                    const command: SlashCommandBuilder<any> = await import(pathToFileURL(join(dirPath, file)).href).then((d) => d.default);
                     if (typeof command?.build !== "function") {
                         throw new Error("Invalid command structure");
                     }
                     slashCommands.set(command.commandName, command);
                     builtCommands.push(command.build().toJSON());
-                    options.onLoad?.({ ...command, file });
+                    options.onLoad?.(Object.assign(command, { file }));
                 } catch (error) {
                     options.onError?.({ file, error: error as Error });
                 }
             }
-        }
+        });
         this.once("clientReady", async (bot) => {
             const rest = new REST({ version: "10" }).setToken(this.token!);
             await rest.put(options.guildId ? Routes.applicationGuildCommands(bot.user!.id, options.guildId) : Routes.applicationCommands(bot.user!.id), { 

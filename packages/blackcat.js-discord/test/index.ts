@@ -29,15 +29,15 @@ const client = new Client({
             console.error(`${command.file}:`, command.error);
         }
     },
-    // registerSlashCommands: {
-    //     directory: "./slashCommands",
-    //     onLoad: (command) => {
-    //         console.log(chalk.yellowBright(`${command.commandName} - ok`));
-    //     },
-    //     onError: (command) => {
-    //         console.error(`${command.file}:`, command.error);
-    //     }
-    // }
+    registerSlashCommands: {
+        directory: "./slashCommands",
+        onLoad: (command) => {
+            console.log(chalk.yellowBright(`${command.commandName} - ok`));
+        },
+        onError: (command) => {
+            console.error(`${command.file}:`, command.error);
+        }
+    }
 });
 
 client.on("messageCreate", async (message) => messageHandler(client, message));

@@ -1,5 +1,5 @@
 import type { ClientOptions as DiscordClientOptions } from "discord.js";
-import type { CommandBuilderOptions, SlashCommandBuilderOptions } from "./builder";
+import type { CommandBuilderOptions, SlashCommandBuilder } from "./builder";
 /* =======================
  * Types & Interfaces
  * ======================= */
@@ -47,6 +47,6 @@ export interface RegisterCommandsOptions {
 export interface RegisterSlashCommandsOptions {
   directory: string;
   guildId?: string;
-  onLoad?: (command: SlashCommandBuilderOptions & { file: string }) => void;
+  onLoad?: (command: SlashCommandBuilder<any> & { file: string }) => void;
   onError?: (payload: { file: string; error: Error }) => void;
 }
