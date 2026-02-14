@@ -1,5 +1,5 @@
 import { GatewayIntentBits } from "discord.js";
-import { Client, messageHandler, CooldownManager } from "../src";
+import { Client, messageHandler } from "blackcat.js-discord";
 import chalk from "chalk";
 
 const config = {

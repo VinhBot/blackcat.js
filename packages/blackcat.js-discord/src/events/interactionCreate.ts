@@ -1,5 +1,6 @@
-import type { ChatInputCommandInteraction } from "discord.js";
+import type { ChatInputCommandInteraction, GuildMember } from "discord.js";
 import type { Client } from ".."
+import { cooldownManager } from "..";
 
 
 export default (client: Client, interaction: ChatInputCommandInteraction) => {
@@ -13,6 +14,13 @@ export default (client: Client, interaction: ChatInputCommandInteraction) => {
         if (command.memberpermissions && command.memberpermissions.length > 0 && !interaction.memberPermissions?.has(command.memberpermissions)) {
             return interaction.reply({});
         }
+        const cooldownMessage = cooldownManager.check(command, {
+            type: "interaction",
+            userId: interaction?.user.id,
+            guildId: interaction.guildId,
+            member: interaction.member as GuildMember,
+        });
+        if (cooldownMessage) return interaction.reply(cooldownMessage);
         //execute the Command
         command.execute(client, interaction);
     }
