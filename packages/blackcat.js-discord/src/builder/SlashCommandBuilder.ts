@@ -23,7 +23,7 @@ import type { Client, CooldownConfig } from "..";
  * Mapping giữa method lấy option của Discord Interaction
  * và kiểu dữ liệu trả về tương ứng.
  */
-type OptionGetReturnMap = {
+export type OptionGetReturnMap = {
     getString: string | null;
     getInteger: number | null;
     getNumber: number | null;
@@ -41,7 +41,7 @@ type OptionGetReturnMap = {
  *
  * @template TMethod Method dùng để lấy option từ interaction
  */
-type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
+export type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
     method: TMethod;
     description: string;
     required: boolean;
@@ -49,30 +49,30 @@ type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
 /**
  * Các option cụ thể tương ứng với Discord Slash Command API
  */
-type StringOption = BaseOption<"getString"> & {
+export type StringOption = BaseOption<"getString"> & {
     choices?: Array<{ name: string; value: string }>;
     minLength?: number;
     maxLength?: number;
 };
-type IntegerOption = BaseOption<"getInteger"> & {
+export type IntegerOption = BaseOption<"getInteger"> & {
     choices?: Array<{ name: string; value: number }>;
     min?: number;
     max?: number;
 };
-type NumberOption = BaseOption<"getNumber"> & {
+export type NumberOption = BaseOption<"getNumber"> & {
     choices?: Array<{ name: string; value: number }>;
     min?: number;
     max?: number;
 };
-type ChannelOption = BaseOption<"getChannel"> & {
+export type ChannelOption = BaseOption<"getChannel"> & {
     channelTypes?: Array<keyof typeof ChannelType>;
 };
-type BooleanOption = BaseOption<"getBoolean">;
-type UserOption = BaseOption<"getUser">;
-type MemberOption = BaseOption<"getMember">;
-type RoleOption = BaseOption<"getRole">;
-type MentionableOption = BaseOption<"getMentionable">;
-type AttachmentOption = BaseOption<"getAttachment">;
+export type BooleanOption = BaseOption<"getBoolean">;
+export type UserOption = BaseOption<"getUser">;
+export type MemberOption = BaseOption<"getMember">;
+export type RoleOption = BaseOption<"getRole">;
+export type MentionableOption = BaseOption<"getMentionable">;
+export type AttachmentOption = BaseOption<"getAttachment">;
 /**
  * Factory tạo option definition theo kiểu strongly-typed.
  *
@@ -91,7 +91,7 @@ export const option = Object.freeze({
     attachment: (data: Omit<AttachmentOption, "method">): AttachmentOption => ({ method: "getAttachment", ...data }),
 });
 
-type OptionFactory = typeof option;
+export type OptionFactory = typeof option;
 /**
  * Suy luận kiểu dữ liệu trả về của 1 option dựa trên:
  * - method (getString, getNumber, ...)
@@ -103,7 +103,7 @@ type OptionFactory = typeof option;
  * - Nếu `required: true` → trả về kiểu non-null
  * - Nếu `required: false | undefined` → trả về kiểu có thể null
  */
-type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof OptionGetReturnMap ? O["required"] extends true ? OptionGetReturnMap[T] : OptionGetReturnMap[T] | null : never : never;
+export type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof OptionGetReturnMap ? O["required"] extends true ? OptionGetReturnMap[T] : OptionGetReturnMap[T] | null : never : never;
 /**
  * Map toàn bộ option definitions sang object option-value tương ứng.
  */
