@@ -119,39 +119,60 @@ export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> 
  *
  * @template TOptions Object định nghĩa options
  */
+/**
+ * Cấu hình cho một Slash Command Builder.
+ *
+ * @template TOptions - Kiểu dữ liệu của object options sau khi được resolve.
+ * Mặc định là `undefined` nếu command không có options.
+ */
 export interface SlashCommandBuilderOptions<TOptions extends Record<string, any> | undefined = undefined> {
     /**
-     * Tên lệnh.
+     * Tên command (không chứa khoảng trắng).
+     * Đây là identifier duy nhất khi đăng ký slash command.
+     *
+     * Ví dụ: "ping", "ban", "userinfo"
      */
     commandName: string;
     /**
-     * Mô tả lệnh.
+     * Mô tả ngắn gọn cho slash command.
+     * Discord yêu cầu tối đa 100 ký tự.
      */
     description: string;
     /**
-     * 
+     * Danh sách quyền cần thiết để sử dụng command.
+     * Nếu không khai báo, mặc định mọi member đều có thể sử dụng.
+     *
+     * Ví dụ: ["Administrator", "BanMembers"]
      */
     memberpermissions?: PermissionsString[];
     /**
-     * 
+     * Cấu hình cooldown cho command.
+     * Quy định thời gian chờ giữa các lần sử dụng.
      */
-    cooldown: CooldownConfig;
+    cooldown?: CooldownConfig;
     /**
-     * Khai báo options cho lệnh.
+     * Factory dùng để định nghĩa và build options cho slash command.
      *
-     * @param {OptionFactory} option Option factory
-     * @returns Object options definition
+     * @param option - OptionFactory để thêm các option như string, user, role...
+     * @returns Object mô tả cấu trúc options (sẽ được resolve thành TOptions).
+     *
+     * Nếu không khai báo, command sẽ không có options.
      */
     options?: (option: OptionFactory) => TOptions;
     /**
-     * Hàm xử lý khi lệnh được gọi.
+     * Hàm xử lý khi command được gọi.
      *
-     * @param {Client} client Discord client
-     * @param {ChatInputCommandInteraction} interaction Interaction hiện tại
-     * @param {ResolveOptions<TOptions>} options Options đã được parse và infer type
+     * @param client - Discord client instance.
+     * @param interaction - ChatInputCommandInteraction từ Discord.
+     * @param options - Options đã được resolve sang kiểu TOptions.
+     *
+     * Lưu ý:
+     * - Nếu TOptions là undefined thì tham số options cũng có thể undefined.
+     * - Hàm này không trả về giá trị (void).
      */
     execute(client: Client, interaction: ChatInputCommandInteraction, options?: ResolveOptions<TOptions>): void;
 }
+
 /**
  * Builder wrapper cho Discord Slash Command,
  * hỗ trợ infer kiểu options ở compile-time.

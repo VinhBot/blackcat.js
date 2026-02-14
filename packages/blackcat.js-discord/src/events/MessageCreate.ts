@@ -1,10 +1,9 @@
 import { type Message, EmbedBuilder } from "discord.js";
-import { Client, CooldownManager } from "..";
+import { Client, cooldownManager } from "..";
 
 export const messageHandler = async (client: Client, message: Message) => {
     if (message.author.bot || !message.guild || !message.content) return;
     if (message.partial) await message.fetch();
-    const cooldownManager = new CooldownManager();
     const prefix = client.config!.prefix;
     const mentionPrefix = new RegExp(`^<@!?${client.user!.id}>`);
     const prefixPrefix = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, `\\$&`)}`);
@@ -39,7 +38,7 @@ export const messageHandler = async (client: Client, message: Message) => {
             guildId: message.guildId,
             member: message.member,
         });
-        console.log(cooldownMessage)
+
         if (cooldownMessage) {
             return message.reply(cooldownMessage);
         }
