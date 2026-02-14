@@ -1,12 +1,10 @@
-import { esbuildPluginVersionInjector } from "esbuild-plugin-version-injector";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
     entry: ["src/index.ts"],
-    format: ["cjs"], 
+    format: ["esm", "cjs"],
     target: "es2021", 
     outDir: "dist",
-    noExternal: [], 
     platform: "node",
     skipNodeModulesBundle: true,
     clean: true,
@@ -20,6 +18,5 @@ export default defineConfig({
         mangle: false, 
         keep_classnames: true,
         keep_fnames: true, 
-    },
-    esbuildPlugins: [esbuildPluginVersionInjector() as any]
+    }
 });

@@ -28,30 +28,13 @@ export class JSONDriver implements BaseDriver {
      */
     public minifyJSON: boolean;
     /**
-     * 
+     * JSONDriver class.
      * @param options.filePath Json database file path.
      * @param options.minifyJSON Minifies the JSON content in database file to save some space.
      */
     constructor(options: JSONDriverOptions) {
-        this.filePath = options.filePath;
+        this.filePath = options.filePath || "database.json";
         this.minifyJSON = options.minifyJSON || false;
-    }
-    /**
-     * Fetches the JSON database object from specified file.
-     *
-     * Type parameters:
-     *
-     * - `V` - The type of database object to return.
-     *
-     * @returns {Promise<V>} JSON database file object.
-     *
-     * @template V The type of database object to return.
-     */
-    public async fetchDatabaseFile<V = any>(): Promise<V> {
-        return fs.readFile(this.filePath, "utf-8").then((content) => JSON.parse(content) as V).catch((error) => {
-            console.error(`Failed to load database file: ${this.filePath}`, error);
-            return {} as V;
-        });
     }
     /**
      * Returns all data from JSON database.
@@ -60,8 +43,11 @@ export class JSONDriver implements BaseDriver {
      * 
      * @template V The type of data being returned.
      */
-    public all<V>(): Promise<V> {
-        return this.fetchDatabaseFile();
+    public async all<V>(): Promise<V> {
+        return fs.readFile(this.filePath, "utf-8").then((content) => JSON.parse(content) as V).catch((error) => {
+            console.error(`Failed to load database file: ${this.filePath}`, error);
+            return {} as V;
+        });
     }
     /**
      * Parses the key and fetches the value from JSON database.
@@ -76,7 +62,7 @@ export class JSONDriver implements BaseDriver {
      * @template V The type of data being returned.
      */
     public async get<V = any>(key: string): Promise<V | null> {
-        const data = await this.fetchDatabaseFile<any>();
+        const data = await this.all<any>();
         const keys = key.split(".");
         let result = data;
         for (const k of keys) {
@@ -85,7 +71,6 @@ export class JSONDriver implements BaseDriver {
         }
         return result as V;
     }
-
     /**
      * Parses the key and sets the value in JSON database.
      *
@@ -106,20 +91,17 @@ export class JSONDriver implements BaseDriver {
         return data;
     }
     /**
-     * Parses the key and deletes it from JSON database.
+     * Parses the key and deletes it from JSON database. If no key is provided, clears the database.
      * @param {V} key The key in JSON database.
      * @returns {Promise<boolean>} `true` if deleted successfully.
      */
-    public async delete<V = any>(key: V): Promise<boolean> {
-        await fs.writeFile(this.filePath, JSON.stringify(key, null, this.minifyJSON ? undefined : "\t"));
-        return true;
-    }
-    /**
-     * Clears the database.
-     * @returns {Promise<boolean>} `true` if cleared successfully.
-     */
-    public async clear(): Promise<boolean> {
-        await fs.writeFile(this.filePath, "{}");
+    public async delete<V = any>(key?: V): Promise<boolean> {
+        if(key === undefined) {
+            await fs.writeFile(this.filePath, "{}");
+            return true;
+        } else {
+            await fs.writeFile(this.filePath, JSON.stringify(key, null, this.minifyJSON ? undefined : "\t"));
+        };
         return true;
     }
 }

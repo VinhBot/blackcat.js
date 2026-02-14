@@ -1,11 +1,12 @@
+/**
+ * Represents the base driver interface for database operations.
+ */
 export interface BaseDriver {
     get<T = any>(key: string): Promise<T | null>;
     set<T = any>(key: string, value: T): Promise<T>;
     delete(key: any): Promise<boolean>;
-    clear(): Promise<boolean>;
     all(): Promise<Record<string, any>>;
 }
-
 /**
  * Represents the configuration object of the database instance.
  */

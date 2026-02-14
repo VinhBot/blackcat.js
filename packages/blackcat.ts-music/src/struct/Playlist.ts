@@ -39,7 +39,6 @@ export class Playlist<T = unknown> implements PlaylistInfo {
    */
   constructor(playlist: PlaylistInfo, { member, metadata }: ResolveOptions<T> = {}) {
     if (!Array.isArray(playlist.songs) || !playlist.songs.length) throw new DisTubeError("EMPTY_PLAYLIST");
-
     this.source = playlist.source.toLowerCase();
     this.songs = playlist.songs;
     this.name = playlist.name;
@@ -50,53 +49,49 @@ export class Playlist<T = unknown> implements PlaylistInfo {
     this.songs.forEach(s => (s.playlist = this));
     this.metadata = metadata as T;
   }
-
   /**
    * Playlist duration in second.
    */
   get duration() {
     return this.songs.reduce((prev, next) => prev + next.duration, 0);
   }
-
   /**
    * Formatted duration string `hh:mm:ss`.
    */
   get formattedDuration() {
     return formatDuration(this.duration);
   }
-
   /**
    * User requested.
    */
   get member() {
     return this.#member;
   }
-
   set member(member: GuildMember | undefined) {
     if (!isMemberInstance(member)) return;
     this.#member = member;
     this.songs.forEach(s => (s.member = this.member));
   }
-
   /**
    * User requested.
    */
   get user() {
     return this.member?.user;
   }
-
   /**
    * Optional metadata that can be used to identify the playlist.
    */
   get metadata() {
     return this.#metadata;
   }
-
   set metadata(metadata: T) {
     this.#metadata = metadata;
     this.songs.forEach(s => (s.metadata = metadata));
   }
-
+  /**
+   * String representation of the playlist.
+   * @returns A string with the playlist name and number of songs.
+   */
   toString() {
     return `${this.name} (${this.songs.length} songs)`;
   }

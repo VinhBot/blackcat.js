@@ -1,11 +1,6 @@
 import { DatabaseConfiguration, BaseDriver, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray } from "./types";
-import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject, Emitter } from "./utils";
+import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
 
-export interface DatabaseEvents<V> {
-    all: [value: V];
-    set: [value: V];
-    get: [value: V];
-}
 /**
  * Database class.
  *
@@ -23,24 +18,16 @@ export interface DatabaseEvents<V> {
  * const database = new Database({
  *    driver: new JSONDriver({ filePath: "./database.json", minifyJSON: false }),
  * });
- * // Mongodb
  *  
  * 
  */
-export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
+export class Database<V = any> {
     /**
      * The low-level database driver handling basic operations.
      */
     public driver: BaseDriver;
-    /**
-     * 
-     */
-    public debug?: boolean;
-
     constructor(options: DatabaseConfiguration) {
-        super();
         this.driver = options.driver;
-        this.debug = options.debug ?? false;
     }
     /**
      * Gets all the database contents from the cache.
@@ -60,7 +47,6 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
      */
     public async all<T extends Record<string, any> = Record<string, any>>(): Promise<T> {
         const allDatabase = await this.driver.all();
-        if(this.debug) this.emit("all", allDatabase as any);
         return allDatabase as Promise<T>;
     }
     /**
@@ -90,9 +76,7 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
         if (key !== undefined) {
             if (typeof key !== "string") {
                 throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
-            };
-            const database = await this.driver.get(key);
-            if(this.debug) this.emit("get", database);
+            }
             return this.driver.get(key);
         } else {
             return this.all() as V;
@@ -206,10 +190,10 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
         const allDatabase = await this.all();
         if (!key) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
-        };
+        }
         if (typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
-        };
+        }
         const keys = key.split(".");
         let currentObj = allDatabase;
 
@@ -223,7 +207,6 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
                 currentObj = currentObj[keys[i]];
             };
         };
-        if(this.debug) this.emit("set", allDatabase as any);
         await this.driver.set(keys[0], allDatabase);
         return typeof value == "object" && value !== null ? await this.get(keys[0]) as any : value as any;
     }
@@ -290,13 +273,13 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
 
         if (!isNumber(targetNumber)) {
             throw new BlackCatError("INVALID_TARGET", "number", typeOf(targetNumber));
-        };
+        }
         if (numberToAdd === undefined) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "numberToAdd");
-        };
+        }
         if (!isNumber(numberToAdd)) {
             throw new BlackCatError("INVALID_TYPE", "numberToAdd", "number", typeOf(numberToAdd));
-        };
+        }
 
         return await this.set(key, targetNumber + numberToAdd) as Promise<number>;
     }
@@ -374,16 +357,16 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
             const part = pathParts[i];
             if (!(part in target)) {
                 throw new BlackCatError("INVALID_KEY", key);
-            };
+            }
             if (i === pathParts.length - 1) {
                 if (!Array.isArray(target[part])) {
                     throw new BlackCatError("INVALID_TARGET", "array", typeOf(target[part]));
-                };
+                }
                 const uniqueValues = (values as any[]).filter(v => !target[part].includes(v));
                 target[part].push(...uniqueValues);
             } else {
                 target = target[part];
-            };
+            }
         };
         const topKey = pathParts[0];
         await this.set(topKey, root[topKey]);
@@ -757,24 +740,11 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
         return array[Math.floor(Math.random() * array.length)] ?? null;
     }
     /**
-     * Deletes everything from the database.
-     * @returns {Promise<boolean>} `true` if cleared successfully, `false` otherwise.
-     */
-    public async clear(): Promise<boolean> {
-        const databaseKeys = await this.keys();
-        if (!databaseKeys.length) return false;
-        this.driver.clear();
-        return true;
-    }
-    /**
      * Deletes the data from database by key.
      * @param {AutocompletableString<P>} key The key to access the target in database by.
      * @returns {Promise<boolean>} Whether the deletion was successful.
      */
-    public async delete<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
-        if (!key) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
-        };
+    public async delete<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<boolean> {
         if (typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeof key);
         };
@@ -790,7 +760,7 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
         }
         if (!(lastKey in currentObj)) return false;
         delete currentObj[lastKey];
-        await this.driver.set(keys[0], allDatabase);
+        await this.driver.delete(keys[0]);
         return true;
     }
     /**
@@ -800,6 +770,6 @@ export class Database<V = any> extends Emitter<DatabaseEvents<V>> {
      * @returns {Promise<boolean>} `true` if cleared successfully, `false` otherwise.
      */
     public async deleteAll(): Promise<boolean> {
-        return this.clear();
+        return this.delete();
     }
 }

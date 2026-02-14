@@ -173,14 +173,12 @@ export class DisTube extends TypedEmitter<TypedDisTubeEvents> {
     static get version() {
         return version;
     }
-
     /**
      * DisTube version
      */
     get version() {
         return version;
     }
-
     /**
      * Play / add a song or playlist from url.
      * Search and play a song (with {@link ExtractorPlugin}) if it is not a valid url.

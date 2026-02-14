@@ -1,5 +1,4 @@
 import { defineConfig } from "tsup";
-import { esbuildPluginVersionInjector } from "esbuild-plugin-version-injector";
 
 export default defineConfig({
   platform: "node",
@@ -22,5 +21,4 @@ export default defineConfig({
     keep_classnames: true,
     keep_fnames: true,
   },
-  esbuildPlugins: [esbuildPluginVersionInjector()],
 });

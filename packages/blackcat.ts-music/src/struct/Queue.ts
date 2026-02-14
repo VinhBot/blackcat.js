@@ -14,45 +14,45 @@ export class Queue extends DisTubeBase {
   /**
    * Voice connection of this queue.
    */
-  voice: DisTubeVoice;
+  public voice: DisTubeVoice;
   /**
    * List of songs in the queue (The first one is the playing song)
    */
-  songs: Song[];
+  public songs: Song[];
   /**
    * List of the previous songs.
    */
-  previousSongs: Song[];
+  public previousSongs: Song[];
   /**
    * Whether stream is currently stopped.
    */
-  stopped: boolean;
+  public stopped: boolean;
   /**
    * Whether or not the stream is currently playing.
    */
-  playing: boolean;
+  public playing: boolean;
   /**
    * Whether or not the stream is currently paused.
    */
-  paused: boolean;
+  public paused: boolean;
   /**
    * Type of repeat mode (`0` is disabled, `1` is repeating a song, `2` is repeating
    * all the queue). Default value: `0` (disabled)
    */
-  repeatMode: RepeatMode;
+  public repeatMode: RepeatMode;
   /**
    * Whether or not the autoplay mode is enabled. Default value: `false`
    */
-  autoplay: boolean;
+  public autoplay: boolean;
   /**
    * FFmpeg arguments for the current queue. Default value is defined with {@link DisTubeOptions}.ffmpeg.args.
    * `af` output argument will be replaced with {@link Queue#filters} manager
    */
-  ffmpegArgs: FFmpegArgs;
+  public ffmpegArgs: FFmpegArgs;
   /**
    * The text channel of the Queue. (Default: where the first command is called).
    */
-  textChannel?: GuildTextBasedChannel;
+  public textChannel?: GuildTextBasedChannel;
   #filters: FilterManager;
   /**
    * What time in the song to begin (in seconds).

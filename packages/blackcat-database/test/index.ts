@@ -1,12 +1,10 @@
-import { Database, JSONDriver } from "../src/index";
+import { Database, JSONDriver } from "blackcat.js-database";
 
 interface User {
     member: {
-        avatar: Array<any>
         user: {
-            id: number;
-            test: Array<any>;
-        }
+            name: string;
+        };
     }
 }
 
@@ -14,29 +12,19 @@ const database = new Database<User>({
     driver: new JSONDriver({
         filePath: "./data.json",
         minifyJSON: false,
-    }),
-    debug: true
+    })
 });
 
 (async () => {
-    // const data = await database.set("member", {
-    //     avatar: [
-    //         "discord.js",
-    //         "Test",
-    //     ],
-    //     user: {
-    //         id: 2003,
-    //         test: [
-    //             "22222",
-    //             "11111",
-    //         ]
-    //     }
-    // });
+    // Writes the specified value into database under the specified key.
+    // const set = await database.set("member.user.name", "blackcat.js");
+    // console.log(`🐈 set: ${set}`);
     // const data = await database.update("member.avatar", [
     //     "test", "xxxxxxxxxxxxxxxx", "22222222222"
     // ]);
-    const data = await database.get("member");
-    // const data = await database.delete("member.avatar");
+
+    // const data = await database.get("member");
+    const data = await database.delete();
     // const data = await database.all();
     // const data = await database.fetch("member.user");
     // const data = await database.add("member.user.id", 2)
@@ -51,10 +39,5 @@ const database = new Database<User>({
     // const data = await database.values("member.avatar");
     // const data = await database.random("member.avatar");
     // const data = await database.clear();
-
-    console.log(`🐈 result: ${JSON.stringify(data, null, 2)}`);
+    console.log(data);
 })();
-
-database.on("get", (value) => {
-    console.log(JSON.stringify(value, null, 2));
-});

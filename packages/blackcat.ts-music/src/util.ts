@@ -86,36 +86,15 @@ export function isMemberInstance(member: any): member is GuildMember {
 }
 
 export function isTextChannelInstance(channel: any): channel is GuildTextBasedChannel {
-  return (
-    Boolean(channel) &&
-    isSnowflake(channel.id) &&
-    isSnowflake(channel.guildId || channel.guild?.id) &&
-    Constants.TextBasedChannelTypes.includes(channel.type) &&
-    typeof channel.send === "function" &&
-    (typeof channel.nsfw === "boolean" || typeof channel.parent?.nsfw === "boolean")
-  );
+  return (Boolean(channel) && isSnowflake(channel.id) && isSnowflake(channel.guildId || channel.guild?.id) && Constants.TextBasedChannelTypes.includes(channel.type) && typeof channel.send === "function" && (typeof channel.nsfw === "boolean" || typeof channel.parent?.nsfw === "boolean"));
 }
 
 export function isMessageInstance(message: any): message is Message<true> {
-  // Simple check for using distube normally
-  return (
-    Boolean(message) &&
-    isSnowflake(message.id) &&
-    isSnowflake(message.guildId || message.guild?.id) &&
-    isMemberInstance(message.member) &&
-    isTextChannelInstance(message.channel) &&
-    Constants.NonSystemMessageTypes.includes(message.type) &&
-    message.member.id === message.author?.id
-  );
+  return (Boolean(message) && isSnowflake(message.id) && isSnowflake(message.guildId || message.guild?.id) && isMemberInstance(message.member) && isTextChannelInstance(message.channel) && Constants.NonSystemMessageTypes.includes(message.type) && message.member.id === message.author?.id);
 }
 
 export function isSupportedVoiceChannel(channel: any): channel is VoiceBasedChannel {
-  return (
-    Boolean(channel) &&
-    isSnowflake(channel.id) &&
-    isSnowflake(channel.guildId || channel.guild?.id) &&
-    Constants.VoiceBasedChannelTypes.includes(channel.type)
-  );
+  return (Boolean(channel) && isSnowflake(channel.id) && isSnowflake(channel.guildId || channel.guild?.id) && Constants.VoiceBasedChannelTypes.includes(channel.type));
 }
 
 export function isGuildInstance(guild: any): guild is Guild {
@@ -143,11 +122,7 @@ export function isClientInstance(client: any): client is Client {
   return Boolean(client) && typeof client.login === "function";
 }
 
-export function checkInvalidKey(
-  target: Record<string, any>,
-  source: Record<string, any> | string[],
-  sourceName: string,
-) {
+export function checkInvalidKey(target: Record<string, any>, source: Record<string, any> | string[], sourceName: string,) {
   if (!isObject(target)) throw new DisTubeError("INVALID_TYPE", "object", target, sourceName);
   const sourceKeys = Array.isArray(source) ? source : objectKeys(source);
   const invalidKey = objectKeys(target).find(key => !sourceKeys.includes(key));
@@ -174,19 +149,12 @@ export type Falsy = undefined | null | false | 0 | "";
 export const isTruthy = <T>(x: T | Falsy): x is T => Boolean(x);
 
 export const checkEncryptionLibraries = async () => {
-  if (await import("node:crypto").then(m => m.getCiphers().includes("aes-256-gcm"))) return true;
-  for (const lib of [
-    "@noble/ciphers",
-    "@stablelib/xchacha20poly1305",
-    "sodium-native",
-    "sodium",
-    "libsodium-wrappers",
-    "tweetnacl",
-  ]) {
+  if (await import("node:crypto").then((m) => m.getCiphers().includes("aes-256-gcm"))) return true;
+  for (const lib of ["@noble/ciphers", "@stablelib/xchacha20poly1305", "sodium-native", "sodium", "libsodium-wrappers", "tweetnacl"]) {
     try {
       await import(lib);
       return true;
-    } catch {}
+    } catch { }
   }
   return false;
 };

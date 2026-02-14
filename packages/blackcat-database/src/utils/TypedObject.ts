@@ -1,4 +1,4 @@
-import { ExtractObjectKeys, ExtractObjectValues, ExtractObjectEntries } from "../types/Database";
+import { ExtractObjectKeys, ExtractObjectValues, ExtractObjectEntries } from "../types";
 
 /**
  * Utility class for working with objects.

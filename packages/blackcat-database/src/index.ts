@@ -1,2 +1,2 @@
-export * from "./Database";
+export * from "./Database.ts";
 export * from "./drivers";

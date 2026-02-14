@@ -1,9 +1,8 @@
-import { esbuildPluginVersionInjector } from "esbuild-plugin-version-injector";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
     entry: ["src/index.ts"], // Tệp nguồn chính cần build
-    format: ["cjs"], // Định dạng đầu ra: CommonJS (cjs)
+    format: ["cjs", "esm"], // Định dạng đầu ra: CommonJS (cjs)
     target: "es2021", // Mục tiêu biên dịch: ES2021
     outDir: "dist", // Thư mục chứa file đầu ra sau khi build
     noExternal: [], // Danh sách package không được đặt là external
@@ -20,6 +19,5 @@ export default defineConfig({
         mangle: false, // Không làm rối tên biến
         keep_classnames: true, // Giữ tên class khi build
         keep_fnames: true, // Giữ tên hàm khi build
-    },
-    esbuildPlugins: [esbuildPluginVersionInjector() as any]
+    }
 });
