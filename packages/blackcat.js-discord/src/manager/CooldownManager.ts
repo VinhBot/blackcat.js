@@ -19,14 +19,12 @@ export enum PermissionLevel {
      * Không có quyền đặc biệt
      */
     USER = 0,
-
     /**
      * Moderator
      * Thường map sang:
      *   ManageGuild hoặc permission tuỳ cấu hình
      */
     MOD = 1,
-
     /**
      * Administrator
      * Map sang quyền Administrator
