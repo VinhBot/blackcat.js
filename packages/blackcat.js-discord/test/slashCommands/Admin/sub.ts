@@ -4,11 +4,7 @@ import {
     SlashSubCommandGroupBuilder
 } from "blackcat.js-discord";
 
-/* =============================
-   TẠO COMMAND
-============================= */
-
-export const adminCommand = new SlashCommandBuilderWithSubs({
+const adminCommand = new SlashCommandBuilderWithSubs({
     commandName: "admin",
     description: "Admin commands",
     cooldown: {
@@ -53,7 +49,7 @@ export const adminCommand = new SlashCommandBuilderWithSubs({
                             description: "Target user",
                             required: false,
                         }),
-                        userID: o.number({
+                        userid: o.number({
                             description: "user id",
                             required: false
                         }),
@@ -78,8 +74,11 @@ export const adminCommand = new SlashCommandBuilderWithSubs({
             }
             if (payload.group === "user" && payload.sub === "kick") {
                 payload.options.user;
-                payload.options.userID
+                payload.options.userid
             }
         }
     },
 });
+
+
+export default adminCommand;

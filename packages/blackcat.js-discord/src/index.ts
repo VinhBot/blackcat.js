@@ -129,7 +129,6 @@ export class Client extends DiscordClient<boolean> {
             for (const file of fs.readdirSync(dirPath).filter((file) => file.endsWith("js") || file.endsWith("ts"))) {
                 try {
                     const command: SlashCommandBuilder<any> = await import(pathToFileURL(join(dirPath, file)).href).then((d) => d.default);
-                    console.log(command)
                     if (typeof command?.build !== "function") {
                         throw new Error("Invalid command structure");
                     }

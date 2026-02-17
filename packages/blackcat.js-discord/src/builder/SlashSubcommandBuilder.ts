@@ -52,10 +52,6 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
     }
 }
 
-/* ======================================================
-   SUB COMMAND GROUP (NO NAME)
-====================================================== */
-
 export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCommandBuilder<any>>> {
     description: string;
     subcommands: TSubs;
@@ -70,11 +66,11 @@ interface SlashSubCommandGroupBuilderConfig<TSubs> {
 export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubCommandBuilder<any>>> implements ISlashSubCommandGroup<TSubs> {
     public readonly description: string;
     public readonly subcommands: TSubs;
-    constructor(config: SlashSubCommandGroupBuilderConfig<TSubs>) {
-        this.description = config.description;
-        this.subcommands = config.subcommands;
+    constructor(options: SlashSubCommandGroupBuilderConfig<TSubs>) {
+        this.description = options.description;
+        this.subcommands = options.subcommands;
     }
-    build(name: string, builder: DiscordSlashCommandBuilder) {
+    public build(name: string, builder: DiscordSlashCommandBuilder) {
         builder.addSubcommandGroup((group: SlashCommandSubcommandGroupBuilder) => {
             group.setName(name).setDescription(this.description);
             for (const key in this.subcommands) {
@@ -84,10 +80,6 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
         });
     }
 }
-
-/* ======================================================
-   TYPE HELPERS
-====================================================== */
 
 type InferSub<T> = T extends ISlashSubCommandBuilder<infer O> ? O extends Record<string, any> ? InferOptions<O> : {} : never;
 
@@ -109,9 +101,7 @@ type GroupSubUnion<TGroups> = {
         };
     }[keyof Subs] : never;
 }[keyof TGroups];
-/* ======================================================
-   CONFIG
-====================================================== */
+
 export interface ISlashCommandWithSubsConfig<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     commandName: string;
     description: string;
@@ -121,9 +111,6 @@ export interface ISlashCommandWithSubsConfig<TSubs extends Record<string, ISlash
     groups?: TGroups;
     execute(client: Client, interaction: ChatInputCommandInteraction, payload: DirectSubUnion<TSubs> | GroupSubUnion<TGroups>): void | Promise<void>;
 }
-/* ======================================================
-   MAIN BUILDER
-====================================================== */
 
 export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     public readonly commandName: string;

@@ -23,7 +23,7 @@ const client = new Client({
     registerCommands: {
         directory: "./commands",
         onLoad: (command) => {
-            console.log(chalk.blueBright(`${command.file} - ok`));
+            console.log(chalk.blueBright(`commands: ${command.commandName} - ok`));
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
@@ -32,7 +32,7 @@ const client = new Client({
     registerSlashCommands: {
         directory: "./slashCommands",
         onLoad: (command) => {
-            console.log(chalk.yellowBright(`${command.commandName} - ok`));
+            console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
@@ -42,4 +42,4 @@ const client = new Client({
 
 client.on("messageCreate", async (message) => messageHandler(client, message));
 
-// client.start();
+client.start();

@@ -18,6 +18,7 @@ import type {
     PermissionsString,
 } from "discord.js";
 import type { Client, CooldownConfig } from "..";
+import { CommandBuilder, cooldownManager } from "..";
 
 /**
  * Mapping giữa method lấy option của Discord Interaction
@@ -183,12 +184,14 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
     public readonly commandName: string;
     public readonly description: string;
     public readonly memberpermissions?: PermissionsString[];
+    public readonly cooldown?: CooldownConfig;
     private readonly defs?: TOptions;
     private readonly handler: SlashCommandBuilderOptions<TOptions>["execute"];
     constructor(config: SlashCommandBuilderOptions<TOptions>) {
         this.commandName = config.commandName;
         this.description = config.description;
         this.memberpermissions = config.memberpermissions || ["SendMessages"];
+        this.cooldown = config.cooldown;
         this.handler = config.execute;
         this.defs = config.options?.(option);
     }
@@ -205,6 +208,22 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
      * @param {ChatInputCommandInteraction} interaction Interaction hiện tại
      */
     async execute(client: Client, interaction: ChatInputCommandInteraction) {
+        if (this.cooldown) {
+            const commands = {
+                commandName: this.commandName,
+                cooldown: this.cooldown,
+            } as CommandBuilder | SlashCommandBuilder<undefined>;
+            const cooldownMessage = cooldownManager.check(commands, {
+                type: "interaction",
+                userId: interaction.user.id,
+                guildId: interaction.guildId,
+                member: interaction.member as GuildMember,
+            });
+            if (cooldownMessage) return await interaction.reply({
+                content: cooldownMessage,
+                ephemeral: true,
+            });
+        }
         const parsed = this.defs ? this.parseOptions(interaction, this.defs) : {};
         this.handler(client, interaction, parsed as ResolveOptions<TOptions>);
     }
