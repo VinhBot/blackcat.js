@@ -129,6 +129,7 @@ export class Client extends DiscordClient<boolean> {
             for (const file of fs.readdirSync(dirPath).filter((file) => file.endsWith("js") || file.endsWith("ts"))) {
                 try {
                     const command: SlashCommandBuilder<any> = await import(pathToFileURL(join(dirPath, file)).href).then((d) => d.default);
+                    console.log(command)
                     if (typeof command?.build !== "function") {
                         throw new Error("Invalid command structure");
                     }
@@ -145,9 +146,6 @@ export class Client extends DiscordClient<boolean> {
             await rest.put(options.guildId ? Routes.applicationGuildCommands(bot.user!.id, options.guildId) : Routes.applicationCommands(bot.user!.id), { 
                 body: builtCommands 
             });
-        });
-        this.on(Events.InteractionCreate, (interaction) => {
-            
         });
         return slashCommands;
     }

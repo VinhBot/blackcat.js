@@ -1,5 +1,5 @@
 import { type Message, EmbedBuilder } from "discord.js";
-import { Client, cooldownManager } from "..";
+import { Client } from "..";
 
 export const messageHandler = async (client: Client, message: Message) => {
     if (message.author.bot || !message.guild || !message.content) return;
@@ -31,16 +31,6 @@ export const messageHandler = async (client: Client, message: Message) => {
             return message.reply({
                 embeds: [new EmbedBuilder().setColor("Red").setTitle("❌ Bạn không có quyền sử dụng lệnh này.")]
             });
-        }
-        const cooldownMessage = cooldownManager.check(command, {
-            type: "message",
-            userId: message.author.id,
-            guildId: message.guildId,
-            member: message.member,
-        });
-
-        if (cooldownMessage) {
-            return message.reply(cooldownMessage);
         }
         command.execute(client, message, args);
     } catch (err) {

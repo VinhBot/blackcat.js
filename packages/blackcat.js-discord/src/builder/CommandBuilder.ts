@@ -1,5 +1,5 @@
 import type { Message, PermissionsString } from "discord.js";
-import type { Client, CooldownConfig } from "..";
+import { cooldownManager, type Client, type CooldownConfig } from "..";
 
 /**
  * Cấu hình cho Message Command (prefix command).
@@ -71,12 +71,31 @@ export class CommandBuilder {
     public aliases?: string[];
     public description?: string;
     public cooldown?: CooldownConfig;
-    public execute: (client: Client, message: Message, args: string[]) => void;
+    public handler: CommandBuilderOptions["execute"];
     constructor(options: CommandBuilderOptions) {
         this.commandName = options.commandName;
         this.aliases = options.aliases || [];
         this.description = options.description || "";
         this.cooldown = options.cooldown;
-        this.execute = options.execute;
+        this.handler = options.execute;
+    }
+
+    public execute(client: Client, message: Message, args: string[]) {
+        if (this.cooldown) {
+            const commandData = {
+                commandName: this.commandName,
+                cooldown: this.cooldown,
+            } as CommandBuilder;
+            const cooldownMessage = cooldownManager.check(commandData, {
+                type: "message",
+                userId: message.author.id,
+                guildId: message.guildId,
+                member: message.member,
+            });
+            console.log(cooldownMessage);
+            if (cooldownMessage) return message.reply(cooldownMessage);
+        }
+        
+        return this.handler(client, message, args);
     }
 }

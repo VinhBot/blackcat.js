@@ -42,4 +42,4 @@ const client = new Client({
 
 client.on("messageCreate", async (message) => messageHandler(client, message));
 
-client.start();
+// client.start();

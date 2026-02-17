@@ -14,18 +14,19 @@ export interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | 
     parse(interaction: ChatInputCommandInteraction): TOptions extends Record<string, any> ? InferOptions<TOptions> : {};
 }
 
+interface SlashSubCommandBuilderConfig<TOptions> {
+    description: string;
+    options?: (option: OptionFactory) => TOptions;
+}
+
 export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> implements ISlashSubCommandBuilder<TOptions> {
     public readonly description: string;
     private readonly defs?: TOptions;
-    constructor(config: {
-        description: string;
-        options?: (option: OptionFactory) => TOptions;
-    }) {
+    constructor(config: SlashSubCommandBuilderConfig<TOptions>) {
         this.description = config.description;
         this.defs = config.options?.(option);
     }
-
-    build(name: string, parent: | DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
+    public build(name: string, parent: | DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
         parent.addSubcommand((sub: SlashCommandSubcommandBuilder) => {
             sub.setName(name).setDescription(this.description);
             if (!this.defs) return sub;
@@ -40,8 +41,7 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
             return sub;
         });
     }
-
-    parse(interaction: ChatInputCommandInteraction): TOptions extends Record<string, any> ? InferOptions<TOptions> : {} {
+    public parse(interaction: ChatInputCommandInteraction): TOptions extends Record<string, any> ? InferOptions<TOptions> : {} {
         if (!this.defs) return {} as any;
         const result: any = {};
         for (const key in this.defs) {
@@ -62,13 +62,15 @@ export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCom
     build(name: string, builder: DiscordSlashCommandBuilder): void;
 }
 
+interface SlashSubCommandGroupBuilderConfig<TSubs> {
+    description: string;
+    subcommands: TSubs;
+}
+
 export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubCommandBuilder<any>>> implements ISlashSubCommandGroup<TSubs> {
     public readonly description: string;
     public readonly subcommands: TSubs;
-    constructor(config: {
-        description: string;
-        subcommands: TSubs;
-    }) {
+    constructor(config: SlashSubCommandGroupBuilderConfig<TSubs>) {
         this.description = config.description;
         this.subcommands = config.subcommands;
     }
@@ -110,11 +112,7 @@ type GroupSubUnion<TGroups> = {
 /* ======================================================
    CONFIG
 ====================================================== */
-
-export interface ISlashCommandWithSubsConfig<
-    TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {},
-    TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}
-> {
+export interface ISlashCommandWithSubsConfig<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     commandName: string;
     description: string;
     memberpermissions?: PermissionsString[];
@@ -123,15 +121,11 @@ export interface ISlashCommandWithSubsConfig<
     groups?: TGroups;
     execute(client: Client, interaction: ChatInputCommandInteraction, payload: DirectSubUnion<TSubs> | GroupSubUnion<TGroups>): void | Promise<void>;
 }
-
 /* ======================================================
    MAIN BUILDER
 ====================================================== */
 
-export class SlashCommandBuilderWithSubs<
-    TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {},
-    TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}
-> {
+export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     public readonly commandName: string;
     public readonly description: string;
     public readonly cooldown?: CooldownConfig;
@@ -149,7 +143,7 @@ export class SlashCommandBuilderWithSubs<
         this.handler = config.execute;
     }
 
-    build(): DiscordSlashCommandBuilder {
+    public build(): DiscordSlashCommandBuilder {
         const builder = new DiscordSlashCommandBuilder().setName(this.commandName).setDescription(this.description);
         for (const key in this.subs) {
             this.subs[key].build(key, builder);
@@ -160,24 +154,24 @@ export class SlashCommandBuilderWithSubs<
         return builder;
     }
 
-    async execute(client: Client, interaction: ChatInputCommandInteraction) {
+    public async execute(client: Client, interaction: ChatInputCommandInteraction) {
         if (this.cooldown) {
             const commands = {
                 commandName: this.commandName,
                 cooldown: this.cooldown,
             } as CommandBuilder | SlashCommandBuilder<undefined>;
-            const ctx: CommandContext = {
+            const cooldownMessage = cooldownManager.check(commands, {
                 type: "interaction",
                 userId: interaction.user.id,
                 guildId: interaction.guildId,
                 member: interaction.member as GuildMember,
-            };
-            const message = cooldownManager.check(commands, ctx);
-            if (message) return await interaction.reply({
-                content: message,
+            });
+            if (cooldownMessage) return await interaction.reply({
+                content: cooldownMessage,
                 ephemeral: true,
             });
         }
+
         const groupName = interaction.options.getSubcommandGroup(false);
         if (groupName) {
             const subName = interaction.options.getSubcommand(true);

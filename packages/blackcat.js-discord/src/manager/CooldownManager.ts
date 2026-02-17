@@ -286,7 +286,8 @@ export class CooldownManager {
                 const expiresAt = this.cooldowns.get(key)!;
                 if (now < expiresAt) {
                     const remaining = expiresAt - now;
-                    return message ? message(remaining, ctx, command.commandName) : `Wait ${Math.ceil(remaining / 1000)}s.`;
+                    const ms = Math.ceil(remaining / 1000);
+                    return message ? message(ms, ctx, command.commandName) : `Wait ${Math.ceil(remaining / 1000)}s.`;
                 }
             }
         }
