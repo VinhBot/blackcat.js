@@ -1,55 +1,37 @@
-import type { Message, PermissionsString } from "discord.js";
+import type { Message, GuildMember, User, ClientUser, PermissionResolvable, EmbedBuilder } from "discord.js";
 import { cooldownManager, type Client, type CooldownConfig } from "..";
+
+interface CommandContext {
+    commandName: string;
+    user: GuildMember & {
+        user: User;
+    };
+    bot: ClientUser & {
+        avatarURL: string | null;
+        displayAvatarURL: string;
+        id: string;
+        username: string;
+    };
+}
+
+interface PermissionConfig {
+    permission: PermissionResolvable[];
+    message: (ctx: CommandContext) => {
+        content?: string;
+        embeds?: EmbedBuilder[];
+    };
+}
 
 /**
  * Cấu hình cho Message Command (prefix command).
  */
 export interface CommandBuilderOptions {
-    /**
-     * Tên command chính.
-     *
-     * Ví dụ: "ping", "help", "ban"
-     * Đây là key dùng để đăng ký command trong command handler.
-     */
     commandName: string;
-    /**
-     * Các tên gọi thay thế cho command.
-     *
-     * Ví dụ:
-     * ["p", "latency"] cho command "ping"
-     *
-     * Nếu không khai báo, command chỉ có 1 tên duy nhất.
-     */
     aliases?: string[];
-    /**
-     * Mô tả ngắn gọn cho command.
-     * Chủ yếu dùng cho help command hoặc documentation.
-     */
+    category: string;
     description?: string;
-    /**
-     * Cấu hình cooldown cho command.
-     * Giới hạn thời gian giữa các lần user sử dụng command.
-     */
     cooldown?: CooldownConfig;
-    /**
-     * Danh sách quyền cần thiết để sử dụng command.
-     *
-     * Nếu không khai báo:
-     * - Mặc định cho phép mọi member sử dụng
-     * - Việc kiểm tra quyền do command handler đảm nhiệm
-     */
-    memberpermissions?: PermissionsString[];
-    /**
-     * Hàm xử lý khi command được gọi.
-     *
-     * @param client  - Instance Discord client.
-     * @param message - Message gốc chứa command.
-     * @param args    - Danh sách tham số sau khi đã parse (không bao gồm prefix & command).
-     *
-     * Lưu ý:
-     * - args luôn là mảng string, có thể rỗng
-     * - Hàm không trả về giá trị
-     */
+    userPermission?: PermissionConfig;
     execute: (client: Client, message: Message, args: string[]) => void;
 }
 /**
@@ -70,22 +52,44 @@ export class CommandBuilder {
     public commandName: string;
     public aliases?: string[];
     public description?: string;
+    public category: string;
     public cooldown?: CooldownConfig;
+    public userPermission?: PermissionConfig;
     public handler: CommandBuilderOptions["execute"];
     constructor(options: CommandBuilderOptions) {
         this.commandName = options.commandName;
         this.aliases = options.aliases || [];
         this.description = options.description || "";
+        this.userPermission = options.userPermission;
+        this.category = options.category;
         this.cooldown = options.cooldown;
         this.handler = options.execute;
     }
 
     public execute(client: Client, message: Message, args: string[]) {
+        if (!message.guild || !message.member) return;
+        if (this.userPermission) {
+            const ctx: CommandContext = {
+                commandName: this.commandName,
+                user: message.member as GuildMember & { user: User },
+                bot: Object.assign(client.user as ClientUser, {
+                    avatarURL: client.user?.avatarURL(),
+                    displayAvatarURL: client.user?.displayAvatarURL(),
+                    id: client.user?.id,
+                    username: client.user?.username,
+                }),
+            };
+            const hasPermission = message.member.permissions.has(this.userPermission.permission);
+            if (!hasPermission) {
+                const response = this.userPermission.message(ctx);
+                return message.reply(response);
+            }
+        }
         if (this.cooldown) {
             const commandData = {
                 commandName: this.commandName,
                 cooldown: this.cooldown,
-            } as CommandBuilder;
+            } as any;
             const cooldownMessage = cooldownManager.check(commandData, {
                 type: "message",
                 userId: message.author.id,
@@ -95,7 +99,6 @@ export class CommandBuilder {
             console.log(cooldownMessage);
             if (cooldownMessage) return message.reply(cooldownMessage);
         }
-        
         return this.handler(client, message, args);
     }
 }

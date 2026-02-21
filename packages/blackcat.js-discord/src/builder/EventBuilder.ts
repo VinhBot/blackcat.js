@@ -1,6 +1,8 @@
 import type { ClientEvents } from "discord.js";
 import type { Client } from "..";
 
+export type EventExecute<K extends keyof ClientEvents> = (client: Client, ...args: ClientEvents[K]) => Promise<void> | void;
+
 /**
  * Cấu hình cho Event Builder.
  *
@@ -37,13 +39,13 @@ export interface EventBuilderOptions<K extends keyof ClientEvents = keyof Client
      * - K = "ready"               → args = [Client]
      * - K = "interactionCreate"   → args = [Interaction]
      */
-    execute: (client: Client, ...args: ClientEvents[K]) => Promise<void> | void;
+    execute: EventExecute<K>;
 }
 
 export class EventBuilder<K extends keyof ClientEvents> {
     public readonly eventName: K;
     public readonly once: boolean;
-    public readonly execute: EventBuilderOptions<K>["execute"];
+    public readonly execute: EventExecute<K>;
     constructor(options: EventBuilderOptions<K>) {
         this.eventName = options.eventName;
         this.once = options.once ?? false;
