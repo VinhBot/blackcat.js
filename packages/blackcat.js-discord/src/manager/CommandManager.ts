@@ -4,7 +4,7 @@ import { join, resolve } from "path";
 import { pathToFileURL } from "url";
 import { Client, CommandBuilder, CommandBuilderOptions } from "..";
 
-interface CommandHandlerOptions {
+export interface CommandManagerOptions {
     directory: string;
     prefix: string | string[];
     autoLoad?: boolean;
@@ -13,14 +13,14 @@ interface CommandHandlerOptions {
     onError?: (data: { file: string; error: any }) => void;
 }
 
-export class CommandHandler {
+export class CommandManager {
     private client: Client;
     private directory: string;
     private prefix: string | string[];
-    private onLoad?: (command: CommandBuilder) => void;
-    private onError?: (data: { file: string; error: any }) => void;
+    private onLoad?: CommandManagerOptions["onLoad"]
+    private onError?: CommandManagerOptions["onError"]
 
-    constructor(client: Client, options: CommandHandlerOptions) {
+    constructor(client: Client, options: CommandManagerOptions) {
         this.client = client;
         this.directory = resolve(options.directory);
         this.prefix = options.prefix;
@@ -54,26 +54,21 @@ export class CommandHandler {
             const fileUrl = pathToFileURL(filePath).href;
             const imported = await import(fileUrl);
             const command: CommandBuilder = imported.default || imported;
-            this._validate(command);
+            if (!command?.commandName) {
+                throw new Error("Missing commandName");
+            }
+            if (typeof command.execute !== "function") {
+                throw new Error("Missing execute function");
+            }
+            if (this.client.commands?.has(command.commandName)) {
+                throw new Error(`Duplicate command: ${command.commandName}`);
+            }
             this.register(command);
             this.onLoad?.(command);
         } catch (error) {
             this.onError?.({ file: filePath, error });
         }
     }
-
-    private _validate(command: CommandBuilder): void {
-        if (!command?.commandName)
-            throw new Error("Missing commandName");
-        if (typeof command.execute !== "function")
-            throw new Error("Missing execute function");
-        if (this.client.commands?.has(command.commandName))
-            throw new Error(`Duplicate command: ${command.commandName}`);
-    }
-
-    /* ===================================================== */
-    /* REGISTER */
-    /* ===================================================== */
 
     public register(command: CommandBuilder): void {
         this.client.commands.set(command.commandName, command);
@@ -85,6 +80,8 @@ export class CommandHandler {
                 this.client.aliases.set(alias, command.commandName);
             }
         }
+
+        
         if (command.category) {
             if (!this.client.categories.has(command.category)) {
                 this.client.categories.set(command.category, new Collection());
@@ -92,30 +89,23 @@ export class CommandHandler {
             this.client.categories.get(command.category)!.set(command.commandName, command);
         }
     }
-    /* ===================================================== */
-    /* PREFIX MESSAGE HANDLER */
-    /* ===================================================== */
 
     private _attachMessageListener(): void {
         this.client.on("messageCreate", async (message) => {
-            await this._handleMessage(message);
+            if (!message.guild || message.author.bot) return;
+            const usedPrefix = this._getPrefix(message.content);
+            if (!usedPrefix) return;
+            const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);
+            const commandName = args.shift()?.toLowerCase();
+            if (!commandName) return;
+            const command = this.resolve(commandName);
+            if (!command) return;
+            try {
+                command.execute(this.client, message, args);
+            } catch (err) {
+                console.error(err);
+            }
         });
-    }
-
-    private async _handleMessage(message: Message): Promise<void> {
-        if (!message.guild || message.author.bot) return;
-        const usedPrefix = this._getPrefix(message.content);
-        if (!usedPrefix) return;
-        const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);
-        const commandName = args.shift()?.toLowerCase();
-        if (!commandName) return;
-        const command = this.resolve(commandName);
-        if (!command) return;
-        try {
-            command.execute(this.client, message, args);
-        } catch (err) {
-            console.error(err);
-        }
     }
 
     private _getPrefix(content: string): string | null {

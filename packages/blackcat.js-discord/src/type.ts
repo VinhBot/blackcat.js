@@ -1,5 +1,6 @@
 import type { ClientOptions as DiscordClientOptions } from "discord.js";
-import type { CommandBuilderOptions, SlashCommandBuilder } from "./builder";
+import type { SlashCommandBuilder } from "./builder";
+import type { CommandManagerOptions } from ".";
 /* =======================
  * Types & Interfaces
  * ======================= */
@@ -13,7 +14,7 @@ export type Config = {
 export interface ClientOptions extends DiscordClientOptions {
     config?: Config;
     registerEvents?: RegisterEventsOptions;
-    registerCommands?: RegisterCommandsOptions;
+    registerCommands?: CommandManagerOptions;
     registerSlashCommands?: RegisterSlashCommandsOptions;
 }
 /* =======================
@@ -34,14 +35,6 @@ export interface RegisterEventsOptions {
     onLoad?: (event: { eventName: string, file: string, scope: string }) => void;
     /** Callback khi event bị lỗi */
     onError?: (event: { error: unknown, file: string, scope: string }) => void;
-}
-/* =======================
- * RegisterCommandsOptions
- * ======================= */
-export interface RegisterCommandsOptions {
-  directory: string;
-  onLoad?: (command: CommandBuilderOptions & { file: string }) => void;
-  onError?: (payload: { file: string; error: Error }) => void;
 }
 
 export interface RegisterSlashCommandsOptions {

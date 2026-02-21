@@ -1,4 +1,4 @@
-import type { Message, GuildMember, User, ClientUser, PermissionResolvable, EmbedBuilder, MessagePayload, MessageReplyOptions } from "discord.js";
+import type { Message, GuildMember, User, ClientUser, PermissionResolvable, MessagePayload, MessageReplyOptions } from "discord.js";
 import { cooldownManager, type Client, type CooldownConfig } from "..";
 
 interface CommandContext {
@@ -64,9 +64,8 @@ export class CommandBuilder {
     }
 
     public execute(client: Client, message: Message, args: string[]) {
-        if (!message.guild || !message.member) return;
         if (this.userPermission) {
-            if (!message.member.permissions.has(this.userPermission.permission)) {
+            if (!message.member?.permissions.has(this.userPermission.permission)) {
                 const response = this.userPermission.message?.({
                     commandName: this.commandName,
                     user: message.member as GuildMember & { user: User },
@@ -77,7 +76,7 @@ export class CommandBuilder {
                         username: client.user?.username,
                     })
                 } as CommandContext);
-                return message.reply(response ?? `Này @${message.member.id} bạn không đủ quyền hạn để sử dụng lệnh này.`);
+                return message.reply(response ?? `Này @${message.member?.id} bạn không đủ quyền hạn để sử dụng lệnh này.`);
             }
         }
         if (this.cooldown) {
@@ -91,7 +90,6 @@ export class CommandBuilder {
                 guildId: message.guildId,
                 member: message.member,
             });
-            console.log(cooldownMessage);
             if (cooldownMessage) return message.reply(cooldownMessage);
         }
         return this.handler(client, message, args);

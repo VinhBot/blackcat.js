@@ -4,12 +4,11 @@ import type { TextChannel } from "discord.js";
 const pingCommand = new CommandBuilder({
     commandName: "ping",
     description: "Replies with Pong!",
-    category: "",
+    category: "Utility",
     cooldown: {
         duration: 5,
         scope: ["user"],
         roleWeights: {
-            "1088740567657222194": 0.5, // giảm 50%
             // "id Role": 0.7,
         },
         // permissionBypass: PermissionLevel.ADMIN,

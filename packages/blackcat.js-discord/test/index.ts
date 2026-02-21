@@ -1,5 +1,5 @@
 import { GatewayIntentBits } from "discord.js";
-import { Client, messageHandler } from "blackcat.js-discord";
+import { Client } from "blackcat.js-discord";
 import chalk from "chalk";
 
 const config = {
@@ -10,18 +10,19 @@ const config = {
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
     config: config,
-    registerEvents: {
-        directory: "./events",
-        scopes: ["client"],
-        onLoad: (event) => {
-            console.log(chalk.greenBright(`${event.file} - ok`));
-        },
-        onError: (event) => {
-            console.error(`${event.file}:`, event.error);
-        }
-    },
+    // registerEvents: {
+    //     directory: "./events",
+    //     scopes: ["client"],
+    //     onLoad: (event) => {
+    //         console.log(chalk.greenBright(`${event.file} - ok`));
+    //     },
+    //     onError: (event) => {
+    //         console.error(`${event.file}:`, event.error);
+    //     }
+    // },
     registerCommands: {
         directory: "./commands",
+        prefix: "!",
         onLoad: (command) => {
             console.log(chalk.blueBright(`commands: ${command.commandName} - ok`));
         },
@@ -29,17 +30,15 @@ const client = new Client({
             console.error(`${command.file}:`, command.error);
         }
     },
-    registerSlashCommands: {
-        directory: "./slashCommands",
-        onLoad: (command) => {
-            console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
-        },
-        onError: (command) => {
-            console.error(`${command.file}:`, command.error);
-        }
-    }
+    // registerSlashCommands: {
+    //     directory: "./slashCommands",
+    //     onLoad: (command) => {
+    //         console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
+    //     },
+    //     onError: (command) => {
+    //         console.error(`${command.file}:`, command.error);
+    //     }
+    // }
 });
-
-client.on("messageCreate", async (message) => messageHandler(client, message));
 
 client.start();
