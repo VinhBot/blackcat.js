@@ -1,4 +1,4 @@
-import type { Message, GuildMember, User, ClientUser, PermissionResolvable, EmbedBuilder } from "discord.js";
+import type { Message, GuildMember, User, ClientUser, PermissionResolvable, EmbedBuilder, MessagePayload, MessageReplyOptions } from "discord.js";
 import { cooldownManager, type Client, type CooldownConfig } from "..";
 
 interface CommandContext {
@@ -16,10 +16,7 @@ interface CommandContext {
 
 interface PermissionConfig {
     permission: PermissionResolvable[];
-    message: (ctx: CommandContext) => {
-        content?: string;
-        embeds?: EmbedBuilder[];
-    };
+    message?: (ctx: CommandContext) => string | MessagePayload | MessageReplyOptions;
 }
 
 /**
@@ -69,20 +66,18 @@ export class CommandBuilder {
     public execute(client: Client, message: Message, args: string[]) {
         if (!message.guild || !message.member) return;
         if (this.userPermission) {
-            const ctx: CommandContext = {
-                commandName: this.commandName,
-                user: message.member as GuildMember & { user: User },
-                bot: Object.assign(client.user as ClientUser, {
-                    avatarURL: client.user?.avatarURL(),
-                    displayAvatarURL: client.user?.displayAvatarURL(),
-                    id: client.user?.id,
-                    username: client.user?.username,
-                }),
-            };
-            const hasPermission = message.member.permissions.has(this.userPermission.permission);
-            if (!hasPermission) {
-                const response = this.userPermission.message(ctx);
-                return message.reply(response);
+            if (!message.member.permissions.has(this.userPermission.permission)) {
+                const response = this.userPermission.message?.({
+                    commandName: this.commandName,
+                    user: message.member as GuildMember & { user: User },
+                    bot: Object.assign(client.user as ClientUser, {
+                        avatarURL: client.user?.avatarURL(),
+                        displayAvatarURL: client.user?.displayAvatarURL(),
+                        id: client.user?.id,
+                        username: client.user?.username,
+                    })
+                } as CommandContext);
+                return message.reply(response ?? `Này @${message.member.id} bạn không đủ quyền hạn để sử dụng lệnh này.`);
             }
         }
         if (this.cooldown) {

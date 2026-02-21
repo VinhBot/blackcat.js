@@ -4,6 +4,7 @@ import type { TextChannel } from "discord.js";
 const pingCommand = new CommandBuilder({
     commandName: "ping",
     description: "Replies with Pong!",
+    category: "",
     cooldown: {
         duration: 5,
         scope: ["user"],
@@ -12,9 +13,11 @@ const pingCommand = new CommandBuilder({
             // "id Role": 0.7,
         },
         // permissionBypass: PermissionLevel.ADMIN,
-        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${Math.ceil(ms / 1000)} giây trước khi sử dụng lại lệnh ${commandName}.`,
+        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
     },
-    memberpermissions: ["Administrator"], 
+    userPermission: {
+        permission: ["SendMessages"],
+    },
     execute: async (client, message, args) => {
         await (message.channel as TextChannel).send("Pong!");
     }

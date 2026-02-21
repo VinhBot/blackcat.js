@@ -27,11 +27,6 @@ export const messageHandler = async (client: Client, message: Message) => {
     const command = client.commands!.get(commands) ?? client.commands!.get(client.aliases!.get(commands)!);
     if (!command) return;
     try {
-        if (command.memberpermissions && command.memberpermissions.length > 0 && !message.member!.permissions.has(command.memberpermissions || ["SendMessages"])) {
-            return message.reply({
-                embeds: [new EmbedBuilder().setColor("Red").setTitle("❌ Bạn không có quyền sử dụng lệnh này.")]
-            });
-        }
         command.execute(client, message, args);
     } catch (err) {
         console.error(`Command error [${commands}]`, err);
