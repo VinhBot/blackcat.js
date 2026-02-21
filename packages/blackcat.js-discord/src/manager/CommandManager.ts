@@ -2,7 +2,7 @@ import { Collection, Message } from "discord.js";
 import fs from "fs";
 import { join, resolve } from "path";
 import { pathToFileURL } from "url";
-import { Client, CommandBuilder } from "..";
+import { Client, CommandBuilder, CommandBuilderOptions } from "..";
 
 interface CommandHandlerOptions {
     directory: string;
@@ -32,10 +32,6 @@ export class CommandHandler {
         this._attachMessageListener();
     }
 
-    /* ===================================================== */
-    /* LOAD SYSTEM (ESM dynamic import) */
-    /* ===================================================== */
-
     private async loadAll(): Promise<void> {
         await this._readDirectory(this.directory);
     }
@@ -59,7 +55,6 @@ export class CommandHandler {
             const imported = await import(fileUrl);
             const command: CommandBuilder = imported.default || imported;
             this._validate(command);
-            command.file = filePath;
             this.register(command);
             this.onLoad?.(command);
         } catch (error) {
@@ -70,10 +65,8 @@ export class CommandHandler {
     private _validate(command: CommandBuilder): void {
         if (!command?.commandName)
             throw new Error("Missing commandName");
-
         if (typeof command.execute !== "function")
             throw new Error("Missing execute function");
-
         if (this.client.commands?.has(command.commandName))
             throw new Error(`Duplicate command: ${command.commandName}`);
     }
@@ -111,25 +104,15 @@ export class CommandHandler {
 
     private async _handleMessage(message: Message): Promise<void> {
         if (!message.guild || message.author.bot) return;
-
         const usedPrefix = this._getPrefix(message.content);
         if (!usedPrefix) return;
-
-        const args = message.content
-            .slice(usedPrefix.length)
-            .trim()
-            .split(/\s+/);
-
+        const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);
         const commandName = args.shift()?.toLowerCase();
         if (!commandName) return;
-
         const command = this.resolve(commandName);
         if (!command) return;
-
-
-
         try {
-            await command.execute(this.client, message, args);
+            command.execute(this.client, message, args);
         } catch (err) {
             console.error(err);
         }
@@ -137,16 +120,12 @@ export class CommandHandler {
 
     private _getPrefix(content: string): string | null {
         if (Array.isArray(this.prefix)) {
-            return this.prefix.find(p => content.startsWith(p)) ?? null;
+            return this.prefix.find((p) => content.startsWith(p)) ?? null;
         }
-
-        return content.startsWith(this.prefix)
-            ? this.prefix
-            : null;
+        return content.startsWith(this.prefix) ? this.prefix : null;
     }
 
-
-    public resolve(name: string): CommandBuilder | null {
+    public resolve(name: string): CommandBuilderOptions | null {
         return (this.client.commands.get(name) ?? this.client.commands.get(this.client.aliases.get(name) ?? "") ?? null);
     }
 
