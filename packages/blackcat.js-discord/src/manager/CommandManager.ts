@@ -15,7 +15,7 @@ export interface CommandManagerOptions {
     autoLoad?: boolean;
     defaultCooldown?: number;
     onLoad?: (command: CommandBuilder) => void;
-    onError?: (data: { file: string; error: any }) => void;
+    onError?: (data: { file: string; error: Error }) => void;
 }
 
 export class CommandManager {
@@ -34,7 +34,6 @@ export class CommandManager {
         if (options.autoLoad !== false) {
             this.loadAll();
         }
-        this.loadCategoryFolder(options.directory);
         this._attachMessageListener();
     }
 
@@ -59,8 +58,8 @@ export class CommandManager {
 
     private async _loadFile(filePath: string): Promise<void> {
         try {
-            const fileUrl = url.pathToFileURL(filePath).href;
-            const imported = await import(fileUrl);
+            const imported = await import(url.pathToFileURL(filePath).href);
+            const category = path.relative(this.directory, filePath).split(path.sep)[0];
             const command: CommandBuilder = imported.default || imported;
             if (!command?.commandName) {
                 throw new Error("Missing commandName");
@@ -68,44 +67,28 @@ export class CommandManager {
             if (typeof command.execute !== "function") {
                 throw new Error("Missing execute function");
             }
-            if (this.client.commands?.has(command.commandName)) {
+            if (this.client.commands.has(command.commandName)) {
                 throw new Error(`Duplicate command: ${command.commandName}`);
             }
+            command.category = category;
             this.client.commands.set(command.commandName, command);
             if (command.aliases?.length) {
-                for (const alias of command.aliases) {
-                    if (this.client.aliases.has(alias)) {
-                        throw new Error(`Duplicate alias: ${alias}`);
+                for (const aliases of command.aliases) {
+                    if (this.client.aliases.has(aliases)) {
+                        throw new Error(`Duplicate alias: ${aliases}`);
                     }
-                    this.client.aliases.set(alias, command.commandName);
+                    this.client.aliases.set(aliases, command.commandName);
                 }
             }
+            if (!this.client.categories.has(category)) {
+                this.client.categories.set(category, new Collection());
+            }
+            this.client.categories.get(category)!.set(command.commandName, command);
             this.onLoad?.(command);
-        } catch (error) {
+        } catch (error: any) {
             this.onError?.({ file: filePath, error });
         }
     }
-
-    private async loadCategoryFolder(commandsPath: string) {
-        for (const folder of fs.readdirSync(commandsPath)) {
-            const folderPath = path.join(commandsPath, folder);
-            if (!fs.statSync(folderPath).isDirectory()) continue;
-            for (const file of fs.readdirSync(folderPath).filter((file) => file.endsWith(".ts") || file.endsWith(".js"))) {
-                const filePath = path.join(folderPath, file);
-                const relative = path.relative(commandsPath, filePath);
-                const category = relative.split(path.sep)[0];
-                const imported = await import(url.pathToFileURL(filePath).href);
-                const command = imported.default;
-                if (!command?.commandName || !command?.execute) continue;
-                command.category = category;
-                if (!this.client.categories.has(category)) {
-                    this.client.categories.set(category, new Collection());
-                }
-                this.client.categories.get(category)!.set(command.name, command);
-            }
-        }
-    }
-
     private _attachMessageListener(): void {
         this.client.on("messageCreate", async (message) => {
             if (!message.guild || message.author.bot) return;
@@ -125,9 +108,7 @@ export class CommandManager {
     }
 
     private _getPrefix(content: string): string | null {
-        if (Array.isArray(this.prefix)) {
-            return this.prefix.find((p) => content.startsWith(p)) ?? null;
-        }
+        if (Array.isArray(this.prefix)) return this.prefix.find((p) => content.startsWith(p)) ?? null;
         return content.startsWith(this.prefix) ? this.prefix : null;
     }
 

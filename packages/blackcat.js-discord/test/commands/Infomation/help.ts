@@ -1,4 +1,4 @@
-import { CommandBuilder } from "blackcat.js-discord";
+import { CommandBuilder, PermissionLevel } from "blackcat.js-discord";
 import {
     EmbedBuilder,
     ActionRowBuilder,
@@ -17,7 +17,7 @@ const helpCommand = new CommandBuilder({
         roleWeights: {
             // "id Role": 0.7,
         },
-        // permissionBypass: PermissionLevel.ADMIN,
+        //permissionBypass: PermissionLevel.ADMIN,
         message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
     },
     userPermission: {
@@ -26,7 +26,7 @@ const helpCommand = new CommandBuilder({
     execute: async (client, message, args) => {
         const commands = Array.from(client.commands.values());
         // for (const [category, commands] of client.categories) {
-        //     console.log(category, commands.map(cmd => cmd.commandName));
+        //     console.log(category, commands.map((cmd) => cmd.commandName));
         // }
         if (!args[0]) {
             const categories = Array.from(new Set(commands.map((c) => c.category)));
@@ -47,7 +47,7 @@ const helpCommand = new CommandBuilder({
 
             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
                 new ButtonBuilder().setCustomId("prev").setLabel("⬅").setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId("next").setLabel("➡").setStyle(ButtonStyle.Primary)
+                new ButtonBuilder().setCustomId("next").setLabel("➡").setStyle(ButtonStyle.Primary),
             );
 
             const msg = await message.reply({
@@ -88,12 +88,7 @@ const helpCommand = new CommandBuilder({
         const categoryCommands = commands.filter((c) => c.category?.toLowerCase() === query);
 
         if (categoryCommands.length) return message.reply({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle(`📂 Category: ${query}`)
-                    .setColor("Green")
-                    .setDescription(categoryCommands.map((c) => `\`${c.commandName}\` - ${c.description || "No description"}`).join("\n")),
-            ],
+            embeds: [new EmbedBuilder().setTitle(`📂 Category: ${query}`).setDescription(categoryCommands.map((c) => `\`${c.commandName}\` - ${c.description || "No description"}`).join("\n")),],
         });
         // =============================
         // !help <command>
