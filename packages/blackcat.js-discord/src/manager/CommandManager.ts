@@ -1,8 +1,13 @@
-import { Collection, Message } from "discord.js";
+import { Collection } from "discord.js";
+import path from "path";
+import url from "url";
 import fs from "fs";
-import { join, resolve } from "path";
-import { pathToFileURL } from "url";
-import { Client, CommandBuilder, CommandBuilderOptions } from "..";
+
+import {
+    Client,
+    CommandBuilder,
+    CommandBuilderOptions
+} from "..";
 
 export interface CommandManagerOptions {
     directory: string;
@@ -22,13 +27,14 @@ export class CommandManager {
 
     constructor(client: Client, options: CommandManagerOptions) {
         this.client = client;
-        this.directory = resolve(options.directory);
+        this.directory = path.resolve(options.directory);
         this.prefix = options.prefix;
         this.onLoad = options.onLoad;
         this.onError = options.onError;
         if (options.autoLoad !== false) {
             this.loadAll();
         }
+        this.loadCategoryFolder(options.directory);
         this._attachMessageListener();
     }
 
@@ -37,9 +43,11 @@ export class CommandManager {
     }
 
     private async _readDirectory(dir: string): Promise<void> {
-        const files = await fs.promises.readdir(dir, { withFileTypes: true });
+        const files = await fs.promises.readdir(dir, {
+            withFileTypes: true
+        });
         for (const file of files) {
-            const fullPath = join(dir, file.name);
+            const fullPath = path.join(dir, file.name);
             if (file.isDirectory()) {
                 await this._readDirectory(fullPath);
                 continue;
@@ -51,7 +59,7 @@ export class CommandManager {
 
     private async _loadFile(filePath: string): Promise<void> {
         try {
-            const fileUrl = pathToFileURL(filePath).href;
+            const fileUrl = url.pathToFileURL(filePath).href;
             const imported = await import(fileUrl);
             const command: CommandBuilder = imported.default || imported;
             if (!command?.commandName) {
@@ -63,30 +71,38 @@ export class CommandManager {
             if (this.client.commands?.has(command.commandName)) {
                 throw new Error(`Duplicate command: ${command.commandName}`);
             }
-            this.register(command);
+            this.client.commands.set(command.commandName, command);
+            if (command.aliases?.length) {
+                for (const alias of command.aliases) {
+                    if (this.client.aliases.has(alias)) {
+                        throw new Error(`Duplicate alias: ${alias}`);
+                    }
+                    this.client.aliases.set(alias, command.commandName);
+                }
+            }
             this.onLoad?.(command);
         } catch (error) {
             this.onError?.({ file: filePath, error });
         }
     }
 
-    public register(command: CommandBuilder): void {
-        this.client.commands.set(command.commandName, command);
-        if (command.aliases?.length) {
-            for (const alias of command.aliases) {
-                if (this.client.aliases.has(alias)) {
-                    throw new Error(`Duplicate alias: ${alias}`);
+    private async loadCategoryFolder(commandsPath: string) {
+        for (const folder of fs.readdirSync(commandsPath)) {
+            const folderPath = path.join(commandsPath, folder);
+            if (!fs.statSync(folderPath).isDirectory()) continue;
+            for (const file of fs.readdirSync(folderPath).filter((file) => file.endsWith(".ts") || file.endsWith(".js"))) {
+                const filePath = path.join(folderPath, file);
+                const relative = path.relative(commandsPath, filePath);
+                const category = relative.split(path.sep)[0];
+                const imported = await import(url.pathToFileURL(filePath).href);
+                const command = imported.default;
+                if (!command?.commandName || !command?.execute) continue;
+                command.category = category;
+                if (!this.client.categories.has(category)) {
+                    this.client.categories.set(category, new Collection());
                 }
-                this.client.aliases.set(alias, command.commandName);
+                this.client.categories.get(category)!.set(command.name, command);
             }
-        }
-
-        
-        if (command.category) {
-            if (!this.client.categories.has(command.category)) {
-                this.client.categories.set(command.category, new Collection());
-            }
-            this.client.categories.get(command.category)!.set(command.commandName, command);
         }
     }
 

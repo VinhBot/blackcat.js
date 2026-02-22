@@ -4,7 +4,6 @@ import type { TextChannel } from "discord.js";
 const pingCommand = new CommandBuilder({
     commandName: "ping",
     description: "Replies with Pong!",
-    category: "Utility",
     cooldown: {
         duration: 5,
         scope: ["user"],

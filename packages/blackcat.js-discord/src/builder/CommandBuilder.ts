@@ -25,10 +25,11 @@ interface PermissionConfig {
 export interface CommandBuilderOptions {
     commandName: string;
     aliases?: string[];
-    category: string;
+    category?: string
     description?: string;
     cooldown?: CooldownConfig;
     userPermission?: PermissionConfig;
+    usage?: string;
     execute: (client: Client, message: Message, args: string[]) => void;
 }
 /**
@@ -49,17 +50,19 @@ export class CommandBuilder {
     public commandName: string;
     public aliases?: string[];
     public description?: string;
-    public category: string;
+    public category?: string;
     public cooldown?: CooldownConfig;
     public userPermission?: PermissionConfig;
+    public usage?: string;
     public handler: CommandBuilderOptions["execute"];
     constructor(options: CommandBuilderOptions) {
         this.commandName = options.commandName;
         this.aliases = options.aliases || [];
-        this.description = options.description || "";
+        this.description = options.description || "no description";
         this.userPermission = options.userPermission;
         this.category = options.category;
         this.cooldown = options.cooldown;
+        this.usage = options.usage;
         this.handler = options.execute;
     }
 

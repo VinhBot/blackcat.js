@@ -10,7 +10,6 @@ import {
 const helpCommand = new CommandBuilder({
     commandName: "help",
     description: "",
-    category: "Infomation",
     usage: "<prefix>help [category | commands]",
     cooldown: {
         duration: 5,
@@ -25,9 +24,12 @@ const helpCommand = new CommandBuilder({
         permission: ["SendMessages"],
     },
     execute: async (client, message, args) => {
-        const commands = [...client.commands.values()];
+        const commands = Array.from(client.commands.values());
+        // for (const [category, commands] of client.categories) {
+        //     console.log(category, commands.map(cmd => cmd.commandName));
+        // }
         if (!args[0]) {
-            const categories = [...new Set(commands.map((c) => c.category))];
+            const categories = Array.from(new Set(commands.map((c) => c.category)));
             let page = 0;
             const generateEmbed = (pageIndex: number) => {
                 const category = categories[pageIndex];
@@ -38,20 +40,14 @@ const helpCommand = new CommandBuilder({
                     .setDescription(`📂 Category: **${category}**`)
                     .addFields({
                         name: "Commands",
-                        value: cmds.map(c => `\`${c.commandName}\``).join(", ") || "None"
+                        value: cmds.map((c) => `\`${c.commandName}\``).join(", ") || "None"
                     })
                     .setFooter({ text: `Page ${pageIndex + 1}/${categories.length}` });
             };
 
             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("prev")
-                    .setLabel("⬅")
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId("next")
-                    .setLabel("➡")
-                    .setStyle(ButtonStyle.Primary)
+                new ButtonBuilder().setCustomId("prev").setLabel("⬅").setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId("next").setLabel("➡").setStyle(ButtonStyle.Primary)
             );
 
             const msg = await message.reply({
@@ -89,7 +85,7 @@ const helpCommand = new CommandBuilder({
         // =============================
         // !help <category>
         // =============================
-        const categoryCommands = commands.filter((c) => c.category.toLowerCase() === query);
+        const categoryCommands = commands.filter((c) => c.category?.toLowerCase() === query);
 
         if (categoryCommands.length) return message.reply({
             embeds: [
@@ -110,7 +106,7 @@ const helpCommand = new CommandBuilder({
                     .setTitle(`📌 ${command.commandName}`)
                     .setColor("Yellow")
                     .addFields(
-                        { name: "Category", value: command.category, inline: true },
+                        { name: "Category", value: command?.category || "None", inline: true },
                         {
                             name: "Description",
                             value: command.description || "None",
