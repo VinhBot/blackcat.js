@@ -6,7 +6,6 @@ import type { CommandManagerOptions } from ".";
  * ======================= */
 export type Config = {
     botToken: string;
-    prefix: string;
 };
 /* =======================
  * ClientOptions

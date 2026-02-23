@@ -2,7 +2,7 @@
 import { Client as DiscordClient, Collection } from "discord.js";
 import type { Config, ClientOptions } from "./type";
 import type { CommandBuilderOptions, SlashCommandBuilder } from "./builder";
-import { CommandManager, SlashCommandManager } from "./manager";
+import { CommandManager, EventManager, SlashCommandManager } from "./manager";
 export * from "./builder";
 export * from "./events";
 export * from "./manager";
@@ -15,6 +15,7 @@ export class Client extends DiscordClient<boolean> {
     public readonly aliases: Collection<string, string>;
     public readonly slashCommands: Collection<string, SlashCommandBuilder>;
     public readonly categories: Collection<string, Collection<string, CommandBuilderOptions>>;
+    public readonly eventManager: EventManager;
     public readonly commandManager: CommandManager; 
     public readonly slashCommandManager: SlashCommandManager; 
     constructor(options: ClientOptions) {
@@ -27,6 +28,7 @@ export class Client extends DiscordClient<boolean> {
         this.aliases = new Collection<string, string>();
         this.slashCommands = new Collection<string, SlashCommandBuilder>();
         this.categories = new Collection<string, Collection<string, CommandBuilderOptions>>();
+        this.eventManager = new EventManager(this, options.registerEvents as any);
         this.commandManager = new CommandManager(this, options.registerCommands as any);
         this.slashCommandManager = new SlashCommandManager(this, options.registerSlashCommands as any);
     }

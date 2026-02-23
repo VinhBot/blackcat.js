@@ -1,8 +1,19 @@
-class Test {
-    /* =======================
-     * Event Loader
-     * ======================= */
-    private async registerEvents(options: RegisterEventsOptions): Promise<void> {
+import path from "node:path";
+import fs from "node:fs";
+import url from "node:url";
+
+import type { RegisterEventsOptions } from "../type";
+import type { EventBuilderOptions, Client } from "..";
+
+export class EventManager {
+    public readonly client: Client;
+    public readonly options: RegisterEventsOptions;
+    constructor(client: Client, options: RegisterEventsOptions) {
+        this.client = client;
+        this.options = options;
+        this.load(options);
+    }
+    private async load(options: RegisterEventsOptions): Promise<void> {
         if (!Array.isArray(options.scopes)) {
             throw new TypeError("[loadEvents] 'scopes' must be an array");
         }
@@ -22,19 +33,19 @@ class Test {
             });
         }
         for (const scope of scopesToLoad) {
-            const scopePath = join(options.directory, scope);
+            const scopePath = path.join(options.directory, scope);
             const files = await fs.promises.readdir(scopePath);
             for (const file of files) {
                 if (!/\.(ts|js)$/.test(file)) continue;
                 try {
-                    const event: EventBuilderOptions = await import(pathToFileURL(join(scopePath, file)).href).then((d) => d.default);
+                    const event: EventBuilderOptions = await import(url.pathToFileURL(path.join(scopePath, file)).href).then((d) => d.default);
                     if (!event.eventName || typeof event.execute !== "function") {
                         options.onError?.({ error: new Error("Invalid event module"), file, scope });
                     }
                     if (event.once) {
-                        this.once(event.eventName, (...args: any[]) => event.execute(this, ...args as any));
+                        this.client.once(event.eventName, (...args: any[]) => event.execute(this.client, ...args as any));
                     } else {
-                        this.on(event.eventName, (...args: any[]) => event.execute(this, ...args as any));
+                        this.client.on(event.eventName, (...args: any[]) => event.execute(this.client, ...args as any));
                     }
                     options.onLoad?.({ eventName: event.eventName, file, scope });
                 } catch (error) {

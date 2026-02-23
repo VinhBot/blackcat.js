@@ -1,8 +1,4 @@
-import {
-    SlashCommandBuilderWithSubs,
-    SlashSubCommandBuilder,
-    SlashSubCommandGroupBuilder
-} from "blackcat.js-discord";
+import { SlashCommandBuilderWithSubs, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
 
 const adminCommand = new SlashCommandBuilderWithSubs({
     commandName: "admin",
