@@ -17,7 +17,7 @@ const pingCommand = new CommandBuilder({
         permission: ["SendMessages"],
     },
     execute: async (client, message, args) => {
-        await (message.channel as TextChannel).send("Pong!");
+        await (message.channel as TextChannel).send(`My ping: ${client.ws.ping} ms`);
     }
 });
 

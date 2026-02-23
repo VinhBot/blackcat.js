@@ -30,15 +30,20 @@ const client = new Client({
             console.error(`${command.file}:`, command.error);
         }
     },
-    // registerSlashCommands: {
-    //     directory: "./slashCommands",
-    //     onLoad: (command) => {
-    //         console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
-    //     },
-    //     onError: (command) => {
-    //         console.error(`${command.file}:`, command.error);
-    //     }
-    // }
+    registerSlashCommands: {
+        directory: "./slashCommands",
+        guildId: "1055150050357022840",
+        onLoad: (command) => {
+            console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
+        },
+        onError: (command) => {
+            console.error(`${command.file}:`, command.error);
+        }
+    }
+});
+
+client.on("clientReady", (bot) => {
+    console.log(`${bot.user.username} is ready!`);
 });
 
 client.start();

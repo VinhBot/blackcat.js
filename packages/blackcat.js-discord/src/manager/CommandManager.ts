@@ -13,45 +13,44 @@ export interface CommandManagerOptions {
     directory: string;
     prefix: string | string[];
     autoLoad?: boolean;
-    defaultCooldown?: number;
     onLoad?: (command: CommandBuilder) => void;
     onError?: (data: { file: string; error: Error }) => void;
 }
 
 export class CommandManager {
-    private client: Client;
-    private directory: string;
-    private prefix: string | string[];
-    private onLoad?: CommandManagerOptions["onLoad"]
-    private onError?: CommandManagerOptions["onError"]
-
-    constructor(client: Client, options: CommandManagerOptions) {
-        this.client = client;
-        this.directory = path.resolve(options.directory);
-        this.prefix = options.prefix;
-        this.onLoad = options.onLoad;
-        this.onError = options.onError;
-        if (options.autoLoad !== false) {
-            this.loadAll();
+    private readonly client: Client;
+    private readonly directory: string;
+    private readonly prefix: string | string[] | undefined;
+    private readonly onLoad?: CommandManagerOptions["onLoad"];
+    private readonly onError?: CommandManagerOptions["onError"];
+    constructor(client: Client, options?: CommandManagerOptions) {
+        this.client = client;    
+        this.directory = path.resolve(options?.directory || "");
+        this.prefix = options?.prefix;
+        this.onLoad = options?.onLoad;
+        this.onError = options?.onError;
+        if (options?.autoLoad !== false) {
+            void this.loadAll();
         }
         this._attachMessageListener();
     }
-
+    /* ================= LOAD ================= */
     private async loadAll(): Promise<void> {
         await this._readDirectory(this.directory);
     }
-
     private async _readDirectory(dir: string): Promise<void> {
-        const files = await fs.promises.readdir(dir, {
-            withFileTypes: true
+        const entries = await fs.promises.readdir(dir, { 
+            withFileTypes: true 
         });
-        for (const file of files) {
-            const fullPath = path.join(dir, file.name);
-            if (file.isDirectory()) {
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
                 await this._readDirectory(fullPath);
                 continue;
             }
-            if (!file.name.endsWith(".js") && !file.name.endsWith(".ts")) continue;
+            if (!entry.name.endsWith(".js") && !entry.name.endsWith(".ts")) {
+                continue;
+            }
             await this._loadFile(fullPath);
         }
     }
@@ -59,36 +58,42 @@ export class CommandManager {
     private async _loadFile(filePath: string): Promise<void> {
         try {
             const imported = await import(url.pathToFileURL(filePath).href);
-            const category = path.relative(this.directory, filePath).split(path.sep)[0];
-            const command: CommandBuilder = imported.default || imported;
+            const command: CommandBuilder = imported.default ?? imported;
             if (!command?.commandName) {
                 throw new Error("Missing commandName");
             }
             if (typeof command.execute !== "function") {
                 throw new Error("Missing execute function");
             }
-            if (this.client.commands.has(command.commandName)) {
+            const { commands, aliases, categories } = this.client;
+            if (commands.has(command.commandName)) {
                 throw new Error(`Duplicate command: ${command.commandName}`);
             }
+            const category = path.relative(this.directory, filePath).split(path.sep)[0];
             command.category = category;
-            this.client.commands.set(command.commandName, command);
+            commands.set(command.commandName, command);
+            /* ===== Alias ===== */
             if (command.aliases?.length) {
-                for (const aliases of command.aliases) {
-                    if (this.client.aliases.has(aliases)) {
-                        throw new Error(`Duplicate alias: ${aliases}`);
+                for (const alias of command.aliases) {
+                    if (aliases.has(alias)) {
+                        throw new Error(`Duplicate alias: ${alias}`);
                     }
-                    this.client.aliases.set(aliases, command.commandName);
+                    aliases.set(alias, command.commandName);
                 }
             }
-            if (!this.client.categories.has(category)) {
-                this.client.categories.set(category, new Collection());
+            /* ===== Category ===== */
+            let categoryCollection = categories.get(category);
+            if (!categoryCollection) {
+                categoryCollection = new Collection();
+                categories.set(category, categoryCollection);
             }
-            this.client.categories.get(category)!.set(command.commandName, command);
+            categoryCollection.set(command.commandName, command);
             this.onLoad?.(command);
-        } catch (error: any) {
-            this.onError?.({ file: filePath, error });
+        } catch (error) {
+            this.onError?.({ file: filePath, error: error as Error });
         }
     }
+    /* ================= MESSAGE HANDLER ================= */
     private _attachMessageListener(): void {
         this.client.on("messageCreate", async (message) => {
             if (!message.guild || message.author.bot) return;
@@ -100,26 +105,37 @@ export class CommandManager {
             const command = this.resolve(commandName);
             if (!command) return;
             try {
-                command.execute(this.client, message, args);
-            } catch (err) {
-                console.error(err);
+                await command.execute(this.client, message, args);
+            } catch (error) {
+                console.error(error);
             }
         });
     }
-
+    /* ================= UTIL ================= */
     private _getPrefix(content: string): string | null {
-        if (Array.isArray(this.prefix)) return this.prefix.find((p) => content.startsWith(p)) ?? null;
-        return content.startsWith(this.prefix) ? this.prefix : null;
+        if (Array.isArray(this.prefix)) {
+            for (const p of this.prefix) {
+                if (content.startsWith(p)) return p;
+            }
+            return null;
+        }
+        return content.startsWith(this.prefix as any) ? this.prefix as any : null;
     }
 
     public resolve(name: string): CommandBuilderOptions | null {
-        return (this.client.commands.get(name) ?? this.client.commands.get(this.client.aliases.get(name) ?? "") ?? null);
+        const { commands, aliases } = this.client;
+        const direct = commands.get(name);
+        if (direct) return direct;
+        const alias = aliases.get(name);
+        if (!alias) return null;
+        return commands.get(alias) ?? null;
     }
 
-    public reloadAll(): Promise<void> {
-        this.client.commands.clear();
-        this.client.aliases.clear();
-        this.client.categories.clear();
-        return this.loadAll();
+    public async reloadAll(): Promise<void> {
+        const { commands, aliases, categories } = this.client;
+        commands.clear();
+        aliases.clear();
+        categories.clear();
+        await this.loadAll();
     }
 }
