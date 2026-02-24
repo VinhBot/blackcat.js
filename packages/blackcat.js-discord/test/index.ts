@@ -4,7 +4,6 @@ import chalk from "chalk";
 
 const config = {
     botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GMIMgV.DCPpfqMUcrevxR1s7j0W9zU28C4qTlE7zRn0Rc",
-    prefix: "!",
 };
 
 const client = new Client({
@@ -32,7 +31,7 @@ const client = new Client({
     },
     registerSlashCommands: {
         directory: "./slashCommands",
-        guildId: "1055150050357022840",
+        guildID: "1055150050357022840",
         onLoad: (command) => {
             console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
         },

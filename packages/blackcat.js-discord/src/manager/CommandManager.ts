@@ -12,31 +12,29 @@ import {
 export interface CommandManagerOptions {
     directory: string;
     prefix: string | string[];
-    autoLoad?: boolean;
     onLoad?: (command: CommandBuilder) => void;
     onError?: (data: { file: string; error: Error }) => void;
 }
 
 export class CommandManager {
     private readonly client: Client;
-    private readonly directory: string;
+    private readonly directory: string | undefined;
     private readonly prefix: string | string[] | undefined;
     private readonly onLoad?: CommandManagerOptions["onLoad"];
     private readonly onError?: CommandManagerOptions["onError"];
     constructor(client: Client, options?: CommandManagerOptions) {
         this.client = client;    
-        this.directory = path.resolve(options?.directory || "");
+        this.directory = options?.directory;
         this.prefix = options?.prefix;
         this.onLoad = options?.onLoad;
         this.onError = options?.onError;
-        if (options?.autoLoad !== false) {
-            void this.loadAll();
-        }
         this._attachMessageListener();
     }
     /* ================= LOAD ================= */
     private async loadAll(): Promise<void> {
-        await this._readDirectory(this.directory);
+        if(!this.directory) return;
+        await this._readDirectory(path.resolve(this.directory));
+
     }
     private async _readDirectory(dir: string): Promise<void> {
         const entries = await fs.promises.readdir(dir, { 
@@ -69,7 +67,8 @@ export class CommandManager {
             if (commands.has(command.commandName)) {
                 throw new Error(`Duplicate command: ${command.commandName}`);
             }
-            const category = path.relative(this.directory, filePath).split(path.sep)[0];
+            if(!this.directory) return;
+            const category = path.relative(path.resolve(this.directory), filePath).split(path.sep)[0];
             command.category = category;
             commands.set(command.commandName, command);
             /* ===== Alias ===== */

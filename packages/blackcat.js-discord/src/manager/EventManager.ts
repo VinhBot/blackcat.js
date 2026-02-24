@@ -2,20 +2,42 @@ import path from "node:path";
 import fs from "node:fs";
 import url from "node:url";
 
-import type { RegisterEventsOptions } from "../type";
 import type { EventBuilderOptions, Client } from "..";
+
+export interface EventManagerOptions {
+    /** 
+     * Thư mục chứa event files 
+     */
+    directory: string;
+    /**
+     * Danh sách scope được bật
+     */
+    scopes: readonly string[];
+    /** 
+     * Callback khi load event thành công
+     */
+    onLoad?: (event: { eventName: string, file: string, scope: string }) => void;
+    /** Callback khi event bị lỗi */
+    onError?: (event: { error: unknown, file: string, scope: string }) => void;
+}
+
 
 export class EventManager {
     public readonly client: Client;
-    public readonly options: RegisterEventsOptions;
-    constructor(client: Client, options: RegisterEventsOptions) {
+    public readonly options: EventManagerOptions;
+    constructor(client: Client, options: EventManagerOptions) {
         this.client = client;
         this.options = options;
-        this.load(options);
     }
-    private async load(options: RegisterEventsOptions): Promise<void> {
+    public async load(): Promise<void> {
+        const options = this.options;
+        if(!options?.directory || !options?.scopes) return;
         if (!Array.isArray(options.scopes)) {
-            throw new TypeError("[loadEvents] 'scopes' must be an array");
+            options.onError?.({
+                error: "[EventManager] 'scopes' must be an array",
+                file: "undefined",
+                scope: "undefined"
+            });
         }
         if (options.scopes.length === 0) return;
         const entries = await fs.promises.readdir(options.directory, {
