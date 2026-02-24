@@ -1,4 +1,3 @@
-import { } from "../types";
 import { typeOf } from "./typeOf.function";
 
 export type TargetParamType = "string" | "number" | "object" | "array" | `${string} class instance`;

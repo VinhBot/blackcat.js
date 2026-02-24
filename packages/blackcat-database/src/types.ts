@@ -4,7 +4,7 @@
 export interface BaseDriver {
     get<T = any>(key: string): Promise<T | null>;
     set<T = any>(key: string, value: T): Promise<T>;
-    delete(key: any): Promise<boolean>;
+    delete(key?: any): Promise<boolean>;
     all(): Promise<Record<string, any>>;
 }
 /**

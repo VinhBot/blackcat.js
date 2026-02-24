@@ -280,7 +280,6 @@ export class Database<V = any> {
         if (!isNumber(numberToAdd)) {
             throw new BlackCatError("INVALID_TYPE", "numberToAdd", "number", typeOf(numberToAdd));
         }
-
         return await this.set(key, targetNumber + numberToAdd) as Promise<number>;
     }
     /**
@@ -760,7 +759,7 @@ export class Database<V = any> {
         }
         if (!(lastKey in currentObj)) return false;
         delete currentObj[lastKey];
-        await this.driver.delete(keys[0]);
+        await this.driver.delete(allDatabase);
         return true;
     }
     /**
@@ -770,6 +769,7 @@ export class Database<V = any> {
      * @returns {Promise<boolean>} `true` if cleared successfully, `false` otherwise.
      */
     public async deleteAll(): Promise<boolean> {
-        return this.delete();
+        await this.driver.delete();
+        return true;
     }
 }
