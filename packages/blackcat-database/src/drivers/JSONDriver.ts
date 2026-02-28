@@ -1,5 +1,4 @@
 import { promises as fs } from "fs";
-import { BaseDriver } from "../types";
 
 interface JSONDriverOptions {
     /**
@@ -16,7 +15,7 @@ interface JSONDriverOptions {
 /**
  * JSONDriver class.
  */
-export class JSONDriver implements BaseDriver {
+export class JSONDriver {
     /**
      * JSON database file path.
      * @type {string}
@@ -79,29 +78,30 @@ export class JSONDriver implements BaseDriver {
      * - `V` - The type of data being set.
      * - `R` - The type of data being returned.
      *
-     * @param {string} key The key in JSON database.
+     * @param {string} keys The key in JSON database.
      * @returns {Promise<R>} The data from JSON database.
      *
      * @template V The type of data being set.
      * @template R The type of data being returned.
      */
-    public async set<V = any, R = any>(key: string, value: V): Promise<R> {
+    public async set<V = any, R = any>(keys: string, value: V): Promise<R> {
         const data = await this.all<R>();
         await fs.writeFile(this.filePath, JSON.stringify(value, null, this.minifyJSON ? undefined : "\t"));
         return data;
     }
     /**
      * Parses the key and deletes it from JSON database. If no key is provided, clears the database.
-     * @param {V} key The key in JSON database.
+     * @param {V} keys The key in JSON database.
      * @returns {Promise<boolean>} `true` if deleted successfully.
      */
-    public async delete<V = any>(key?: V): Promise<boolean> {
-        if(key === undefined) {
+    public async delete<V = any>(keys?: V): Promise<boolean> {
+        if(keys === undefined) {
             await fs.writeFile(this.filePath, "{}");
             return true;
         } else {
-            await fs.writeFile(this.filePath, JSON.stringify(key, null, this.minifyJSON ? undefined : "\t"));
+            await fs.writeFile(this.filePath, JSON.stringify(keys, null, this.minifyJSON ? undefined : "\t"));
         };
         return true;
     }
+
 }

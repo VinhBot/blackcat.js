@@ -1,4 +1,4 @@
-import { Database, JSONDriver } from "../src";
+import { Database, JSONDriver, MongoDriver } from "../src";
 
 interface User {
     member: {
@@ -11,16 +11,17 @@ interface User {
 }
 
 const database = new Database<User>({
-    driver: new JSONDriver({
-        filePath: "./data.json",
-        minifyJSON: false,
+    driver: new MongoDriver({
+        mongourl: "mongodb+srv://BlackCat-Club:blackcat2k3@blackcat-club.sfgyw.mongodb.net/",
+        name: "BlackCat-Club",
     })
 });
 
 (async () => {
+    database.driver.connect();
     // Writes the specified value into database under the specified key.
-    // const set = await database.set("member.user.name", "blackcat.js");
-    // console.log(`🐈 set: ${set}`);
+    const set = await database.set("member.user.name", "blackcat.js");
+    console.log(`🐈 set: ${set}`);
     // const data = await database.update("member.user.test", [
     //     "test", "xxxxxxxxxxxxxxxx", "22222222222"
     // ]);
@@ -40,6 +41,6 @@ const database = new Database<User>({
     // const data = await database.size();
     // const data = await database.values("member.user.test");
     // const data = await database.random("member.user.test");
-    const data = await database.deleteAll();
-    console.log(data);
+    //const data = await database.deleteAll();
+    // console.log(data);
 })();

@@ -32,5 +32,16 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "keywords": [
+    "database",
+    "mongoose",
+    "mongodb",
+    "jsondb",
+    "jsondata",
+    "quick-database"
+  ],
+  "dependencies": {
+    "mongoose": "^9.2.3"
   }
 }

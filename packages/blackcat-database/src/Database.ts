@@ -1,4 +1,4 @@
-import { DatabaseConfiguration, BaseDriver, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray } from "./types";
+import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray } from "./types";
 import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
 
 /**
@@ -25,7 +25,7 @@ export class Database<V = any> {
     /**
      * The low-level database driver handling basic operations.
      */
-    public driver: BaseDriver;
+    public driver: any;
     constructor(options: DatabaseConfiguration) {
         this.driver = options.driver;
     }
@@ -207,7 +207,7 @@ export class Database<V = any> {
                 currentObj = currentObj[keys[i]];
             };
         };
-        await this.driver.set(keys[0], allDatabase);
+        await this.driver.set(keys as any, allDatabase);
         return typeof value == "object" && value !== null ? await this.get(keys[0]) as any : value as any;
     }
     /**
@@ -239,7 +239,7 @@ export class Database<V = any> {
         const lastKey = keys[keys.length - 1];
         current[lastKey] = value;
 
-        await this.driver.set(keys[0], allDatabase);
+        await this.driver.set(keys, allDatabase);
         return current;
     }
     /**
@@ -759,13 +759,12 @@ export class Database<V = any> {
         }
         if (!(lastKey in currentObj)) return false;
         delete currentObj[lastKey];
-        await this.driver.delete(allDatabase);
+        await this.driver.delete(keys, key, allDatabase);
         return true;
     }
     /**
      * Deletes everything from the database.
      *
-     * - This method is an alias for {@link QuickMongo.clear()} method.
      * @returns {Promise<boolean>} `true` if cleared successfully, `false` otherwise.
      */
     public async deleteAll(): Promise<boolean> {
