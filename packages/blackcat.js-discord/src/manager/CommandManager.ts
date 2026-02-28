@@ -58,14 +58,14 @@ export class CommandManager {
             const imported = await import(url.pathToFileURL(filePath).href);
             const command: CommandBuilder = imported.default ?? imported;
             if (!command?.commandName) {
-                throw new Error("Missing commandName");
+                throw new Error("thiếu commandName");
             }
             if (typeof command.execute !== "function") {
-                throw new Error("Missing execute function");
+                throw new Error("thiếu execute function");
             }
             const { commands, aliases, categories } = this.client;
             if (commands.has(command.commandName)) {
-                throw new Error(`Duplicate command: ${command.commandName}`);
+                throw new Error(`Lệnh bị trùng lặp: ${command.commandName}`);
             }
             if(!this.directory) return;
             const category = path.relative(path.resolve(this.directory), filePath).split(path.sep)[0];
@@ -75,7 +75,7 @@ export class CommandManager {
             if (command.aliases?.length) {
                 for (const alias of command.aliases) {
                     if (aliases.has(alias)) {
-                        throw new Error(`Duplicate alias: ${alias}`);
+                        throw new Error(`Lệnh phụ trùng lặp: ${alias}`);
                     }
                     aliases.set(alias, command.commandName);
                 }

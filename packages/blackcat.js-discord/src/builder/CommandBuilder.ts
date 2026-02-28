@@ -58,7 +58,7 @@ export class CommandBuilder {
     constructor(options: CommandBuilderOptions) {
         this.commandName = options.commandName;
         this.aliases = options.aliases || [];
-        this.description = options.description || "no description";
+        this.description = options.description || "không có mô tả";
         this.userPermission = options.userPermission;
         this.category = options.category;
         this.cooldown = options.cooldown;

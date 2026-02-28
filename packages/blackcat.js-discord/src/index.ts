@@ -2,19 +2,14 @@
 import type { ClientOptions as DiscordClientOptions } from "discord.js";
 import { Client as DiscordClient, Collection } from "discord.js";
 import type { CommandBuilderOptions, SlashCommandBuilder, SlashCommandBuilderWithSubs } from "./builder";
-import {
-    CommandManager,
-    type CommandManagerOptions,
-    EventManager,
-    type EventManagerOptions,
-    SlashCommandManager,
-    type SlashCommandManagerOptions
-} from "./manager";
+import type { SlashCommandManagerOptions, EventManagerOptions, CommandManagerOptions } from "./manager";
+import { CommandManager, EventManager, SlashCommandManager } from "./manager";
 export * from "./builder";
 export * from "./manager";
 
 export type Config = {
     botToken: string;
+    [key: string]: any;
 };
 
 export interface ClientOptions extends DiscordClientOptions {
@@ -42,7 +37,7 @@ export class Client extends DiscordClient<boolean> {
         super(options);
         this.config = options.config;
         if (!this.config.botToken) {
-            throw new Error("missing token bot");
+            throw new Error("Thiếu token bot");
         }
         this.token = this.config.botToken;
         this.commands = new Collection<string, CommandBuilderOptions>();
@@ -66,12 +61,11 @@ export class Client extends DiscordClient<boolean> {
      * Start bot
      * ======================= */
     public start(): Promise<string> {
-
         this.slashCommandManager.loadAll();
         this.commandManager.reloadAll();
         this.eventManager.load();
         if (!this.token) {
-            throw new Error("Bot token is not set");
+            throw new Error("Bot token chưa được thiết lập.");
         }
         return this.login(this.token);
     }

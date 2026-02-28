@@ -54,13 +54,13 @@ export class SlashCommandManager {
             const imported = await import(url.pathToFileURL(filePath).href);
             const command: SlashCommandBuilder = imported.default ?? imported;
             if (!command.commandName) {
-                throw new Error("Missing commandName");
+                throw new Error("Thiếu commandName");
             }
             if (typeof command.execute !== "function") {
-                throw new Error("Missing execute function");
+                throw new Error("Thiếu execute function");
             }
             if (slashCommands.has(command.commandName)) {
-                throw new Error(`Duplicate command: ${command.commandName}`);
+                throw new Error(`Lệnh trùng lặp: ${command.commandName}`);
             }
             slashCommands.set(command.commandName, command);
             this.onLoad?.(command);

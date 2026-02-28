@@ -6,7 +6,7 @@ const pingCommand = new CommandBuilder({
     description: "Replies with Pong!",
     cooldown: {
         duration: 5,
-        scope: ["user"],
+        scope: ["role"],
         roleWeights: {
             // "id Role": 0.7,
         },

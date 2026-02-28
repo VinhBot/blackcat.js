@@ -34,9 +34,9 @@ export class EventManager {
         if(!options?.directory || !options?.scopes) return;
         if (!Array.isArray(options.scopes)) {
             options.onError?.({
-                error: "[EventManager] 'scopes' must be an array",
-                file: "undefined",
-                scope: "undefined"
+                error: "[EventManager] 'scopes' phải là một array",
+                file: "không xác định",
+                scope: "không xác định"
             });
         }
         if (options.scopes.length === 0) return;
@@ -49,8 +49,8 @@ export class EventManager {
         if (!options.scopes.includes("*")) {
             const invalidScopes = options.scopes.filter((scope) => !availableScopes.includes(scope));
             if (invalidScopes.length > 0) options.onError?.({
-                error: `[registerEvents] Invalid scope(s): ${invalidScopes.join(", ")}. Available scopes: ${availableScopes.join(", ")}`,
-                file: "undefined",
+                error: `[registerEvents] Phạm vi không hợp lệ: ${invalidScopes.join(", ")}. Phạm vi có sẵn: ${availableScopes.join(", ")}`,
+                file: "không xác định",
                 scope: scopesToLoad.join(", ")
             });
         }
@@ -62,7 +62,7 @@ export class EventManager {
                 try {
                     const event: EventBuilderOptions = await import(url.pathToFileURL(path.join(scopePath, file)).href).then((d) => d.default);
                     if (!event.eventName || typeof event.execute !== "function") {
-                        options.onError?.({ error: new Error("Invalid event module"), file, scope });
+                        options.onError?.({ error: new Error("Mô-đun sự kiện không hợp lệ"), file, scope });
                     }
                     if (event.once) {
                         this.client.once(event.eventName, (...args: any[]) => event.execute(this.client, ...args as any));
