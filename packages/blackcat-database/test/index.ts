@@ -1,4 +1,4 @@
-import { Database, JSONDriver, MongoDriver } from "../src";
+import { Database, JSONDriver } from "../src";
 
 interface User {
     member: {
@@ -11,14 +11,13 @@ interface User {
 }
 
 const database = new Database<User>({
-    driver: new MongoDriver({
-        mongourl: "mongodb+srv://BlackCat-Club:blackcat2k3@blackcat-club.sfgyw.mongodb.net/",
-        name: "BlackCat-Club",
+    driver: new JSONDriver({
+        filePath: "./data.json",
+        minifyJSON: false,
     })
 });
 
 (async () => {
-    database.driver.connect();
     // Writes the specified value into database under the specified key.
     const set = await database.set("member.user.name", "blackcat.js");
     console.log(`🐈 set: ${set}`);

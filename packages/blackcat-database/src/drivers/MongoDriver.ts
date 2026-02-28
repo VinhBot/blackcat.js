@@ -54,7 +54,7 @@ export class MongoDriver<TInitialDatabaseData extends Record<string, any> = any>
      * @type {MongoClientOptions}
      */
     public mongoClientOptions?: MongoClientOptions;
-
+    public name: string;
     private _model: Model<IDatabaseInternalStructure<any>>;
     constructor(options: MongoDriverOptions) {
         super();
@@ -68,10 +68,10 @@ export class MongoDriver<TInitialDatabaseData extends Record<string, any> = any>
                 }
             });
         }
+        this.name = options.name || "blackcat.js-database"
         this.mongourl = options.mongourl;
         this.mongoClientOptions = options.mongoClientOptions;
-        this._model = models[options.name] || model<IDatabaseInternalStructure<any>>(options.name, internalDatabaseSchema, options.collectionName);
-
+        this._model = models[this.name] || model<IDatabaseInternalStructure<any>>(this.name, internalDatabaseSchema, options.collectionName);
     }
     /**
      * Opens a connection to a MongoDB cluster.
@@ -79,12 +79,15 @@ export class MongoDriver<TInitialDatabaseData extends Record<string, any> = any>
      */
     public async connect(): Promise<MongoDriver<TInitialDatabaseData>> {
         try {
-            await connect(this.mongourl, { ...this.mongoClientOptions });
+            await connect(this.mongourl, { 
+                ...this.mongoClientOptions 
+            });
             this.connected = true;
             this.emit("connect", this as any);
             return this;
         } catch (err) {
-            throw new Error('CONNECTION_NOT_ESTABLISHED')
+            console.log(err)
+            throw new Error('CONNECTION_NOT_ESTABLISHED');
         }
     }
     /**

@@ -46,8 +46,7 @@ export class Database<V = any> {
      * console.log(databaseContents); // -> { ... (the object of all the data stored in database) }
      */
     public async all<T extends Record<string, any> = Record<string, any>>(): Promise<T> {
-        const allDatabase = await this.driver.all();
-        return allDatabase as Promise<T>;
+        return await this.driver.all() as Promise<T>;
     }
     /**
      * Retrieves a value from database by a key.
