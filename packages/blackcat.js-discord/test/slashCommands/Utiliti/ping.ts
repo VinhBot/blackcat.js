@@ -3,7 +3,28 @@ import { SlashCommandBuilder } from "blackcat.js-discord";
 const ping = new SlashCommandBuilder({
     commandName: "ping",
     description: "ping bot",
-    execute: async(client, interaction, options) =>{
+    cooldown: {
+        duration: 5,
+        scope: "role",
+        message: (ms, ctx, commandName) => `này <@${ctx.member?.id}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`
+    },
+    userPermission: {
+        permission: ["SendMessages"],
+    },
+    options: (o) => ({
+        string: o.string({ description: "string description", required: true | false }),
+        integer,
+        number,
+        boolean,
+        user,
+        member,
+        role,
+        channel,
+        mentionable,
+        attachment,
+    }),
+    execute: async (client, interaction, options) => {
+        const string = options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,
         return interaction.reply({ content: `pong ${client.ws.ping}` });
     }
 });

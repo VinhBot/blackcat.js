@@ -1,5 +1,5 @@
-import { SlashCommandBuilder as DiscordSlashCommandBuilder, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import type { ChatInputCommandInteraction, GuildMember, PermissionsString } from "discord.js";
+import { SlashCommandBuilder as DiscordSlashCommandBuilder, MessageFlags, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
+import type { ChatInputCommandInteraction, ClientUser, GuildMember, InteractionReplyOptions, PermissionResolvable, PermissionsString, User } from "discord.js";
 import type { CommandBuilder, InferOptions, OptionFactory, SlashCommandBuilder, Client, CommandContext, CooldownConfig } from "..";
 import { cooldownManager, option } from "..";
 
@@ -102,21 +102,38 @@ type GroupSubUnion<TGroups> = {
     }[keyof Subs] : never;
 }[keyof TGroups];
 
+interface SlashCommandContext {
+    commandName: string;
+    user: User;
+    bot: ClientUser & {
+        avatarURL: string | null;
+        displayAvatarURL: string;
+        id: string;
+        username: string;
+    };
+}
+
+interface PermissionConfig {
+    permission: PermissionResolvable[];
+    message?: (ctx: SlashCommandContext) => InteractionReplyOptions;
+}
+
 export interface ISlashCommandWithSubsConfig<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     commandName: string;
     description: string;
-    memberpermissions?: PermissionsString[];
+    userPermission?: PermissionConfig;
     cooldown?: CooldownConfig;
     subcommands?: TSubs;
     groups?: TGroups;
     execute(client: Client, interaction: ChatInputCommandInteraction, payload: DirectSubUnion<TSubs> | GroupSubUnion<TGroups>): void | Promise<void>;
 }
 
+
 export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubCommandBuilder<any>> = {}, TGroups extends Record<string, ISlashSubCommandGroup<any>> = {}> {
     public readonly commandName: string;
     public readonly description: string;
     public readonly cooldown?: CooldownConfig;
-
+    public readonly userPermission?: PermissionConfig;
     private readonly subs: TSubs;
     private readonly groups: TGroups;
     private readonly handler: ISlashCommandWithSubsConfig<TSubs, TGroups>["execute"];
@@ -125,6 +142,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
         this.commandName = config.commandName;
         this.description = config.description;
         this.cooldown = config.cooldown;
+        this.userPermission = config.userPermission;
         this.subs = (config.subcommands ?? {}) as TSubs;
         this.groups = (config.groups ?? {}) as TGroups;
         this.handler = config.execute;
@@ -142,6 +160,23 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
     }
 
     public async execute(client: Client, interaction: ChatInputCommandInteraction) {
+        // permission
+        if (this.userPermission) {
+            if (!interaction.memberPermissions?.has(this.userPermission.permission || ["SendMessages"])) {
+                const response = this.userPermission.message?.({
+                    commandName: this.commandName,
+                    user: interaction.user,
+                    bot: Object.assign(client.user!, {
+                        avatarURL: client.user?.avatarURL(),
+                        displayAvatarURL: client.user?.displayAvatarURL(),
+                        id: client.user?.id,
+                        username: client.user?.username,
+                    }),
+                });
+                return interaction.reply(response ?? { content: `Này <@${interaction.user.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`, flags: MessageFlags.Ephemeral });
+            }
+        }
+        // cooldown
         if (this.cooldown) {
             const commands = {
                 commandName: this.commandName,
@@ -158,7 +193,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
                 ephemeral: true,
             });
         }
-
+        // SubcommandGroup
         const groupName = interaction.options.getSubcommandGroup(false);
         if (groupName) {
             const subName = interaction.options.getSubcommand(true);
@@ -170,8 +205,8 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
                 sub: subName,
                 options: parsed,
             } as any);
-        }
-
+        }   
+        // Subcommand
         const subName = interaction.options.getSubcommand(true);
         const subBuilder = this.subs[subName as keyof typeof this.subs];
         const parsed = subBuilder.parse(interaction);

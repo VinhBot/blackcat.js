@@ -18,7 +18,7 @@ interface PermissionConfig {
     permission: PermissionResolvable[];
     message?: (ctx: CommandContext) => string | MessagePayload | MessageReplyOptions;
 }
-
+ 
 /**
  * Cấu hình cho Message Command (prefix command).
  */
@@ -68,7 +68,7 @@ export class CommandBuilder {
 
     public execute(client: Client, message: Message, args: string[]) {
         if (this.userPermission) {
-            if (!message.member?.permissions.has(this.userPermission.permission)) {
+            if (!message.member?.permissions.has(this.userPermission.permission || ["SendMessages"])) {
                 const response = this.userPermission.message?.({
                     commandName: this.commandName,
                     user: message.member as GuildMember & { user: User },

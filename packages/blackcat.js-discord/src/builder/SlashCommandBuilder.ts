@@ -1,4 +1,4 @@
-import { SlashCommandBuilder as DiscordSlashCommandBuilder, ChannelType } from "discord.js";
+import { SlashCommandBuilder as DiscordSlashCommandBuilder, ChannelType, MessageFlags } from "discord.js";
 import type {
     ChatInputCommandInteraction,
     SlashCommandStringOption,
@@ -16,6 +16,9 @@ import type {
     User,
     Attachment,
     PermissionsString,
+    PermissionResolvable,
+    ClientUser,
+    InteractionReplyOptions,
 } from "discord.js";
 import type { Client, CooldownConfig } from "..";
 import { CommandBuilder, cooldownManager } from "..";
@@ -116,10 +119,23 @@ export type InferOptions<T extends Record<string, any>> = {
  */
 export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> : {};
 /**
- * Cấu hình cho một Slash Command.
- *
- * @template TOptions Object định nghĩa options
+ * 
  */
+interface SlashCommandContext {
+    commandName: string;
+    user: User;
+    bot: ClientUser & {
+        avatarURL: string | null;
+        displayAvatarURL: string;
+        id: string;
+        username: string;
+    };
+}
+
+interface PermissionConfig {
+    permission: PermissionResolvable[];
+    message?: (ctx: SlashCommandContext) => InteractionReplyOptions;
+}
 /**
  * Cấu hình cho một Slash Command Builder.
  *
@@ -129,7 +145,7 @@ export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> 
 export interface SlashCommandBuilderOptions<TOptions extends Record<string, any> | undefined = undefined> {
     /**
      * Tên command (không chứa khoảng trắng).
-     * Đây là identifier duy nhất khi đăng ký slash command.
+     * Đây là identifier duy nhất khi đăng ký slash command.    
      *
      * Ví dụ: "ping", "ban", "userinfo"
      */
@@ -142,10 +158,8 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
     /**
      * Danh sách quyền cần thiết để sử dụng command.
      * Nếu không khai báo, mặc định mọi member đều có thể sử dụng.
-     *
-     * Ví dụ: ["Administrator", "BanMembers"]
      */
-    memberpermissions?: PermissionsString[];
+    userPermission?: PermissionConfig;
     /**
      * Cấu hình cooldown cho command.
      * Quy định thời gian chờ giữa các lần sử dụng.
@@ -173,7 +187,6 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
      */
     execute(client: Client, interaction: ChatInputCommandInteraction, options: ResolveOptions<TOptions>): void;
 }
-
 /**
  * Builder wrapper cho Discord Slash Command,
  * hỗ trợ infer kiểu options ở compile-time.
@@ -183,14 +196,14 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
 export class SlashCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> {
     public readonly commandName: string;
     public readonly description: string;
-    public readonly memberpermissions?: PermissionsString[];
+    public readonly userPermission?: PermissionConfig;
     public readonly cooldown?: CooldownConfig;
     private readonly defs?: TOptions;
     private readonly handler: SlashCommandBuilderOptions<TOptions>["execute"];
     constructor(config: SlashCommandBuilderOptions<TOptions>) {
         this.commandName = config.commandName;
         this.description = config.description;
-        this.memberpermissions = config.memberpermissions || ["SendMessages"];
+        this.userPermission = config.userPermission;
         this.cooldown = config.cooldown;
         this.handler = config.execute;
         this.defs = config.options?.(option);
@@ -208,6 +221,21 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
      * @param {ChatInputCommandInteraction} interaction Interaction hiện tại
      */
     async execute(client: Client, interaction: ChatInputCommandInteraction) {
+        if (this.userPermission) {
+            if (!interaction.memberPermissions?.has(this.userPermission.permission || ["SendMessages"])) {
+                const response = this.userPermission.message?.({
+                    commandName: this.commandName,
+                    user: interaction.user,
+                    bot: Object.assign(client.user!, {
+                        avatarURL: client.user?.avatarURL(),
+                        displayAvatarURL: client.user?.displayAvatarURL(),
+                        id: client.user?.id,
+                        username: client.user?.username,
+                    }),
+                });
+                return interaction.reply(response ?? { content: `Này <@${interaction.user.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`, flags: MessageFlags.Ephemeral });
+            }
+        }
         if (this.cooldown) {
             const commands = {
                 commandName: this.commandName,
@@ -221,7 +249,7 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
             });
             if (cooldownMessage) return await interaction.reply({
                 content: cooldownMessage,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral
             });
         }
         const parsed = this.defs ? this.parseOptions(interaction, this.defs) : {};

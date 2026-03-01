@@ -1,4 +1,4 @@
-import { CommandBuilder } from "blackcat.js-discord";
+import { CommandBuilder, ComponentBuilder } from "blackcat.js-discord";
 import type { TextChannel } from "discord.js";
 
 const pingCommand = new CommandBuilder({
@@ -15,6 +15,7 @@ const pingCommand = new CommandBuilder({
     },
     userPermission: {
         permission: ["SendMessages"],
+        message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
     },
     execute: async (client, message, args) => {
         await (message.channel as TextChannel).send(`My ping: ${client.ws.ping} ms`);
