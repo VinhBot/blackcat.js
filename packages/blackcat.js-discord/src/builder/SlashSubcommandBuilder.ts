@@ -1,5 +1,5 @@
 import { SlashCommandBuilder as DiscordSlashCommandBuilder, MessageFlags, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import type { ChatInputCommandInteraction, ClientUser, GuildMember, InteractionReplyOptions, PermissionResolvable, PermissionsString, User } from "discord.js";
+import type { ChatInputCommandInteraction, ClientUser, GuildMember, InteractionReplyOptions, PermissionResolvable, PermissionsString, SlashCommandAttachmentOption, SlashCommandBooleanOption, SlashCommandStringOption, User } from "discord.js";
 import type { CommandBuilder, InferOptions, OptionFactory, SlashCommandBuilder, Client, CommandContext, CooldownConfig } from "..";
 import { cooldownManager, option } from "..";
 
@@ -19,6 +19,8 @@ interface SlashSubCommandBuilderConfig<TOptions> {
     options?: (option: OptionFactory) => TOptions;
 }
 
+new SlashCommandSubcommandBuilder().addStringOption
+
 export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> implements ISlashSubCommandBuilder<TOptions> {
     public readonly description: string;
     private readonly defs?: TOptions;
@@ -35,6 +37,9 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
                 const method = def.method.replace("get", "add") + "Option";
                 (sub as any)[method]((opt: any) => {
                     opt.setName(key).setDescription(def.description).setRequired(def.required);
+                    if (def.choices && def.choices.length > 0) opt.addChoices(...def.choices);
+                    if (def.minLength !== undefined) opt.setMinLength(def.minLength);
+                    if (def.maxLength !== undefined) opt.setMaxLength(def.maxLength);
                     return opt;
                 });
             }

@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-discord",
-  "version": "1.0.1-test.2",
+  "version": "1.0.0",
   "description": "discord.js wrapper for blackcat.js",
   "author": "Nguyen Vinh",
   "license": "ISC",
@@ -32,7 +32,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "chalk": "^5.6.2",
     "discord.js": "^14.25.1"
   },
   "engines": {
@@ -43,6 +42,9 @@
     "discordjs",
     "blackcat.js",
     "discord-commando",
-    "discord"
+    "discord",
+    "blackcat.js",
+    "blackcat.js-discord",
+    "blackcat.js-database"
   ]
 }

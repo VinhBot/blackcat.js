@@ -185,7 +185,7 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
      * - Nếu TOptions là undefined thì tham số options cũng có thể undefined.
      * - Hàm này không trả về giá trị (void).
      */
-    execute(client: Client, interaction: ChatInputCommandInteraction, options: ResolveOptions<TOptions>): void;
+    execute(client: Client, interaction: ChatInputCommandInteraction, options: ResolveOptions<TOptions>): any | Promise<any>;
 }
 /**
  * Builder wrapper cho Discord Slash Command,

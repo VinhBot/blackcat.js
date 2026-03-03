@@ -30,7 +30,7 @@ export interface CommandBuilderOptions {
     cooldown?: CooldownConfig;
     userPermission?: PermissionConfig;
     usage?: string;
-    execute: (client: Client, message: Message, args: string[]) => void;
+    execute: (client: Client, message: Message, args: string[]) => any;
 }
 /**
  * Class representing a command builder for Discord bots.
@@ -66,7 +66,7 @@ export class CommandBuilder {
         this.handler = options.execute;
     }
 
-    public execute(client: Client, message: Message, args: string[]) {
+    public execute(client: Client, message: Message, args: string[]): any {
         if (this.userPermission) {
             if (!message.member?.permissions.has(this.userPermission.permission || ["SendMessages"])) {
                 const response = this.userPermission.message?.({
