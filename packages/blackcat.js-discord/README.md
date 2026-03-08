@@ -270,40 +270,105 @@ export default exampleCommand;
 ```ts
 import { ComponentBuilder } from "blackcat.js-discord";
 
-const componentExample = new ComponentBuilder([
-    {
-        type: "ButtonBuilder",
-        options: [
-            {
-                style: keyof typeof ButtonStyle | ButtonStyle;
-                customId: string;
-                label?: string;
-                emoji?: string | APIMessageComponentEmoji;
-                url?: string;
-                disabled?: boolean;
-            }
-        ]
-    },
-    {
-        type: "StringSelectMenuBuilder",
-        options: {
-            customId: string;
-            placeholder?: string;
-            minValues?: number;
-            maxValues?: number;
-            disabled?: boolean;
-            options: {
-                label: string;
-                value: string;
-                description?: string;
-                emoji?: string | APIMessageComponentEmoji;
-                default?: boolean;
-            }[];
-        }
+const components = new ComponentBuilder([
+  {
+    type: "button",
+    options: [
+      { customId: "accept", label: "Chấp nhận", style: "Success" },
+      { customId: "decline", label: "Từ chối", style: "Danger" }
+    ]
+  },
+  {
+    type: "select",
+    options: {
+      customId: "color",
+      placeholder: "Chọn màu",
+      options: [
+        { label: "Đỏ", value: "red" },
+        { label: "Xanh", value: "blue" }
+      ]
     }
-]);
-        
-message.reply({ components: componentExample });    
+  }
+] as const);
+
+const msg = await message.reply({
+  content: "Hãy chọn một tùy chọn",
+  components: components.components()
+});
+
+components.createCollector({
+  source: msg,
+  userId: message.author.id,
+  onCollect: async (interaction, id) => {
+    // id sẽ được TypeScript suy ra:
+    // "accept" | "decline" | "color"
+    if (interaction.isButton()) {
+      if (id === "accept") {
+        await interaction.reply("Bạn đã chấp nhận");
+      }
+      if (id === "decline") {
+        await interaction.reply("Bạn đã từ chối");
+      }
+    }
+    if (interaction.isStringSelectMenu()) {
+      if (id === "choose_color") {
+        await i.reply({
+          content: `Bạn chọn: ${i.values[0]}`,
+          ephemeral: true
+        });
+      }
+    }
+  }
+});
+
+// ===== Slash Command (Interaction) =====
+
+await interaction.reply({
+  content: "Hãy chọn một tùy chọn",
+  components: components.components()
+});
+
+await components.createCollector({
+  source: interaction,
+  userId: interaction.user.id,
+  time: 60000,
+  onCollect: async (i, id) => {
+    if (i.isButton()) {
+      if (id === "accept") await i.reply({ content: "Bạn đã chấp nhận", ephemeral: true });
+      if (id === "decline") await i.reply({ content: "Bạn đã từ chối", ephemeral: true });
+    }
+    if (i.isStringSelectMenu()) {
+      if (id === "choose_color") {
+        await i.reply({
+          content: `Bạn chọn: ${i.values[0]}`,
+          ephemeral: true
+        });
+      }
+    }
+
+  }
+});    
+```
+
+---
+# 🧩 PaginationBuilder
+
+```js
+const pagination = new Pagination({
+  source: message,
+  userId: message.author.id,
+  pages: Array.from({ length: 5 }, (_, i) => i + 1),
+
+  render: (page, index, total) => ({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle(`Page ${page}`)
+        .setDescription(`Trang ${index + 1}/${total}`)
+    ]
+  })
+});
+
+await pagination.start();
 ```
 
 ---

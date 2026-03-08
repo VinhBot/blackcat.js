@@ -130,7 +130,7 @@ export interface ISlashCommandWithSubsConfig<TSubs extends Record<string, ISlash
     cooldown?: CooldownConfig;
     subcommands?: TSubs;
     groups?: TGroups;
-    execute(client: Client, interaction: ChatInputCommandInteraction, payload: DirectSubUnion<TSubs> | GroupSubUnion<TGroups>): void | Promise<void>;
+    execute(client: Client, interaction: ChatInputCommandInteraction, payload: DirectSubUnion<TSubs> | GroupSubUnion<TGroups>): any | Promise<any>;
 }
 
 
