@@ -1,5 +1,10 @@
 # 🐈‍⬛ blackcat.js-discord
 
+![npm version](https://img.shields.io/npm/v/blackcat.js-discord)
+![npm downloads](https://img.shields.io/npm/dm/blackcat.js-discord)
+![license](https://img.shields.io/npm/l/blackcat.js-discord)
+![typescript](https://img.shields.io/badge/types-TypeScript-blue)
+
 > Thư viện hỗ trợ xây dựng Discord Bot với cấu trúc lệnh mạnh mẽ, typed an toàn và dễ mở rộng.  
 > Tối ưu cho cả **message command** và **slash command**.
 
@@ -353,24 +358,77 @@ await components.createCollector({
 ---
 # 🧩 PaginationBuilder
 
-```js
-const pagination = new Pagination({
-  source: message,
-  userId: message.author.id,
-  pages: Array.from({ length: 5 }, (_, i) => i + 1),
+**Hệ thống pagination cho Discord message với:**
+- Navigation buttons (first / prev / next / last)
+- Select menu nhảy trang
+- Custom buttons / components
+- Hỗ trợ message command và interaction
+- Hỗ trợ dynamic page loading
 
-  render: (page, index, total) => ({
-    embeds: [
-      new EmbedBuilder()
-        .setTitle(`Page ${page}`)
-        .setDescription(`Trang ${index + 1}/${total}`)
-    ]
-  })
+```ts
+import { PaginationBuilder, ComponentBulder, ButtonStyle } from "blackcat.js-discord";
+
+const pagination = new PaginationBuilder({
+  pages: Array.from({ length: 5 }, (_, i) => `${i + 1}`),
+  renderPage: ({ data, page, totalPages }) => ({
+    content: `📄 Trang **${page + 1}/${totalPages}**\n\n${data}`
+  }),
+  timeout: 30,
+  selectMenu: {
+    enabled: true,
+    placeholder: "Chọn trang",
+    pageLabel: (page) => `Trang ${page + 1}`
+  },
+  
+  buildComponents: (ctx) => ctx.button([
+    {
+      customId: "example",
+      label: "example",
+      style: "Primary"
+    }
+  ]),
+  onComponent: async ({ interaction, pagination }) => {
+    if (interaction.isButton()) {
+      if (interaction.customId === "example") {
+          await interaction.deferReply();
+          await interaction.editReply("example")
+        }
+      }
+  },
+  interactionFilter: (i) => i.user.id === message.author.id,
+  onPageChange: ({ oldPage, newPage }) => {
+    console.log(`Page changed: ${oldPage} -> ${newPage}`);
+  },
+  onTimeout: (ctx) => {
+    ctx.message.edit({
+      components: [],
+    });
+  },
+  onError: (error) => {
+    console.log(error);
+  }
 });
 
-await pagination.start();
-```
+await pagination.start(message); // messageCrete
+await pagination.start(interaction); // interactionCreate
 
+// Dùng khi dữ liệu lớn hoặc load từ database / API
+const pagination = new PaginationBuilder<User[]>({
+  pageLoader: async (page) => {
+    const users = await database.getUsers({
+      page,
+      limit: 10
+    });
+    return users;
+  },
+  renderPage: ({ data, page }) => ({
+    embeds: [{
+      title: `Users Page ${page + 1}`,
+      description: data.map(u => `• ${u.username}`).join("\n")
+    }]
+  })
+});
+```
 ---
 
 # 🔐 Hệ thống Cooldown
