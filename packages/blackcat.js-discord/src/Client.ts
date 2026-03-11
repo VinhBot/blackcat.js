@@ -148,9 +148,9 @@ export class Client extends DiscordClient<boolean> {
      * @returns Promise resolve với token sau khi login thành công
      */
     public start(): Promise<string> {
-        this.slashCommandManager.loadAll();
-        this.commandManager.loadAll();
         this.eventManager.load();
+        this.commandManager.loadAll();
+        this.slashCommandManager.loadAll();
         if (!this.token) {
             throw new Error("Bot token chưa được thiết lập.");
         }
