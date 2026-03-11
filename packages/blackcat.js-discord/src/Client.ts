@@ -139,7 +139,7 @@ export class Client extends DiscordClient<boolean> {
      *
      * Quy trình:
      * 1. Load slash commands
-     * 2. Reload message commands
+     * 2. Load message commands
      * 3. Load events
      * 4. Đăng nhập Discord
      *
@@ -149,7 +149,7 @@ export class Client extends DiscordClient<boolean> {
      */
     public start(): Promise<string> {
         this.slashCommandManager.loadAll();
-        this.commandManager.reloadAll();
+        this.commandManager.loadAll();
         this.eventManager.load();
         if (!this.token) {
             throw new Error("Bot token chưa được thiết lập.");
