@@ -94,7 +94,7 @@ export class CommandManager {
     /**
      * Load toàn bộ message commands từ thư mục đã cấu hình.
      */
-    private async loadAll(): Promise<void> {
+    public async loadAll(): Promise<void> {
         if (!this.directory) return;
         await this._readDirectory(path.resolve(this.directory));
 
@@ -214,7 +214,7 @@ export class CommandManager {
      * @param name - Tên command hoặc alias
      * @returns Command tương ứng hoặc `null`
      */
-    public resolve(name: string): CommandBuilderOptions | null {
+    private resolve(name: string): CommandBuilderOptions | null {
         const { commands, aliases } = this.client;
         const direct = commands.get(name);
         if (direct) return direct;
