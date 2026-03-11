@@ -15,6 +15,7 @@ import {
 import { functions } from "..";
 /**
  * Các style hợp lệ cho Discord Button.
+ * @hidden
  */
 export type ComponentButtonStyleKey = | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
 
@@ -122,6 +123,7 @@ export type ComponentSchema = | {
 /**
  * Utility type dùng để trích xuất tất cả `customId`
  * từ schema và tạo thành union type.
+ * @hidden
  *
  * Ví dụ:
  *

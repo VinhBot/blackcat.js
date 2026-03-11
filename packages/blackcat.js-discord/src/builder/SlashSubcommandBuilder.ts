@@ -294,6 +294,7 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
 }
 /**
  * Suy luận kiểu options của một subcommand builder.
+ * @hidden
  *
  * Type này lấy generic `TOptions` từ `ISlashSubCommandBuilder`
  * rồi convert nó sang object options thực tế bằng `InferOptions`.
@@ -321,6 +322,7 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
 export type InferSub<T> = T extends ISlashSubCommandBuilder<infer O> ? O extends Record<string, any> ? InferOptions<O> : {} : never;
 /**
  * Tạo union payload cho các **subcommand trực tiếp** của command.
+ * @hidden
  *
  * Mỗi subcommand sẽ trở thành một variant trong union.
  *
@@ -372,6 +374,7 @@ export type DirectSubUnion<TSubs> = {
 
 /**
  * Tạo union payload cho các **subcommand nằm trong subcommand group**.
+ * @hidden
  *
  * Type này sẽ flatten cấu trúc:
  *

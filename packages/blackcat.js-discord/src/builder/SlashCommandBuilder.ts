@@ -25,6 +25,7 @@ import { CommandBuilder, cooldownManager } from "..";
 /**
  * Mapping giữa method lấy option của Discord Interaction
  * và kiểu dữ liệu trả về tương ứng.
+ * @hidden
  *
  * Dùng để suy luận kiểu dữ liệu khi parse options từ
  * {@link ChatInputCommandInteraction}.
@@ -33,7 +34,7 @@ import { CommandBuilder, cooldownManager } from "..";
  * - `getString` → `string | null`
  * - `getUser` → `User | null`
  */
-export type OptionGetReturnMap = {
+export type SlashOptionGetReturnMap = {
     getString: string | null;
     getInteger: number | null;
     getNumber: number | null;
@@ -48,6 +49,7 @@ export type OptionGetReturnMap = {
 
 /**
  * Cấu trúc option cơ bản cho Slash Command.
+ * @hidden
  *
  * @template TMethod
  * Method dùng để lấy dữ liệu từ `interaction.options`.
@@ -56,7 +58,7 @@ export type OptionGetReturnMap = {
  * - `"getString"`
  * - `"getUser"`
  */
-export type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
+export type BaseOption<TMethod extends keyof SlashOptionGetReturnMap> = {
     /**
      * Method tương ứng với Discord Interaction API
      * (vd: `getString`, `getUser`).
@@ -74,6 +76,7 @@ export type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
 
 /**
  * Option kiểu string.
+ * @hidden
  */
 export type StringOption = BaseOption<"getString"> & {
     /**
@@ -91,6 +94,7 @@ export type StringOption = BaseOption<"getString"> & {
 };
 /**
  * Option kiểu integer.
+ * @hidden
  */
 export type IntegerOption = BaseOption<"getInteger"> & {
     choices?: Array<{ name: string; value: number }>;
@@ -99,6 +103,7 @@ export type IntegerOption = BaseOption<"getInteger"> & {
 };
 /**
  * Option kiểu number (float).
+ * @hidden
  */
 export type NumberOption = BaseOption<"getNumber"> & {
     choices?: Array<{ name: string; value: number }>;
@@ -107,6 +112,7 @@ export type NumberOption = BaseOption<"getNumber"> & {
 };
 /**
  * Option kiểu channel.
+ * @hidden
  */
 export type ChannelOption = BaseOption<"getChannel"> & {
     /**
@@ -116,26 +122,32 @@ export type ChannelOption = BaseOption<"getChannel"> & {
 };
 /**
  * Option kiểu boolean.
+ * @hidden
  */
 export type BooleanOption = BaseOption<"getBoolean">;
 /**
  * Option kiểu user.
+ * @hidden
  */
 export type UserOption = BaseOption<"getUser">;
 /**
  * Option kiểu member.
+ * @hidden
  */
 export type MemberOption = BaseOption<"getMember">;
 /**
  * Option kiểu role.
+ * @hidden
  */
 export type RoleOption = BaseOption<"getRole">;
 /**
  * Option kiểu mentionable (user hoặc role).
+ * @hidden
  */
 export type MentionableOption = BaseOption<"getMentionable">;
 /**
  * Option kiểu attachment.
+ * @hidden
  */
 export type AttachmentOption = BaseOption<"getAttachment">;
 
@@ -170,12 +182,14 @@ export const option = Object.freeze({
 });
 /**
  * Kiểu factory option.
+ * @hidden
  */
 export type OptionFactory = typeof option;
 /**
  * Suy luận kiểu dữ liệu trả về của 1 option dựa trên:
  * - method (getString, getNumber, ...)
  * - required (true | false)
+ * @hidden
  *
  * @template O Option definition
  *
@@ -183,10 +197,11 @@ export type OptionFactory = typeof option;
  * - Nếu `required: true` → trả về kiểu non-null
  * - Nếu `required: false | undefined` → trả về kiểu có thể null
  */
-export type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof OptionGetReturnMap ? O["required"] extends true ? OptionGetReturnMap[T] : OptionGetReturnMap[T] | null : never : never;
+export type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof SlashOptionGetReturnMap ? O["required"] extends true ? SlashOptionGetReturnMap[T] : SlashOptionGetReturnMap[T] | null : never : never;
 /**
  * Convert toàn bộ option definitions
  * thành object giá trị tương ứng.
+ * @hidden
  *
  * Ví dụ:
  *
@@ -203,6 +218,7 @@ export type InferOptions<T extends Record<string, any>> = {
 
 /**
  * Resolve option type.
+ * @hidden
  *
  * Nếu command không có options → trả về `{}`.
  */

@@ -1,8 +1,12 @@
 import { Message, InteractionCollector, ChatInputCommandInteraction, InteractionReplyOptions, MessageEditOptions } from "discord.js";
 import type { MessageComponentType, ButtonInteraction, ChannelSelectMenuInteraction, MentionableSelectMenuInteraction, RoleSelectMenuInteraction, StringSelectMenuInteraction, UserSelectMenuInteraction, } from "discord.js";
-
+/**
+ * @hidden
+ */
 export type CollectorTarget = Message | ChatInputCommandInteraction;
-
+/**
+ * @hidden
+ */
 export type CollectorInteraction = | ButtonInteraction | StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction;
 
 /**

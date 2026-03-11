@@ -43,8 +43,9 @@ export interface ClientOptions extends DiscordClientOptions {
 
 /**
  * Kiểu union đại diện cho mọi dạng slash command builder.
+ * @hidden
  */
-export type AnySlashCommand = | SlashCommandBuilder<any> | SlashCommandBuilderWithSubs<any, any>;
+type AnySlashCommand = | SlashCommandBuilder<any> | SlashCommandBuilderWithSubs<any, any>;
 
 /**
  * Client mở rộng từ {@link DiscordClient}.

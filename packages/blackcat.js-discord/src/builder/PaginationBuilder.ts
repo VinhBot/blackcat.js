@@ -4,6 +4,7 @@ import { ComponentBuilder, functions } from "..";
 
 /**
  * Nguồn khởi tạo pagination.
+ * @hidden
  *
  * Pagination có thể được bắt đầu từ:
  *
@@ -21,6 +22,7 @@ import { ComponentBuilder, functions } from "..";
 export type PaginationSource = Message | ChatInputCommandInteraction;
 /**
  * Các loại interaction component được pagination xử lý.
+ * @hidden
  *
  * Hiện tại hỗ trợ:
  *
