@@ -9,36 +9,104 @@ import {
     CommandBuilderOptions
 } from "..";
 
+/**
+ * Cấu hình cho {@link CommandManager}.
+ */
 export interface CommandManagerOptions {
+    /**
+     * Thư mục chứa message command files.
+     */
     directory: string;
+    /**
+     * Prefix được sử dụng để gọi command.
+     *
+     * Có thể là:
+     *
+     * - một prefix duy nhất
+     * - nhiều prefix
+     *
+     * Ví dụ:
+     * ```ts
+     * prefix: "!"
+     * prefix: ["!", "?"]
+     * ```
+     */
     prefix: string | string[];
+    /**
+     * Callback được gọi khi command được load thành công.
+     *
+     * @param command - Command đã được load
+     */
     onLoad?: (command: CommandBuilder) => void;
+    /**
+     * Callback được gọi khi xảy ra lỗi khi load command.
+     *
+     * @param data.file - File gây lỗi
+     * @param data.error - Error chi tiết
+     */
     onError?: (data: { file: string; error: Error }) => void;
 }
 
+/**
+ * Manager chịu trách nhiệm:
+ *
+ * - Load message commands từ filesystem
+ * - Quản lý command registry
+ * - Quản lý aliases
+ * - Phân loại command theo category
+ * - Xử lý messageCreate để thực thi command
+ */
 export class CommandManager {
+    /**
+     * Instance client của bot.
+     */
     private readonly client: Client;
+    /**
+     * Thư mục chứa command files.
+     */
     private readonly directory: string | undefined;
+    /**
+     * Prefix dùng để gọi command.
+     */
     private readonly prefix: string | string[] | undefined;
+    /**
+     * Callback khi command được load.
+     */
     private readonly onLoad?: CommandManagerOptions["onLoad"];
+    /**
+     * Callback khi xảy ra lỗi khi load command.
+     */
     private readonly onError?: CommandManagerOptions["onError"];
+    /**
+     * Khởi tạo CommandManager.
+     *
+     * @param client - Instance bot client
+     * @param options - Cấu hình manager
+     */
     constructor(client: Client, options?: CommandManagerOptions) {
-        this.client = client;    
+        this.client = client;
         this.directory = options?.directory;
         this.prefix = options?.prefix;
         this.onLoad = options?.onLoad;
         this.onError = options?.onError;
         this._attachMessageListener();
     }
-    /* ================= LOAD ================= */
+    /**
+     * Load toàn bộ message commands từ thư mục đã cấu hình.
+     */
     private async loadAll(): Promise<void> {
-        if(!this.directory) return;
+        if (!this.directory) return;
         await this._readDirectory(path.resolve(this.directory));
 
     }
+    /**
+     * Đọc đệ quy các file command trong thư mục.
+     *
+     * @param dir - Thư mục cần đọc
+     */
     private async _readDirectory(dir: string): Promise<void> {
-        const entries = await fs.promises.readdir(dir, { 
-            withFileTypes: true 
+        const entries = await fs.promises.readdir(dir, {
+            withFileTypes: true
         });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
@@ -52,7 +120,11 @@ export class CommandManager {
             await this._loadFile(fullPath);
         }
     }
-
+    /**
+     * Load một file command.
+     *
+     * @param filePath - Đường dẫn file command
+     */
     private async _loadFile(filePath: string): Promise<void> {
         try {
             const imported = await import(url.pathToFileURL(filePath).href);
@@ -67,7 +139,7 @@ export class CommandManager {
             if (commands.has(command.commandName)) {
                 throw new Error(`Lệnh bị trùng lặp: ${command.commandName}`);
             }
-            if(!this.directory) return;
+            if (!this.directory) return;
             const category = path.relative(path.resolve(this.directory), filePath).split(path.sep)[0];
             command.category = category;
             commands.set(command.commandName, command);
@@ -92,7 +164,15 @@ export class CommandManager {
             this.onError?.({ file: filePath, error: error as Error });
         }
     }
-    /* ================= MESSAGE HANDLER ================= */
+    /**
+     * Gắn listener cho sự kiện `messageCreate`.
+     *
+     * Listener này sẽ:
+     * - kiểm tra prefix
+     * - parse arguments
+     * - resolve command
+     * - thực thi command
+     */
     private _attachMessageListener(): void {
         this.client.on("messageCreate", async (message) => {
             if (!message.guild || message.author.bot) return;
@@ -104,13 +184,18 @@ export class CommandManager {
             const command = this.resolve(commandName);
             if (!command) return;
             try {
-                await command.execute(this.client, message, args);
+                await (command as any).execute(this.client, message, args);
             } catch (error) {
                 console.error(error);
             }
         });
     }
-    /* ================= UTIL ================= */
+    /**
+     * Xác định prefix được sử dụng trong message.
+     *
+     * @param content - Nội dung message
+     * @returns Prefix được sử dụng hoặc `null`
+     */
     private _getPrefix(content: string): string | null {
         if (Array.isArray(this.prefix)) {
             for (const p of this.prefix) {
@@ -120,7 +205,15 @@ export class CommandManager {
         }
         return content.startsWith(this.prefix as any) ? this.prefix as any : null;
     }
-
+    /**
+     * Resolve command từ:
+     *
+     * - command name
+     * - alias
+     *
+     * @param name - Tên command hoặc alias
+     * @returns Command tương ứng hoặc `null`
+     */
     public resolve(name: string): CommandBuilderOptions | null {
         const { commands, aliases } = this.client;
         const direct = commands.get(name);
@@ -129,7 +222,16 @@ export class CommandManager {
         if (!alias) return null;
         return commands.get(alias) ?? null;
     }
-
+    /**
+     * Reload toàn bộ commands.
+     *
+     * Quy trình:
+     *
+     * 1. Xóa commands
+     * 2. Xóa aliases
+     * 3. Xóa categories
+     * 4. Load lại từ filesystem
+     */
     public async reloadAll(): Promise<void> {
         const { commands, aliases, categories } = this.client;
         commands.clear();

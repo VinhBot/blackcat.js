@@ -15,7 +15,6 @@ import type {
     Channel,
     User,
     Attachment,
-    PermissionsString,
     PermissionResolvable,
     ClientUser,
     InteractionReplyOptions,
@@ -26,6 +25,13 @@ import { CommandBuilder, cooldownManager } from "..";
 /**
  * Mapping giữa method lấy option của Discord Interaction
  * và kiểu dữ liệu trả về tương ứng.
+ *
+ * Dùng để suy luận kiểu dữ liệu khi parse options từ
+ * {@link ChatInputCommandInteraction}.
+ *
+ * Ví dụ:
+ * - `getString` → `string | null`
+ * - `getUser` → `User | null`
  */
 export type OptionGetReturnMap = {
     getString: string | null;
@@ -41,46 +47,114 @@ export type OptionGetReturnMap = {
 };
 
 /**
- * Cấu trúc option cơ bản, đại diện cho 1 slash command option.
+ * Cấu trúc option cơ bản cho Slash Command.
  *
- * @template TMethod Method dùng để lấy option từ interaction
+ * @template TMethod
+ * Method dùng để lấy dữ liệu từ `interaction.options`.
+ *
+ * Ví dụ:
+ * - `"getString"`
+ * - `"getUser"`
  */
 export type BaseOption<TMethod extends keyof OptionGetReturnMap> = {
+    /**
+     * Method tương ứng với Discord Interaction API
+     * (vd: `getString`, `getUser`).
+     */
     method: TMethod;
+    /**
+     * Mô tả option hiển thị trong Discord UI.
+     */
     description: string;
+    /**
+     * Option có bắt buộc hay không.
+     */
     required: boolean;
 };
+
 /**
- * Các option cụ thể tương ứng với Discord Slash Command API
+ * Option kiểu string.
  */
 export type StringOption = BaseOption<"getString"> & {
+    /**
+     * Danh sách choices cho option.
+     */
     choices?: Array<{ name: string; value: string }>;
+    /**
+     * Độ dài tối thiểu của chuỗi.
+     */
     minLength?: number;
+    /**
+     * Độ dài tối đa của chuỗi.
+     */
     maxLength?: number;
 };
+/**
+ * Option kiểu integer.
+ */
 export type IntegerOption = BaseOption<"getInteger"> & {
     choices?: Array<{ name: string; value: number }>;
     min?: number;
     max?: number;
 };
+/**
+ * Option kiểu number (float).
+ */
 export type NumberOption = BaseOption<"getNumber"> & {
     choices?: Array<{ name: string; value: number }>;
     min?: number;
     max?: number;
 };
+/**
+ * Option kiểu channel.
+ */
 export type ChannelOption = BaseOption<"getChannel"> & {
+    /**
+     * Giới hạn loại channel được phép chọn.
+     */
     channelTypes?: Array<keyof typeof ChannelType>;
 };
+/**
+ * Option kiểu boolean.
+ */
 export type BooleanOption = BaseOption<"getBoolean">;
+/**
+ * Option kiểu user.
+ */
 export type UserOption = BaseOption<"getUser">;
+/**
+ * Option kiểu member.
+ */
 export type MemberOption = BaseOption<"getMember">;
+/**
+ * Option kiểu role.
+ */
 export type RoleOption = BaseOption<"getRole">;
+/**
+ * Option kiểu mentionable (user hoặc role).
+ */
 export type MentionableOption = BaseOption<"getMentionable">;
+/**
+ * Option kiểu attachment.
+ */
 export type AttachmentOption = BaseOption<"getAttachment">;
+
 /**
  * Factory tạo option definition theo kiểu strongly-typed.
  *
- * Mỗi method sẽ gắn sẵn `method` tương ứng với Discord Interaction API.
+ * Mỗi method sẽ tự động gán `method`
+ * tương ứng với Discord Interaction API.
+ *
+ * Ví dụ:
+ *
+ * ```ts
+ * options: (option) => ({
+ *   user: option.user({
+ *     description: "User cần chọn",
+ *     required: true
+ *   })
+ * })
+ * ```
  */
 export const option = Object.freeze({
     string: (data: Omit<StringOption, "method">): StringOption => ({ method: "getString", ...data }),
@@ -94,7 +168,9 @@ export const option = Object.freeze({
     mentionable: (data: Omit<MentionableOption, "method">): MentionableOption => ({ method: "getMentionable", ...data }),
     attachment: (data: Omit<AttachmentOption, "method">): AttachmentOption => ({ method: "getAttachment", ...data }),
 });
-
+/**
+ * Kiểu factory option.
+ */
 export type OptionFactory = typeof option;
 /**
  * Suy luận kiểu dữ liệu trả về của 1 option dựa trên:
@@ -109,21 +185,44 @@ export type OptionFactory = typeof option;
  */
 export type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof OptionGetReturnMap ? O["required"] extends true ? OptionGetReturnMap[T] : OptionGetReturnMap[T] | null : never : never;
 /**
- * Map toàn bộ option definitions sang object option-value tương ứng.
+ * Convert toàn bộ option definitions
+ * thành object giá trị tương ứng.
+ *
+ * Ví dụ:
+ *
+ * ```ts
+ * {
+ *   user: User
+ *   reason: string | null
+ * }
+ * ```
  */
 export type InferOptions<T extends Record<string, any>> = {
     [K in keyof T]: InferOption<T[K]>;
 };
+
 /**
- * Resolve option type, fallback về object rỗng nếu không có options.
+ * Resolve option type.
+ *
+ * Nếu command không có options → trả về `{}`.
  */
 export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> : {};
+
 /**
- * 
+ * Context truyền vào permission message.
  */
-interface SlashCommandContext {
+export interface SlashCommandContext {
+    /**
+     * Tên command đang thực thi.
+     */
     commandName: string;
+    /**
+     * User gọi command.
+     */
     user: User;
+    /**
+     * Bot client user.
+     */
     bot: ClientUser & {
         avatarURL: string | null;
         displayAvatarURL: string;
@@ -132,10 +231,49 @@ interface SlashCommandContext {
     };
 }
 
-interface PermissionConfig {
+/**
+ * Cấu hình permission cho slash command.
+ *
+ * Cho phép định nghĩa:
+ *
+ * - danh sách quyền cần thiết để sử dụng command
+ * - message tùy chỉnh khi user không đủ quyền
+ */
+export interface SlashPermissionConfig {
+    /**
+     * Danh sách quyền Discord cần thiết để sử dụng command.
+     *
+     * Ví dụ:
+     *
+     * ```ts
+     * permission: ["KickMembers", "BanMembers"]
+     * ```
+     */
     permission: PermissionResolvable[];
+    /**
+     * Hàm tạo message phản hồi khi user không đủ quyền.
+     *
+     * Nếu không cung cấp, hệ thống sẽ dùng message mặc định.
+     *
+     * @param ctx Context của command
+     *
+     * @returns
+     * `InteractionReplyOptions` dùng để gửi reply cho interaction.
+     *
+     * @example
+     * ```ts
+     * userPermission: {
+     *   permission: ["BanMembers"],
+     *   message: (ctx) => ({
+     *     content: `Này <@${ctx.user.id}> bạn không có quyền dùng /${ctx.commandName}`,
+     *     ephemeral: true
+     *   })
+     * }
+     * ```
+     */
     message?: (ctx: SlashCommandContext) => InteractionReplyOptions;
 }
+
 /**
  * Cấu hình cho một Slash Command Builder.
  *
@@ -159,7 +297,7 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
      * Danh sách quyền cần thiết để sử dụng command.
      * Nếu không khai báo, mặc định mọi member đều có thể sử dụng.
      */
-    userPermission?: PermissionConfig;
+    userPermission?: SlashPermissionConfig;
     /**
      * Cấu hình cooldown cho command.
      * Quy định thời gian chờ giữa các lần sử dụng.
@@ -194,12 +332,31 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
  * @template TOptions Object định nghĩa options
  */
 export class SlashCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> {
+    /**
+     * Tên command.
+     */
     public readonly commandName: string;
+    /**
+     * Mô tả command.
+     */
     public readonly description: string;
-    public readonly userPermission?: PermissionConfig;
+    /**
+     * Permission config.
+     */
+    public readonly userPermission?: SlashPermissionConfig;
+    /**
+     * Cooldown config.
+     */
     public readonly cooldown?: CooldownConfig;
+    /**
+     * Option definitions.
+     */
     private readonly defs?: TOptions;
+    /**
+     * Handler thực thi command.
+     */
     private readonly handler: SlashCommandBuilderOptions<TOptions>["execute"];
+
     constructor(config: SlashCommandBuilderOptions<TOptions>) {
         this.commandName = config.commandName;
         this.description = config.description;
@@ -209,7 +366,7 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
         this.defs = config.options?.(option);
     }
     /**
-     * Trả về object định nghĩa options của command.
+     * Lấy option definitions của command.
      */
     get options(): TOptions | undefined {
         return this.defs;
@@ -219,6 +376,12 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
      *
      * @param {Client} client Discord client
      * @param {ChatInputCommandInteraction} interaction Interaction hiện tại
+     * 
+     * Bao gồm:
+     * - kiểm tra permission
+     * - kiểm tra cooldown
+     * - parse options
+     * - gọi handler
      */
     async execute(client: Client, interaction: ChatInputCommandInteraction) {
         if (this.userPermission) {

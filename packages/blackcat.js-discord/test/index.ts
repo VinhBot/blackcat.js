@@ -1,9 +1,8 @@
 import { GatewayIntentBits } from "discord.js";
 import { Client } from "blackcat.js-discord";
-import chalk from "chalk";
 
 const config = {
-    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GMIMgV.DCPpfqMUcrevxR1s7j0W9zU28C4qTlE7zRn0Rc",
+    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GPO6MK.M0vxzkmPsaQibXb2D4kGFIumSiFEPIcC3js9U0",
 };
 
 const client = new Client({
@@ -13,7 +12,7 @@ const client = new Client({
         directory: "./events",
         scopes: ["client"],
         onLoad: (event) => {
-            console.log(chalk.greenBright(`${event.file} - ok`));
+            console.log(`${event.file} - ok`);
         },
         onError: (event) => {
             console.error(`${event.file}:`, event.error);
@@ -23,7 +22,7 @@ const client = new Client({
         directory: "./commands",
         prefix: "!",
         onLoad: (command) => {
-            console.log(chalk.blueBright(`commands: ${command.commandName} - ok`));
+            console.log(`commands: ${command.commandName} - ok`);
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
@@ -33,7 +32,7 @@ const client = new Client({
         directory: "./slashCommands",
         guildID: "1055150050357022840",
         onLoad: (command) => {
-            console.log(chalk.yellowBright(`slashCommands: ${command.commandName} - ok`));
+            console.log(`slashCommands: ${command.commandName} - ok`);
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);

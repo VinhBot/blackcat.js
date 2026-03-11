@@ -1,5 +1,5 @@
 import { Collection, GuildMember, PermissionsBitField } from "discord.js";
-import type { CommandBuilderOptions, SlashCommandBuilderOptions } from "..";
+import type { CommandBuilder, SlashCommandBuilderOptions } from "..";
 /**
  * PermissionLevel
  *
@@ -122,11 +122,11 @@ export interface CooldownConfig {
      *  message: (ms, ctx, name) =>
      *    `Command ${name} còn ${Math.ceil(ms/1000)}s`
      */
-    message?: (ms: number, ctx: CommandContext, commandName: string) => string;
+    message?: (ms: number, ctx: CooldownCommandContext, commandName: string) => string;
 }
 
 /**
- * CommandContext
+ * CooldownCommandContext
  *
  * Abstract layer để CooldownManager
  * không phụ thuộc trực tiếp vào
@@ -136,7 +136,7 @@ export interface CooldownConfig {
  *  - Slash Command (interactionCreate)
  *  - Prefix Command (messageCreate)
  */
-export type CommandContext = | {
+export type CooldownCommandContext = | {
     /**
      * Context từ slash command
      */
@@ -202,7 +202,6 @@ export class CooldownManager {
      * Lấy role cao nhất của member
      *
      * Discord priority dựa trên position
-     * Loại bỏ @everyone
      */
     private getHighestRole(member: GuildMember | null) {
         if (!member) return null;
@@ -248,7 +247,7 @@ export class CooldownManager {
      *
      * Key phải unique theo command
      */
-    private buildKey(commandName: string, scope: CooldownScope, ctx: CommandContext, highestRoleId?: string | null): string {
+    private buildKey(commandName: string, scope: CooldownScope, ctx: CooldownCommandContext, highestRoleId?: string | null): string {
         switch (scope) {
             case "user":
                 return `${commandName}:user:${ctx.userId}`;
@@ -268,7 +267,7 @@ export class CooldownManager {
      * - Nếu đang cooldown -> trả về message string
      * - Nếu không -> set cooldown mới và trả về null
      */
-    public check(command: CommandBuilderOptions | SlashCommandBuilderOptions, ctx: CommandContext): string | null {
+    public check(command: CommandBuilder | SlashCommandBuilderOptions, ctx: CooldownCommandContext): string | null {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
         // Bypass nếu có quyền phù hợp

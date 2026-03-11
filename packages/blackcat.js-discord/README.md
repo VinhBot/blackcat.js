@@ -12,7 +12,7 @@
 
 ## ✨ Tính năng nổi bật
 
-- ⚡ Cấu trúc `CommandBuilder` rõ ràng, dễ quản lý
+- ⚡ Cấu trúc `CommandBuilder, SlashCommandBuilder, SlashCommandBuilderWithSubs` rõ ràng, dễ quản lý
 - 🔒 Hệ thống **permission** linh hoạt
 - ⏱️ Cooldown theo `user`, `guild`, `global`
 - 🧠 Hỗ trợ `roleWeights` giảm thời gian cooldown

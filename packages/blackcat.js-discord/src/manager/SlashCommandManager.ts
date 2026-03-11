@@ -5,19 +5,70 @@ import fs from "fs";
 
 import { Client, SlashCommandBuilder } from "..";
 
+/**
+ * Options cấu hình cho {@link SlashCommandManager}.
+ */
 export interface SlashCommandManagerOptions {
+    /**
+     * Thư mục chứa các file slash command.
+     */
     directory: string;
+    /**
+     * Guild ID để đăng ký guild slash commands.
+     * 
+     * Nếu không cung cấp, commands sẽ được đăng ký global.
+     */
     guildID?: string;
+    /**
+     * Callback được gọi khi một slash command được load thành công.
+     *
+     * @param command - Slash command đã load
+     */
     onLoad?: (command: SlashCommandBuilder) => void;
+    /**
+     * Callback được gọi khi xảy ra lỗi khi load command.
+     *
+     * @param data.file - File gây lỗi
+     * @param data.error - Error chi tiết
+     */
     onError?: (data: { file: string; error: Error }) => void;
 }
 
+/**
+ * Manager chịu trách nhiệm:
+ *
+ * - Load slash commands từ filesystem
+ * - Đăng ký slash commands với Discord API
+ * - Xử lý interactionCreate cho slash commands
+ * - Reload commands khi cần
+ */
 export class SlashCommandManager {
+    /**
+     * Instance client của bot.
+     */
     private readonly client: Client;
+    /**
+     * Thư mục chứa slash commands.
+     */
     private readonly directory: string | undefined;
+    /**
+     * Guild ID để đăng ký commands.
+     */
     private readonly guildID?: string;
+    /**
+     * Callback khi command được load.
+     */
     private readonly onLoad?: SlashCommandManagerOptions["onLoad"];
+    /**
+     * Callback khi xảy ra lỗi khi load command.
+     */
     private readonly onError?: SlashCommandManagerOptions["onError"];
+    /**
+     * Khởi tạo SlashCommandManager.
+     *
+     * @param client - Instance client
+     * @param options - Cấu hình manager
+     */
     constructor(client: Client, options?: SlashCommandManagerOptions) {
         this.client = client;
         this.directory = options?.directory;
@@ -26,11 +77,20 @@ export class SlashCommandManager {
         this.guildID = options?.guildID;
         this._attachInteractionListener();
     }
-    /* ================= LOAD ================= */
+    /**
+     * Load toàn bộ slash commands từ thư mục đã cấu hình.
+     *
+     * @returns Promise hoàn thành khi load xong
+     */
     public async loadAll(): Promise<void> {
         if(!this.directory) return;
         await this._readDirectory(path.resolve(this.directory));
     }
+    /**
+     * Đọc đệ quy tất cả file command trong thư mục.
+     *
+     * @param dir - Thư mục cần đọc
+     */
     private async _readDirectory(dir: string): Promise<void> {
         const entries = await fs.promises.readdir(dir, {
             withFileTypes: true
@@ -47,7 +107,11 @@ export class SlashCommandManager {
             await this._loadFile(fullPath);
         }
     }
-
+    /**
+     * Load một file slash command.
+     *
+     * @param filePath - Đường dẫn file command
+     */
     private async _loadFile(filePath: string): Promise<void> {
         const { slashCommands } = this.client;
         try {
@@ -75,7 +139,14 @@ export class SlashCommandManager {
             });
         });
     }
-    /* ================= INTERACTION HANDLER ================= */
+    /**
+     * Gắn listener xử lý interactionCreate.
+     *
+     * Listener này sẽ:
+     * - kiểm tra ChatInputCommand
+     * - tìm command tương ứng
+     * - gọi execute của command
+     */
     private _attachInteractionListener(): void {
         this.client.on("interactionCreate", async (interaction) => {
             if (!interaction.isChatInputCommand()) return;
@@ -93,7 +164,13 @@ export class SlashCommandManager {
             }
         });
     }
-    /* ================= UTIL ================= */
+    /**
+     * Reload toàn bộ slash commands.
+     *
+     * Quy trình:
+     * 1. Xóa commands hiện tại
+     * 2. Load lại từ filesystem
+     */
     public async reload(): Promise<void> {
         this.client.slashCommands.clear();
         await this.loadAll();

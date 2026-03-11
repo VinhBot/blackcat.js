@@ -23,17 +23,14 @@ export interface CommandContext {
          * Avatar URL của bot.
          */
         avatarURL: string | null;
-
         /**
          * Display avatar URL của bot.
          */
         displayAvatarURL: string;
-
         /**
          * ID của bot.
          */
         id: string;
-
         /**
          * Username của bot.
          */
@@ -46,8 +43,7 @@ export interface CommandContext {
  *
  * @public
  */
-export interface PermissionConfig {
-
+export interface CommandPermissionConfig {
     /**
      * Danh sách permission cần thiết để sử dụng command.
      *
@@ -57,7 +53,6 @@ export interface PermissionConfig {
      * ```
      */
     permission: PermissionResolvable[];
-
     /**
      * Message trả về khi user không đủ quyền.
      *
@@ -72,42 +67,34 @@ export interface PermissionConfig {
  * @public
  */
 export interface CommandBuilderOptions {
-
     /**
      * Tên chính của command.
      */
     commandName?: string;
-
     /**
      * Danh sách alias của command.
      */
     aliases?: string[];
-
     /**
      * Category dùng để phân loại command.
      */
     category?: string;
-
     /**
      * Mô tả command.
      */
     description?: string;
-
     /**
      * Cấu hình cooldown.
      */
     cooldown?: CooldownConfig;
-
     /**
      * Permission yêu cầu của user.
      */
-    userPermission?: PermissionConfig;
-
+    userPermission?: CommandPermissionConfig;
     /**
      * Hướng dẫn sử dụng command.
      */
     usage?: string;
-
     /**
      * Handler thực thi command.
      *
@@ -115,7 +102,7 @@ export interface CommandBuilderOptions {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    execute?: (client: Client, message: Message, args: string[]) => Promise<any> | any;
+    execute?: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any;
 }
 
 /**
@@ -136,7 +123,7 @@ export interface CommandBuilderOptions {
  * const pingCommand = new CommandBuilder()
  *   .setName("ping")
  *   .setDescription("Ping command")
- *   .setExecute((client, message) => {
+ *   .setExecute((client, message, args) => {
  *       message.reply("Pong!");
  *   });
  * ```
@@ -146,57 +133,48 @@ export interface CommandBuilderOptions {
  * ```ts
  * const pingCommand = new CommandBuilder({
  *   commandName: "ping",
- *     description: "Ping command",
- *   execute(client, message) {
+ *   description: "Ping command",
+ *   execute: (client, message, args) => {
  *       message.reply("Pong!");
  *   }
  * });
  * ```
  */
 export class CommandBuilder {
-
     /**
      * Tên command chính.
      */
     public commandName!: string;
-
     /**
      * Danh sách alias của command.
      */
     public aliases: string[] = [];
-
     /**
      * Mô tả command.
      */
     public description = "không có mô tả";
-
     /**
      * Category của command.
      */
     public category?: string;
-
     /**
      * Cấu hình cooldown.
      */
     public cooldown?: CooldownConfig;
-
     /**
      * Cấu hình permission user.
      */
-    public userPermission?: PermissionConfig;
-
+    public userPermission?: CommandPermissionConfig;
     /**
      * Hướng dẫn sử dụng command.
      */
     public usage?: string;
-
     /**
      * Handler thực thi command.
      *
      * @private
      */
-    private handler!: (client: Client, message: Message, args: string[]) => Promise<any> | any;
-
+    private handler!: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any;;
     /**
      * Tạo CommandBuilder mới.
      *
@@ -207,7 +185,6 @@ export class CommandBuilder {
             this.setOptions(options);
         }
     }
-
     /**
      * Áp dụng options vào command.
      *
@@ -223,7 +200,6 @@ export class CommandBuilder {
         if (options.usage) this.usage = options.usage;
         if (options.execute) this.handler = options.execute;
     }
-
     /**
      * Đặt tên command.
      */
@@ -231,7 +207,6 @@ export class CommandBuilder {
         this.commandName = name;
         return this;
     }
-
     /**
      * Đặt alias cho command.
      */
@@ -239,7 +214,6 @@ export class CommandBuilder {
         this.aliases = aliases;
         return this;
     }
-
     /**
      * Đặt mô tả command.
      */
@@ -247,7 +221,6 @@ export class CommandBuilder {
         this.description = description;
         return this;
     }
-
     /**
      * Đặt category cho command.
      */
@@ -272,14 +245,14 @@ export class CommandBuilder {
     /**
      * Đặt permission config cho command.
      */
-    public setUserPermission(config: PermissionConfig) {
+    public setUserPermission(config: CommandPermissionConfig) {
         this.userPermission = config;
         return this;
     }
     /**
      * Đặt command execution handler.
      */
-    public setExecute(handler: (client: Client, message: Message, args: string[]) => Promise<any> | any) {
+    public setExecute(handler: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any) {
         this.handler = handler;
         return this;
     }
@@ -307,7 +280,6 @@ export class CommandBuilder {
      */
     private checkPermission(client: Client, message: Message) {
         if (!this.userPermission) return;
-
         const hasPermission = message.member?.permissions.has(this.userPermission.permission || ["SendMessages"]);
         if (hasPermission) return;
         const ctx = this.getContext(client, message);
@@ -351,7 +323,7 @@ export class CommandBuilder {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    public execute(client: Client, message: Message, args: string[]) {
+    public execute(client: Client, message: Message<true>, args: string[]) {
         // Kiểm tra permission
         const permission = this.checkPermission(client, message);
         if (permission) return permission;

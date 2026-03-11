@@ -2,39 +2,177 @@ import { APIMessageComponentEmoji, BaseMessageOptions, ButtonBuilder, ButtonInte
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Message, MessageFlags, LabelBuilder } from "discord.js";
 import { ComponentBuilder, functions } from "..";
 
-type PaginationSource = Message | ChatInputCommandInteraction;
+/**
+ * Nguồn khởi tạo pagination.
+ *
+ * Pagination có thể được bắt đầu từ:
+ *
+ * - Một `Message` đã gửi
+ * - Một `ChatInputCommandInteraction`
+ *
+ * Builder sẽ tự xử lý việc:
+ *
+ * - `reply`
+ * - `editReply`
+ * - `message.edit`
+ *
+ * tùy theo loại source được truyền vào.
+ */
+export type PaginationSource = Message | ChatInputCommandInteraction;
+/**
+ * Các loại interaction component được pagination xử lý.
+ *
+ * Hiện tại hỗ trợ:
+ *
+ * - `ButtonInteraction`
+ * - `StringSelectMenuInteraction`
+ */
+export type PaginationComponentInteraction = | ButtonInteraction | StringSelectMenuInteraction;
 
-type ComponentInteraction = | ButtonInteraction | StringSelectMenuInteraction;
-
-type ButtonOption = {
+/**
+ * Schema mô tả một button được tạo bởi pagination.
+ *
+ * Object này dùng để build `ButtonBuilder`
+ * thông qua helper `context.button()`.
+ */
+export type PaginationButtonOption = {
+    /**
+     * Custom ID của button.
+     *
+     * Dùng để nhận diện interaction khi user click.
+     */
     customId: string;
+    /**
+     * Style của button.
+     *
+     * Mapping tới `ButtonStyle` của Discord.
+     */
     style: | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
+    /**
+     * Label hiển thị trên button.
+     */
     label?: string;
+    /**
+     * Emoji hiển thị trên button.
+     *
+     * Có thể là:
+     *
+     * - Unicode emoji (`"⬅️"`)
+     * - Discord emoji object
+     */
     emoji?: string | APIMessageComponentEmoji;
+    /**
+     * URL cho button kiểu `Link`.
+     *
+     * Chỉ áp dụng khi `style = "Link"`.
+     */
     url?: string;
+    /**
+     * Trạng thái disabled của button.
+     */
     disabled?: boolean;
 };
-
-export type BuildComponentsContext<T> = {
+/**
+ * Context truyền vào khi build components cho pagination.
+ *
+ * Context này thường được dùng trong `render`
+ * để tạo các button navigation như:
+ *
+ * - previous
+ * - next
+ * - first
+ * - last
+ */
+export type PaginationBuildComponentsContext<T> = {
+    /**
+     * Trang hiện tại.
+     */
     page: number;
+    /**
+     * Tổng số trang.
+     */
     totalPages: number;
+    /**
+     * Dữ liệu của trang hiện tại.
+     */
     data: T;
+    /**
+     * Instance của PaginationBuilder.
+     */
     pagination: PaginationBuilder<T>;
-    button: (schemas: ButtonOption[]) => ActionRowBuilder<ButtonBuilder>[];
+    /**
+     * Helper function để build `ActionRowBuilder<ButtonBuilder>[]`
+     * từ danh sách `PaginationButtonOption`.
+     *
+     * @example
+     * ```ts
+     * button([
+     *   { customId: "prev", style: "Secondary", emoji: "⬅️" },
+     *   { customId: "next", style: "Secondary", emoji: "➡️" }
+     * ])
+     * ```
+     */
+    button: (schemas: PaginationButtonOption[]) => ActionRowBuilder<ButtonBuilder>[];
 };
 
+/**
+ * Context truyền vào khi render nội dung của pagination.
+ *
+ * Thường được dùng để build:
+ *
+ * - Embed
+ * - Message content
+ * - Components
+ */
 export type PaginationRenderContext<T> = {
+    /**
+     * Trang hiện tại.
+     */
     page: number;
+    /**
+     * Tổng số trang.
+     */
     totalPages: number;
+    /**
+     * Dữ liệu của trang hiện tại.
+     */
     data: T;
+    /**
+     * Instance của PaginationBuilder.
+     */
     pagination: PaginationBuilder<T>;
 };
 
+/**
+ * Context được truyền vào khi user tương tác
+ * với component của pagination.
+ *
+ * Ví dụ:
+ *
+ * - click button "next"
+ * - click button "previous"
+ * - chọn option trong select menu
+ */
 export type PaginationComponentContext<T> = {
-    interaction: ComponentInteraction;
+    /**
+     * Interaction từ component.
+     */
+    interaction: PaginationComponentInteraction;
+    /**
+     * Instance của PaginationBuilder.
+     */
     pagination: PaginationBuilder<T>;
+    /**
+     * Trang hiện tại trước khi xử lý interaction.
+     */
     page: number;
+    /**
+     * Tổng số trang.
+     */
     totalPages: number;
+    /**
+     * Dữ liệu của trang hiện tại.
+     */
     data: T;
 };
 
@@ -109,37 +247,16 @@ export type PaginationOptions<T> = {
      *
      * @example
      * ```ts
-     * buildComponents: ({ page }) => [
-     *   new ActionRowBuilder<ButtonBuilder>().addComponents(
-     *     new ButtonBuilder()
-     *       .setCustomId("refresh")
-     *       .setLabel("Refresh")
-     *       .setStyle(ButtonStyle.Primary)
-     *   )
-     * ]
+     * buildComponents: ({ button }) => button([
+     *    {
+     *        customId: "example",
+     *        label: "example",
+     *        style: ButtonStyle
+     *    }
+     * ])
      * ```
      */
-    buildComponents?: (ctx: BuildComponentsContext<T>) => ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[];
-    /**
-     * Danh sách action handler cho customId.
-     *
-     * Khi user click button hoặc select menu
-     * trùng với key thì handler sẽ được gọi.
-     *
-     * @example
-     * ```ts
-     * actions: {
-     *   refresh: async ({ interaction, pagination }) => {
-     *     await pagination.reload();
-     *     await interaction.reply({
-     *       content: "Đã refresh",
-     *       ephemeral: true
-     *     });
-     *   }
-     * }
-     * ```
-     */
-    actions?: Record<string, (ctx: PaginationComponentContext<T>) => Promise<void> | void>;
+    buildComponents?: (ctx: PaginationBuildComponentsContext<T>) => ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[];
     /**
      * Gọi mỗi khi có interaction xảy ra.
      */
@@ -150,7 +267,7 @@ export type PaginationOptions<T> = {
     onPageChange?: (ctx: {
         oldPage: number;
         newPage: number;
-        interaction: ComponentInteraction;
+        interaction: PaginationComponentInteraction;
         pagination: PaginationBuilder<T>;
     }) => Promise<void> | void;
     /**
@@ -163,7 +280,7 @@ export type PaginationOptions<T> = {
      * interactionFilter: (i) => i.user.id === message.author.id
      * ```
      */
-    interactionFilter?: (interaction: ComponentInteraction) => boolean;
+    interactionFilter?: (interaction: PaginationComponentInteraction) => boolean;
     /**
      * Cấu hình navigation buttons.
      *
@@ -174,6 +291,7 @@ export type PaginationOptions<T> = {
         prev?: boolean;
         next?: boolean;
         last?: boolean;
+        jump?: boolean;
     };
     /**
      * Cấu hình select menu để nhảy trang.
@@ -405,7 +523,7 @@ export class PaginationBuilder<T> {
         if (select) schema.push(select);
         this.componentBuilder = new ComponentBuilder(schema as any);
         const rows = [...this.componentBuilder.components()];
-        const button = (schemas: ButtonOption[]): ActionRowBuilder<ButtonBuilder>[] => {
+        const button = (schemas: PaginationButtonOption[]): ActionRowBuilder<ButtonBuilder>[] => {
             const builtRows: ActionRowBuilder<ButtonBuilder>[] = [];
             for (let i = 0; i < schemas.length; i += 5) {
                 const row = new ActionRowBuilder<ButtonBuilder>();
@@ -612,7 +730,7 @@ export class PaginationBuilder<T> {
                 }
                 const data = await this.getPageData(this.page);
                 await this.options.onComponent?.({
-                    interaction: interaction as ComponentInteraction,
+                    interaction: interaction as PaginationComponentInteraction,
                     pagination: this,
                     page: this.page,
                     totalPages: this.totalPages,
@@ -677,7 +795,7 @@ export class PaginationBuilder<T> {
      * - Nếu `page` lớn hơn `totalPages` → sẽ đặt thành trang cuối
      * - Method này **không dừng collector**
      */
-    public async goto(page: number, interaction?: ComponentInteraction) {
+    public async goto(page: number, interaction?: PaginationComponentInteraction) {
         if (page < 0) page = 0;
         if (page >= this.totalPages) page = this.totalPages - 1;
         const oldPage = this.page;

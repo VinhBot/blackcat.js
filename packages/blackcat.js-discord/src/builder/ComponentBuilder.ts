@@ -12,50 +12,161 @@ import {
     MessageFlags
 } from "discord.js";
 
-/* ================= TYPES ================= */
+import { functions } from "..";
+/**
+ * Các style hợp lệ cho Discord Button.
+ */
+export type ComponentButtonStyleKey = | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
 
-type ButtonStyleKey = | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
-
-type ButtonOption<ID extends string = string> = {
+/**
+ * Cấu hình cho một Button component.
+ *
+ * @template ID customId của button
+ */
+export type ComponentButtonOption<ID extends string = string> = {
+    /**
+     * ID dùng để nhận diện interaction.
+     */
     customId: ID;
-    style: ButtonStyleKey;
+    /**
+     * Style của button.
+     */
+    style: ComponentButtonStyleKey;
+    /**
+     * Nội dung hiển thị trên button.
+     */
     label?: string;
+    /**
+     * Emoji của button.
+     */
     emoji?: string | APIMessageComponentEmoji;
+    /**
+     * URL cho Link Button.
+     */
     url?: string;
+    /**
+     * Trạng thái disabled.
+     */
     disabled?: boolean;
 };
 
-type SelectOption = {
+/**
+ * Một option trong Select Menu.
+ */
+export type ComponentSelectOption = {
+    /**
+     * Label hiển thị.
+     */
     label: string;
+    /**
+     * Value trả về khi được chọn.
+     */
     value: string;
+    /**
+     * Mô tả option.
+     */
     description?: string;
+    /**
+     * Emoji của option.
+     */
     emoji?: string | APIMessageComponentEmoji;
+    /**
+     * Option mặc định được chọn.
+     */
     default?: boolean;
 };
 
-type SelectMenuOption<ID extends string = string> = {
+/**
+ * Cấu hình cho Select Menu component.
+ *
+ * @template ID customId của menu
+ */
+export type ComponentSelectMenuOption<ID extends string = string> = {
+    /**
+     * ID dùng để nhận diện interaction.
+     */
     customId: ID;
+    /**
+     * Placeholder text.
+     */
     placeholder?: string;
+    /**
+     * Số lượng option tối thiểu có thể chọn.
+     */
     minValues?: number;
+    /**
+     * Số lượng option tối đa có thể chọn.
+     */
     maxValues?: number;
+    /**
+     * Trạng thái disabled.
+     */
     disabled?: boolean;
-    options: SelectOption[];
+    /**
+     * Danh sách options.
+     */
+    options: ComponentSelectOption[];
 };
 
-type Schema = | {
+/**
+ * Schema định nghĩa các component.
+ */
+export type ComponentSchema = | {
     type: "button";
-    options: readonly ButtonOption[];
+    options: readonly ComponentButtonOption[];
 } | {
     type: "select";
-    options: SelectMenuOption;
+    options: ComponentSelectMenuOption;
 };
 
-type ExtractCustomIds<T extends readonly Schema[]> = T[number] extends { options: infer O } ? O extends readonly any[] ? O[number] extends { customId: infer A } ? A : never : O extends { customId: infer A } ? A : never : never;
+/**
+ * Utility type dùng để trích xuất tất cả `customId`
+ * từ schema và tạo thành union type.
+ *
+ * Ví dụ:
+ *
+ * ```ts
+ * const schema = [
+ *   { type: "button", options: [{ customId: "accept" }] },
+ *   { type: "select", options: { customId: "color" } }
+ * ]
+ * ```
+ *
+ * Kết quả:
+ *
+ * ```ts
+ * "accept" | "color"
+ * ```
+ */
+export type ComponentExtractCustomIds<T extends readonly ComponentSchema[]> = T[number] extends { options: infer O } ? O extends readonly any[] ? O[number] extends { customId: infer A } ? A : never : O extends { customId: infer A } ? A : never : never;
 
-type CollectorOptions<IdUnion extends string> = {
+/**
+ * Options cấu hình cho collector.
+ *
+ * @template IdUnion union type của customId
+ */
+export type ComponentCollectorOptions<IdUnion extends string> = {
+    /**
+     * Nguồn tạo collector.
+     *
+     * Có thể là:
+     * - Message
+     * - Slash Command Interaction
+     */
     source: Message | ChatInputCommandInteraction;
+    /**
+     * Thời gian collector hoạt động (giây).
+     *
+     * @default 60
+     */
     time?: number;
+    /**
+     * Chỉ cho phép user cụ thể tương tác.
+     */
     userId?: string;
+    /**
+     * Callback khi interaction được collect.
+     */
     onCollect: (interaction: ButtonInteraction | StringSelectMenuInteraction, customId: IdUnion) => any;
 };
 
@@ -165,9 +276,20 @@ type CollectorOptions<IdUnion extends string> = {
  *
  * `ComponentBuilder` đảm bảo layout luôn hợp lệ với các giới hạn này.
  */
-export class ComponentBuilder<T extends readonly Schema[], IdUnion extends string = ExtractCustomIds<T>> {
+export class ComponentBuilder<T extends readonly ComponentSchema[], IdUnion extends string = ComponentExtractCustomIds<T>> {
+    /**
+     * Danh sách rows đã build.
+     */
     private rows: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
+    /**
+     * Tập hợp tất cả customId hợp lệ.
+     */
     private validIds = new Set<string>();
+    /**
+     * Khởi tạo ComponentBuilder.
+     *
+     * @param schema Schema định nghĩa components
+     */
     constructor(private schema: T) {
         for (const component of this.schema) {
             if (component.type === "button") {
@@ -183,8 +305,12 @@ export class ComponentBuilder<T extends readonly Schema[], IdUnion extends strin
             throw new Error("Discord chỉ cho phép tối đa 5 hàng.");
         }
     }
-    /* ================= BUTTONS ================= */
-    private buildButtons(options: readonly ButtonOption[]) {
+    /**
+     * Build button components.
+     *
+     * Tự động chia tối đa **5 buttons mỗi row**.
+     */
+    private buildButtons(options: readonly ComponentButtonOption[]) {
         for (let i = 0; i < options.length; i += 5) {
             const row = new ActionRowBuilder<ButtonBuilder>();
             for (let j = i; j < i + 5 && j < options.length; j++) {
@@ -206,8 +332,10 @@ export class ComponentBuilder<T extends readonly Schema[], IdUnion extends strin
             this.rows.push(row);
         }
     }
-    /* ================= SELECT ================= */
-    private buildSelect(data: SelectMenuOption) {
+    /**
+     * Build select menu component.
+     */
+    private buildSelect(data: ComponentSelectMenuOption) {
         const row = new ActionRowBuilder<StringSelectMenuBuilder>();
         const menu = new StringSelectMenuBuilder().setCustomId(data.customId).setOptions(data.options);
         if (data.placeholder) {
@@ -261,7 +389,7 @@ export class ComponentBuilder<T extends readonly Schema[], IdUnion extends strin
      *   }
      * });
      */
-    public async createCollector(options: CollectorOptions<IdUnion>): Promise<InteractionCollector<ButtonInteraction | StringSelectMenuInteraction>> {
+    public async createCollector(options: ComponentCollectorOptions<IdUnion>): Promise<InteractionCollector<ButtonInteraction | StringSelectMenuInteraction>> {
         let message: Message;
         if (options.source instanceof Message) {
             message = options.source;
@@ -277,7 +405,7 @@ export class ComponentBuilder<T extends readonly Schema[], IdUnion extends strin
             }
         }
         const collector = message.createMessageComponentCollector({
-            time: options.time ?? 60000,
+            time: functions.parseTime(options.time ?? "60s") as number,
             filter: (interaction) => {
                 if (!interaction.isButton() && !interaction.isStringSelectMenu()) return false;
                 if (options.userId && interaction.user.id !== options.userId) return false;

@@ -12,16 +12,7 @@ const ping = new SlashCommandBuilder({
         permission: ["SendMessages"],
     },
     options: (o) => ({
-        string: o.string({ description: "string description", required: true | false }),
-        integer,
-        number,
-        boolean,
-        user,
-        member,
-        role,
-        channel,
-        mentionable,
-        attachment,
+        string: o.string({ description: "string description", required: false }),
     }),
     execute: async (client, interaction, options) => {
         const string = options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,

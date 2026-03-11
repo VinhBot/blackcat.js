@@ -4,31 +4,90 @@ import url from "node:url";
 
 import type { EventBuilderOptions, Client } from "..";
 
+/**
+ * Cấu hình cho {@link EventManager}.
+ */
 export interface EventManagerOptions {
     /** 
-     * Thư mục chứa event files 
+     * Thư mục chứa các event files.
+     * 
+     * Cấu trúc đề xuất:
+     * ```
+     * events/
+     *   client/
+     *     ready.ts
+     *   guild/
+     *     guildCreate.ts
+     * ```
      */
     directory: string;
     /**
-     * Danh sách scope được bật
+     * Danh sách scope được phép load.
+     *
+     * Ví dụ:
+     * ```
+     * scopes: ["client", "guild"]
+     * ```
+     *
+     * Nếu sử dụng `"*"` thì tất cả scope trong thư mục sẽ được load.
      */
     scopes: readonly string[];
     /** 
-     * Callback khi load event thành công
+     * Callback được gọi khi load event thành công.
+     *
+     * @param event.eventName - Tên Discord event
+     * @param event.file - Tên file event
+     * @param event.scope - Scope chứa event
      */
-    onLoad?: (event: { eventName: string, file: string, scope: string }) => void;
-    /** Callback khi event bị lỗi */
-    onError?: (event: { error: unknown, file: string, scope: string }) => void;
+    onLoad?: (event: { eventName: string; file: string; scope: string }) => void;
+    /** 
+     * Callback được gọi khi xảy ra lỗi khi load event.
+     *
+     * @param event.error - Thông tin lỗi
+     * @param event.file - File gây lỗi
+     * @param event.scope - Scope của event
+     */
+    onError?: (event: { error: unknown; file: string; scope: string }) => void;
 }
 
-
+/**
+ * Manager chịu trách nhiệm:
+ *
+ * - Load event files từ filesystem
+ * - Gắn events vào Discord Client
+ * - Phân chia events theo **scope**
+ */
 export class EventManager {
+    /**
+     * Instance client của bot.
+     */
     public readonly client: Client;
+    /**
+     * Options cấu hình cho EventManager.
+     */
     public readonly options: EventManagerOptions;
+    /**
+     * Khởi tạo EventManager.
+     *
+     * @param client - Instance bot client
+     * @param options - Cấu hình manager
+     */
     constructor(client: Client, options: EventManagerOptions) {
         this.client = client;
         this.options = options;
     }
+    /**
+     * Load toàn bộ events từ thư mục đã cấu hình.
+     *
+     * Quy trình:
+     *
+     * 1. Đọc tất cả thư mục scope
+     * 2. Xác định scope cần load
+     * 3. Load từng file event
+     * 4. Gắn listener vào client
+     *
+     * @returns Promise hoàn thành khi load xong
+     */
     public async load(): Promise<void> {
         const options = this.options;
         if(!options?.directory || !options?.scopes) return;
