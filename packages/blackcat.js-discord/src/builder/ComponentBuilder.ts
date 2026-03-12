@@ -12,12 +12,7 @@ import {
     MessageFlags
 } from "discord.js";
 
-import { functions } from "..";
-/**
- * Các style hợp lệ cho Discord Button.
- * @hidden
- */
-export type ComponentButtonStyleKey = | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
+import { parseTime } from "..";
 
 /**
  * Cấu hình cho một Button component.
@@ -32,7 +27,7 @@ export type ComponentButtonOption<ID extends string = string> = {
     /**
      * Style của button.
      */
-    style: ComponentButtonStyleKey;
+    style: | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
     /**
      * Nội dung hiển thị trên button.
      */
@@ -111,6 +106,7 @@ export type ComponentSelectMenuOption<ID extends string = string> = {
 
 /**
  * Schema định nghĩa các component.
+ * @hidden
  */
 export type ComponentSchema = | {
     type: "button";
@@ -121,24 +117,8 @@ export type ComponentSchema = | {
 };
 
 /**
- * Utility type dùng để trích xuất tất cả `customId`
- * từ schema và tạo thành union type.
+ * Utility type dùng để trích xuất tất cả `customId` từ schema và tạo thành union type.
  * @hidden
- *
- * Ví dụ:
- *
- * ```ts
- * const schema = [
- *   { type: "button", options: [{ customId: "accept" }] },
- *   { type: "select", options: { customId: "color" } }
- * ]
- * ```
- *
- * Kết quả:
- *
- * ```ts
- * "accept" | "color"
- * ```
  */
 export type ComponentExtractCustomIds<T extends readonly ComponentSchema[]> = T[number] extends { options: infer O } ? O extends readonly any[] ? O[number] extends { customId: infer A } ? A : never : O extends { customId: infer A } ? A : never : never;
 
@@ -407,7 +387,7 @@ export class ComponentBuilder<T extends readonly ComponentSchema[], IdUnion exte
             }
         }
         const collector = message.createMessageComponentCollector({
-            time: functions.parseTime(options.time ?? "60s") as number,
+            time: parseTime(options.time ?? "60s") as number,
             filter: (interaction) => {
                 if (!interaction.isButton() && !interaction.isStringSelectMenu()) return false;
                 if (options.userId && interaction.user.id !== options.userId) return false;

@@ -1,33 +1,15 @@
 import { APIMessageComponentEmoji, BaseMessageOptions, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, InteractionReplyOptions, MessageCreateOptions, StringSelectMenuBuilder, StringSelectMenuInteraction } from "discord.js";
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Message, MessageFlags, LabelBuilder } from "discord.js";
-import { ComponentBuilder, functions } from "..";
+import { ComponentBuilder, parseTime } from "..";
 
 /**
  * Nguồn khởi tạo pagination.
  * @hidden
- *
- * Pagination có thể được bắt đầu từ:
- *
- * - Một `Message` đã gửi
- * - Một `ChatInputCommandInteraction`
- *
- * Builder sẽ tự xử lý việc:
- *
- * - `reply`
- * - `editReply`
- * - `message.edit`
- *
- * tùy theo loại source được truyền vào.
  */
 export type PaginationSource = Message | ChatInputCommandInteraction;
 /**
  * Các loại interaction component được pagination xử lý.
  * @hidden
- *
- * Hiện tại hỗ trợ:
- *
- * - `ButtonInteraction`
- * - `StringSelectMenuInteraction`
  */
 export type PaginationComponentInteraction = | ButtonInteraction | StringSelectMenuInteraction;
 
@@ -652,7 +634,7 @@ export class PaginationBuilder<T> {
     private async createCollector() {
         const collector = await this.componentBuilder.createCollector({
             source: this.message,
-            time: functions.parseTime(this.options.timeout ?? 120),
+            time: parseTime(this.options.timeout ?? 120),
             onCollect: async (interaction, id) => {
                 try {
                     if (this.options.interactionFilter && !this.options.interactionFilter(interaction)) {
@@ -681,7 +663,7 @@ export class PaginationBuilder<T> {
                         await interaction.showModal(modal);
                         try {
                             const submit = await interaction.awaitModalSubmit({
-                                time: functions.parseTime(60),
+                                time: parseTime(60),
                                 filter: (i) => i.user.id === interaction.user.id,
                             });
                             await submit.deferUpdate();
@@ -716,7 +698,7 @@ export class PaginationBuilder<T> {
     private async createCollector2() {
         if (!this.message) return;
         const collector = this.message.createMessageComponentCollector({
-            time: functions.parseTime(this.options.timeout ?? 120),
+            time: parseTime(this.options.timeout ?? 120),
         });
         collector.on("collect", async (interaction) => {
             try {

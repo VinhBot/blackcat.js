@@ -1,5 +1,5 @@
 import { GatewayIntentBits } from "discord.js";
-import { Client } from "blackcat.js-discord";
+import { Client, functions } from "blackcat.js-discord";
 
 const config = {
     botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GPO6MK.M0vxzkmPsaQibXb2D4kGFIumSiFEPIcC3js9U0",

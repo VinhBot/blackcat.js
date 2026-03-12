@@ -301,5 +301,7 @@ export class CooldownManager {
         return null;
     }
 }
-
+/**
+ * @hidden
+ */
 export const cooldownManager = new CooldownManager();

@@ -8,6 +8,8 @@
 > Thư viện hỗ trợ xây dựng Discord Bot với cấu trúc lệnh mạnh mẽ, typed an toàn và dễ mở rộng.  
 > Tối ưu cho cả **message command** và **slash command**.
 
+> [xem document ở đây.](https://blackcat-js-discord-document.vercel.app/)
+
 ---
 
 ## ✨ Tính năng nổi bật

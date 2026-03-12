@@ -4,7 +4,6 @@ import { Client as DiscordClient, Collection } from "discord.js";
 import type { CommandBuilderOptions, SlashCommandBuilder, SlashCommandBuilderWithSubs } from "./builder";
 import type { SlashCommandManagerOptions, EventManagerOptions, CommandManagerOptions } from "./manager";
 import { CommandManager, EventManager, SlashCommandManager } from "./manager";
-
 /**
  * Cấu hình cơ bản của bot.
  */
@@ -16,7 +15,7 @@ export type Config = {
     /**
      * Các cấu hình bổ sung tùy ý của người dùng.
      */
-    [key: string]: any;
+    [key: string]: unknown;
 };
 
 /**

@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsup",
     "docs": "typedoc",
-    "build:all": "npm run build && npm run docs"
+    "build:all": "node --run build && node --run docs"
   },
   "files": [
     "dist"

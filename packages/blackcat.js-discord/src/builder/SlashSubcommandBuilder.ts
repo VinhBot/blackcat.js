@@ -108,23 +108,7 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
     }
     /**
      * Build subcommand vào slash command hoặc subcommand group.
-     *
-     * Method này sẽ:
-     *
-     * 1. Tạo một `SlashCommandSubcommandBuilder`
-     * 2. Gắn description
-     * 3. Convert option definitions sang Discord API
-     *
-     * @param name
-     * Tên của subcommand.
-     *
-     * Key của object `subcommands` sẽ trở thành tên này.
-     *
-     * @param parent
-     * Builder cha có thể là:
-     *
-     * - `DiscordSlashCommandBuilder`
-     * - `SlashCommandSubcommandGroupBuilder`
+     * @hidden
      */
     public build(name: string, parent: | DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
         parent.addSubcommand((sub: SlashCommandSubcommandBuilder) => {
@@ -146,24 +130,7 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
     }
     /**
      * Parse options từ Discord Interaction.
-     *
-     * Method này đọc option values từ `interaction.options`
-     * dựa trên option definitions đã khai báo trước đó.
-     *
-     * @param interaction ChatInputCommandInteraction hiện tại.
-     *
-     * @returns
-     * Object chứa option values đã được infer type.
-     *
-     * Nếu subcommand không có options thì trả về `{}`.
-     *
-     * @example
-     * ```ts
-     * const options = subBuilder.parse(interaction);
-     *
-     * options.user  // User
-     * options.reason // string | null
-     * ```
+     * @hidden
      */
     public parse(interaction: ChatInputCommandInteraction): TOptions extends Record<string, any> ? InferOptions<TOptions> : {} {
         if (!this.defs) return {} as any;
@@ -190,6 +157,7 @@ export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCom
     subcommands: TSubs;
     /**
      * Build group vào SlashCommandBuilder.
+     * @hidden
      */
     build(name: string, builder: DiscordSlashCommandBuilder): void;
 }
@@ -268,19 +236,7 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
     }
     /**
      * Build subcommand group vào `DiscordSlashCommandBuilder`.
-     *
-     * Method này sẽ:
-     *
-     * 1. Tạo một `SubcommandGroup`
-     * 2. Đăng ký tất cả subcommands trong group
-     * 3. Gắn chúng vào slash command chính
-     *
-     * @param name
-     * Tên của subcommand group.
-     *
-     * @param builder
-     * Instance của `DiscordSlashCommandBuilder`
-     * nơi group sẽ được đăng ký.
+     * @hidden
      */
     public build(name: string, builder: DiscordSlashCommandBuilder) {
         builder.addSubcommandGroup((group: SlashCommandSubcommandGroupBuilder) => {
@@ -295,65 +251,11 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
 /**
  * Suy luận kiểu options của một subcommand builder.
  * @hidden
- *
- * Type này lấy generic `TOptions` từ `ISlashSubCommandBuilder`
- * rồi convert nó sang object options thực tế bằng `InferOptions`.
- *
- * Quy tắc:
- * - Nếu subcommand có options → trả về object options đã infer
- * - Nếu subcommand không có options → trả về `{}`.
- *
- * @template T
- * Instance của `ISlashSubCommandBuilder`.
- *
- * @example
- * ```ts
- * const sub = new SlashSubCommandBuilder({
- *   description: "ban user",
- *   options: (option) => ({
- *     user: option.user({ description: "target", required: true })
- *   })
- * });
- *
- * type Result = InferSub<typeof sub>;
- * // { user: User }
- * ```
  */
 export type InferSub<T> = T extends ISlashSubCommandBuilder<infer O> ? O extends Record<string, any> ? InferOptions<O> : {} : never;
 /**
  * Tạo union payload cho các **subcommand trực tiếp** của command.
  * @hidden
- *
- * Mỗi subcommand sẽ trở thành một variant trong union.
- *
- * @template TSubs
- * Object chứa các subcommand builder.
- *
- * @example
- * ```ts
- * subcommands: {
- *   ban: SlashSubCommandBuilder<...>
- *   kick: SlashSubCommandBuilder<...>
- * }
- * ```
- *
- * Result:
- *
- * ```ts
- * {
- *   type: "sub"
- *   sub: "ban"
- *   options: {...}
- * }
- * |
- * {
- *   type: "sub"
- *   sub: "kick"
- *   options: {...}
- * }
- * ```
- *
- * Type này được dùng làm payload truyền vào `execute`.
  */
 export type DirectSubUnion<TSubs> = {
     [K in keyof TSubs]: {
@@ -375,47 +277,6 @@ export type DirectSubUnion<TSubs> = {
 /**
  * Tạo union payload cho các **subcommand nằm trong subcommand group**.
  * @hidden
- *
- * Type này sẽ flatten cấu trúc:
- *
- * ```
- * group -> sub -> options
- * ```
- *
- * thành một union payload.
- *
- * @template TGroups
- * Object chứa các `SlashSubCommandGroupBuilder`.
- *
- * @example
- * ```ts
- * groups: {
- *   user: {
- *     ban: ...
- *     kick: ...
- *   }
- * }
- * ```
- *
- * Result:
- *
- * ```ts
- * {
- *   type: "group"
- *   group: "user"
- *   sub: "ban"
- *   options: {...}
- * }
- * |
- * {
- *   type: "group"
- *   group: "user"
- *   sub: "kick"
- *   options: {...}
- * }
- * ```
- *
- * Payload này được truyền vào `execute`.
  */
 export type GroupSubUnion<TGroups> = {
     [G in keyof TGroups]: TGroups[G] extends ISlashSubCommandGroup<infer Subs> ? {
@@ -601,14 +462,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
     }
     /**
      * Build Discord SlashCommandBuilder.
-     *
-     * Method này sẽ:
-     *
-     * - tạo root command
-     * - build toàn bộ subcommands
-     * - build toàn bộ subcommand groups
-     *
-     * @returns DiscordSlashCommandBuilder
+     * @hidden
      */
     public build(): DiscordSlashCommandBuilder {
         const builder = new DiscordSlashCommandBuilder().setName(this.commandName).setDescription(this.description);
@@ -622,17 +476,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
     }
     /**
      * Thực thi slash command khi interaction được gọi.
-     *
-     * Method này sẽ:
-     *
-     * 1. Kiểm tra permission
-     * 2. Kiểm tra cooldown
-     * 3. Xác định subcommand / group
-     * 4. Parse options
-     * 5. Gọi handler với payload đã được type-safe
-     *
-     * @param client Discord client
-     * @param interaction ChatInputCommandInteraction từ Discord
+     * @hidden
      */
     public async execute(client: Client, interaction: ChatInputCommandInteraction) {
         // permission

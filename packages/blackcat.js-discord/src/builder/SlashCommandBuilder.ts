@@ -23,16 +23,8 @@ import type { Client, CooldownConfig } from "..";
 import { CommandBuilder, cooldownManager } from "..";
 
 /**
- * Mapping giữa method lấy option của Discord Interaction
- * và kiểu dữ liệu trả về tương ứng.
+ * Mapping giữa method lấy option của Discord Interaction và kiểu dữ liệu trả về tương ứng.
  * @hidden
- *
- * Dùng để suy luận kiểu dữ liệu khi parse options từ
- * {@link ChatInputCommandInteraction}.
- *
- * Ví dụ:
- * - `getString` → `string | null`
- * - `getUser` → `User | null`
  */
 export type SlashOptionGetReturnMap = {
     getString: string | null;
@@ -50,13 +42,6 @@ export type SlashOptionGetReturnMap = {
 /**
  * Cấu trúc option cơ bản cho Slash Command.
  * @hidden
- *
- * @template TMethod
- * Method dùng để lấy dữ liệu từ `interaction.options`.
- *
- * Ví dụ:
- * - `"getString"`
- * - `"getUser"`
  */
 export type BaseOption<TMethod extends keyof SlashOptionGetReturnMap> = {
     /**
@@ -150,23 +135,9 @@ export type MentionableOption = BaseOption<"getMentionable">;
  * @hidden
  */
 export type AttachmentOption = BaseOption<"getAttachment">;
-
 /**
  * Factory tạo option definition theo kiểu strongly-typed.
- *
- * Mỗi method sẽ tự động gán `method`
- * tương ứng với Discord Interaction API.
- *
- * Ví dụ:
- *
- * ```ts
- * options: (option) => ({
- *   user: option.user({
- *     description: "User cần chọn",
- *     required: true
- *   })
- * })
- * ```
+ * @hidden
  */
 export const option = Object.freeze({
     string: (data: Omit<StringOption, "method">): StringOption => ({ method: "getString", ...data }),
@@ -190,27 +161,12 @@ export type OptionFactory = typeof option;
  * - method (getString, getNumber, ...)
  * - required (true | false)
  * @hidden
- *
- * @template O Option definition
- *
- * @returns
- * - Nếu `required: true` → trả về kiểu non-null
- * - Nếu `required: false | undefined` → trả về kiểu có thể null
  */
 export type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof SlashOptionGetReturnMap ? O["required"] extends true ? SlashOptionGetReturnMap[T] : SlashOptionGetReturnMap[T] | null : never : never;
 /**
  * Convert toàn bộ option definitions
  * thành object giá trị tương ứng.
  * @hidden
- *
- * Ví dụ:
- *
- * ```ts
- * {
- *   user: User
- *   reason: string | null
- * }
- * ```
  */
 export type InferOptions<T extends Record<string, any>> = {
     [K in keyof T]: InferOption<T[K]>;
@@ -219,8 +175,6 @@ export type InferOptions<T extends Record<string, any>> = {
 /**
  * Resolve option type.
  * @hidden
- *
- * Nếu command không có options → trả về `{}`.
  */
 export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> : {};
 
@@ -346,6 +300,7 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
  * hỗ trợ infer kiểu options ở compile-time.
  *
  * @template TOptions Object định nghĩa options
+ * 
  */
 export class SlashCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> {
     /**
@@ -436,6 +391,7 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
     }
     /**
      * Parse options từ Discord Interaction dựa trên option definitions.
+     * @hidden
      *
      * @template T Object option definitions
      *
