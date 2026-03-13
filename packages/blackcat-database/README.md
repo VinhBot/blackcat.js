@@ -1,8 +1,14 @@
-Một **database nhẹ, typed và hỗ trợ autocomplete path cho TypeScript**.
+# 🐈‍⬛ blackcat.js-database
 
-`blackcat.js-database` cho phép bạn lưu trữ và truy vấn dữ liệu bằng **dot notation** với **type inference mạnh mẽ trong IDE**.
+![npm version](https://img.shields.io/npm/v/blackcat.js-database)
+![npm downloads](https://img.shields.io/npm/dm/blackcat.js-database)
+![license](https://img.shields.io/npm/l/blackcat.js-database)
+![typescript](https://img.shields.io/badge/types-TypeScript-blue)
 
-[Xem tài liệu ở đây](blackcat-js-database.vercel.app)
+> Một **database nhẹ, typed và hỗ trợ autocomplete path cho TypeScript**.
+> `blackcat.js-database` cho phép bạn lưu trữ và truy vấn dữ liệu bằng **dot notation** với **type inference mạnh mẽ trong IDE**.
+
+> [Xem tài liệu ở đây.](https://blackcat-js-database.vercel.app)
 ---
 
 # Tính năng
