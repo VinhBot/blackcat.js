@@ -1,169 +1,517 @@
 /**
- * Represents the configuration object of the database instance.
+ * Interface định nghĩa contract cho các storage driver
+ * được sử dụng bởi class `Database`.
+ * @hidden
+ *
+ * ⚠️ Đây **không phải database chính**.
+ * Interface này chỉ dùng để xây dựng **các driver lưu trữ phụ trợ**
+ * như:
+ *
+ * - `JSONDriver`
+ * - `MemoryDriver`
+ * - `SQLiteDriver`
+ *
+ * Các driver này chỉ chịu trách nhiệm:
+ *
+ * - Lưu trữ toàn bộ dữ liệu database
+ * - Trả về dữ liệu database khi được yêu cầu
+ *
+ * Mọi logic xử lý dữ liệu như:
+ *
+ * - parse key path (`a.b.c`)
+ * - validation
+ * - query/filter/map
+ * - update dữ liệu
+ *
+ * đều được thực hiện trong class `Database`.
+ */
+export interface DatabaseDriver {
+    /**
+     * Lấy toàn bộ dữ liệu database từ storage.
+     *
+     * Method này phải trả về **toàn bộ object database**.
+     *
+     * @template T Kiểu dữ liệu database.
+     * @returns Promise chứa toàn bộ dữ liệu database.
+     */
+    all<T = any>(): Promise<T>;
+    /**
+     * Ghi toàn bộ dữ liệu database vào storage.
+     *
+     * ⚠️ Method này **không xử lý key path**.
+     * Object database đã được cập nhật trước bởi class `Database`.
+     *
+     * @param keys Placeholder dùng để tương thích với API của `Database`.
+     * Driver có thể bỏ qua tham số này nếu không cần thiết.
+     *
+     * @param data Toàn bộ object database sau khi đã được cập nhật.
+     *
+     * @template T Kiểu dữ liệu database.
+     * @returns Promise chứa dữ liệu đã được ghi.
+     */
+    set<T = any>(data: T): Promise<T>;
+    /**
+     * Xóa toàn bộ dữ liệu database khỏi storage.
+     *
+     * Thường được sử dụng bởi `Database.deleteAll()`.
+     *
+     * @returns `true` nếu thao tác thành công.
+     */
+    delete(): Promise<boolean>;
+}
+
+/**
+ * Cấu hình khởi tạo cho một instance của {@link Database}.
+ * @hidden
+ *
+ * Interface này xác định các tùy chọn cần thiết để thiết lập database,
+ * bao gồm driver lưu trữ và các tùy chọn hành vi bổ sung.
+ *
+ * @example
+ * const db = new Database({
+ *   driver: new MemoryDriver(),
+ *   debug: true
+ * });
  */
 export interface DatabaseConfiguration {
-    driver: any;
+    /**
+     * Driver dùng để đọc/ghi dữ liệu của database.
+     *
+     * Driver chịu trách nhiệm xử lý storage backend
+     * (ví dụ: memory, file, json, mongo, redis...).
+     */
+    driver: DatabaseDriver;
+    /**
+     * Bật chế độ debug.
+     *
+     * Khi `true`, database có thể log thêm thông tin về
+     * các thao tác đọc/ghi hoặc lỗi để hỗ trợ debug.
+     *
+     * @defaultValue false
+     */
     debug?: boolean;
 }
 /**
- * Represents the nullish type (`T` or `null`) and excludes `undefined` from it.
+ * Đại diện cho một giá trị có thể là `T` hoặc `null`.
+ * @hidden
  *
- * Type parameters:
+ * Utility type này loại bỏ `undefined` khỏi union để đảm bảo
+ * giá trị chỉ có thể là kiểu `T` hoặc `null`.
  *
- * - `T` (`any`) - The type to make nullish.
+ * Điều này hữu ích khi một API có thể không tìm thấy kết quả,
+ * nhưng vẫn muốn tránh việc trả về `undefined`.
  *
- * @template T - The type to make nullish.
+ * @typeParam T - Kiểu dữ liệu gốc.
+ *
+ * @example
+ * type User = { id: number };
+ *
+ * const user: Maybe<User> = { id: 1 }; // hợp lệ
+ * const noUser: Maybe<User> = null; // hợp lệ
+ * const invalid: Maybe<User> = undefined; // lỗi
  */
 export type Maybe<T> = Exclude<T | null, undefined>;
 /**
- * Conditional type that returns the type based on the condition type result.
+ * Utility type điều kiện dùng để trả về một kiểu dữ liệu
+ * dựa trên giá trị boolean của điều kiện.
+ * @hidden
  *
- * Type parameters:
+ * Nếu `T` là `true` thì kiểu trả về sẽ là `IfTrue`.
+ * Nếu `T` là `false` thì kiểu trả về sẽ là `IfFalse`.
  *
- * - `T` (`boolean`) - The condition to return a boolean value.
- * - `IfTrue` (`any`) - The type to be returned if the condition type `T` is `true`.
- * - `IfFalse` (`null`, optional) - The type to be returned if the condition type `T` is `false`.
+ * Thường được sử dụng trong các generic type phức tạp
+ * để lựa chọn kiểu dữ liệu tại thời điểm compile.
  *
- * @template T - The condition to return a boolean value.
- * @template IfTrue - The type to be returned if the condition type `T` is `true`.
- * @template IfFalse - The type to be returned if the condition type `T` is `false`.
+ * @typeParam T - Điều kiện kiểu boolean.
+ * @typeParam IfTrue - Kiểu dữ liệu trả về khi `T` là `true`.
+ * @typeParam IfFalse - Kiểu dữ liệu trả về khi `T` là `false`. Mặc định là `null`.
+ *
+ * @example
+ * type A = If<true, string, number>;
+ * // Kết quả: string
+ *
+ * @example
+ * type B = If<false, string, number>;
+ * // Kết quả: number
+ *
+ * @example
+ * // IfFalse mặc định là null
+ * type C = If<false, string>;
+ * // Kết quả: null
  */
 export type If<T extends boolean, IfTrue, IfFalse = null> = T extends true ? IfTrue : IfFalse;
 /**
- * Determines if the specified type is object and returns the checking result as boolean.
+ * Kiểm tra xem một kiểu dữ liệu có phải là **object thuần** hay không.
+ * @hidden
  *
- * Type parameters:
+ * Type này sẽ trả về `true` nếu `T` là object dạng `Record`
+ * và **không phải** là:
  *
- * - `T` (`any`) - The type to check.
+ * - `null`
+ * - `undefined`
+ * - `Array`
  *
- * @template T - The type to check.
+ * Nếu `T` thuộc các trường hợp trên thì kết quả sẽ là `false`.
+ *
+ * Utility type này thường được dùng trong các generic phức tạp
+ * để xác định liệu một kiểu dữ liệu có thể được xử lý như object hay không.
+ *
+ * @typeParam T - Kiểu dữ liệu cần kiểm tra.
+ *
+ * @example
+ * type A = IsObject<{ name: string }>;
+ * // Kết quả: true
+ *
+ * @example
+ * type B = IsObject<string>;
+ * // Kết quả: false
+ *
+ * @example
+ * type C = IsObject<string[]>;
+ * // Kết quả: false
+ *
+ * @example
+ * type D = IsObject<null>;
+ * // Kết quả: false
  */
 export type IsObject<T> = T extends null ? false : T extends undefined ? false : T extends any[] ? false : T extends Record<any, any> ? true : false;
 /**
- * Represents a type that works as an array of specified type or `...spread` of specified type.
+ * Đại diện cho kiểu dữ liệu có thể là **mảng của `T`**
+ * hoặc **một tuple chứa mảng `T`**.
+ * @hidden
  *
- * Type parameters:
+ * Utility type này thường được sử dụng để hỗ trợ các API
+ * chấp nhận cả hai cách truyền tham số:
  *
- * - `T` (`any`) - The type to convert into rest-or-array type.
+ * - truyền nhiều giá trị dạng `...spread`
+ * - truyền một mảng các giá trị
  *
- * @template T - The type to convert into rest-or-array type.
+ * @typeParam T - Kiểu phần tử của mảng.
+ *
+ * @example
+ * type A = RestOrArray<number>;
+ * // number[] | [number[]]
+ *
+ * @example
+ * function example(...values: RestOrArray<number>) {}
+ *
+ * example(1, 2, 3);       // hợp lệ
+ * example([1, 2, 3]);     // hợp lệ
  */
 export type RestOrArray<T> = T[] | [T[]];
 /**
- * From the type `A`, extracts the type `T` from the `Array<T>` type, or returns `A` if not array type was specified.
+ * Trích xuất kiểu phần tử từ một kiểu mảng.
+ * @hidden
  *
- * Type parameters:
+ * Nếu `A` là kiểu `Array<T>` thì kết quả sẽ là `T`.
+ * Nếu `A` không phải là mảng thì kết quả sẽ giữ nguyên kiểu `A`.
  *
- * - `A` (`any`) - The array type to extract the type from.
+ * Utility type này thường được dùng để lấy kiểu của phần tử
+ * bên trong mảng khi làm việc với các generic phức tạp.
  *
- * @template A - The array type to extract the type from.
+ * @typeParam A - Kiểu dữ liệu cần kiểm tra và trích xuất.
+ *
+ * @example
+ * type A = ExtractFromArray<number[]>;
+ * // Kết quả: number
+ *
+ * @example
+ * type B = ExtractFromArray<string[]>;
+ * // Kết quả: string
+ *
+ * @example
+ * type C = ExtractFromArray<boolean>;
+ * // Kết quả: boolean
+ *
+ * @example
+ * type D = ExtractFromArray<{ id: number }[]>;
+ * // Kết quả: { id: number }
  */
 export type ExtractFromArray<A> = A extends Array<infer T> ? T : A;
 /**
- * Converts the specified type `T` into the array of `T` or just `T` if it's a valid tuple.
+ * Chuyển đổi kiểu `T` thành **mảng của `T`** hoặc giữ nguyên
+ * nếu `T` đã là một **tuple hợp lệ**.
+ * @hidden
  *
- * Type parameters:
+ * Nếu `T` là tuple (ví dụ `[string, number]`) thì kiểu sẽ giữ nguyên.
+ * Nếu `T` không phải tuple thì kết quả sẽ là `T[]`.
  *
- * - `T` (`any`) - The type to convert.
+ * Utility type này thường được dùng khi muốn hỗ trợ cả:
+ * - tuple có kích thước cố định
+ * - mảng thông thường
  *
- * @template T - The type to convert.
+ * @typeParam T - Kiểu dữ liệu cần chuyển đổi.
+ *
+ * @example
+ * type A = TupleOrArray<number>;
+ * // Kết quả: number[]
+ *
+ * @example
+ * type B = TupleOrArray<[number, string]>;
+ * // Kết quả: [number, string]
+ *
+ * @example
+ * type C = TupleOrArray<boolean>;
+ * // Kết quả: boolean[]
  */
 export type TupleOrArray<T> = T extends [...infer _Rest] ? T : T[];
 /**
- * Represents a `predicate` callback function from array methods such as `Array.map()`, `Array.find()`, etc.
+ * Đại diện cho hàm callback dùng để truy vấn hoặc xử lý
+ * các phần tử trong một mảng.
+ * @hidden
  *
- * Type parameters:
+ * Type này thường được sử dụng trong các method giống
+ * các phương thức của `Array` như:
  *
- * - `T` (`any`) - The type of the item in the array.
- * - `R` (`any`, optional) - The return type of the function.
+ * - `map`
+ * - `find`
+ * - `filter`
+ * - `some`
+ * - `every`
+ * - `findIndex`
  *
- * @template T - The type of the item in the array.
- * @template R - The return type of the function.
+ * @typeParam T - Kiểu dữ liệu của từng phần tử trong mảng.
+ * @typeParam R - Kiểu dữ liệu trả về của hàm callback. Mặc định là `any`.
+ *
+ * @param item - Phần tử hiện tại đang được xử lý.
+ * @param index - Vị trí của phần tử trong mảng.
+ * @param values - Toàn bộ mảng giá trị đang được duyệt.
+ *
+ * @returns Giá trị trả về của callback.
+ *
+ * @example
+ * const result = await db.find((user) => user.id === 1);
+ *
+ * @example
+ * const names = await db.map((user) => user.name);
+ *
+ * @example
+ * const admins = await db.filter((user) => user.role === "admin");
  */
 export type QueryFunction<T, R = any> = (item: T, index: number, values: T[]) => R;
 /**
- * Extracts the object keys from the specified object and returns them in a union.
+ * Trích xuất tất cả các key của một object và trả về dưới dạng **union type**.
+ * @hidden
  *
- * Type parameters:
+ * Type này sử dụng toán tử `keyof` của TypeScript để lấy danh sách
+ * các thuộc tính của object `T`.
  *
- * - `T` (`Record<string, any>`) - The object to get the object keys types from.
+ * @typeParam T - Object cần trích xuất các key.
  *
- * @template T - The object to get the object keys types from.
+ * @example
+ * type User = {
+ *   id: number;
+ *   name: string;
+ *   age: number;
+ * };
+ *
+ * type Keys = ExtractObjectKeys<User>;
+ * // Kết quả: "id" | "name" | "age"
+ *
+ * @example
+ * type Config = {
+ *   host: string;
+ *   port: number;
+ * };
+ *
+ * type Keys = ExtractObjectKeys<Config>;
+ * // Kết quả: "host" | "port"
  */
 export type ExtractObjectKeys<T extends Record<string, any>> = keyof T;
 /**
- * Extracts the object values from the specified object and returns them in a union.
+ * Trích xuất tất cả **giá trị (values)** của một object
+ * và trả về dưới dạng **union type**.
+ * @hidden
  *
- * Type parameters:
+ * Type này sẽ:
+ * 1. Lấy tất cả key của object bằng `ExtractObjectKeys<T>`
+ * 2. Lấy giá trị tương ứng `T[key]`
+ * 3. Loại bỏ `null` và `undefined` bằng `NonNullable`
  *
- * - `T` (`Record<string, any>`) - The object to get the object values types from.
+ * @typeParam T - Object cần trích xuất các giá trị.
  *
- * @template T - The object to get the object values types from.
+ * @example
+ * type User = {
+ *   id: number;
+ *   name: string;
+ *   active: boolean;
+ * };
+ *
+ * type Values = ExtractObjectValues<User>;
+ * // Kết quả: number | string | boolean
+ *
+ * @example
+ * type Example = {
+ *   a: number | null;
+ *   b: string | undefined;
+ * };
+ *
+ * type Values = ExtractObjectValues<Example>;
+ * // Kết quả: number | string
  */
 export type ExtractObjectValues<T extends Record<string, any>> = NonNullable<T[ExtractObjectKeys<T>]>;
 /**
- * Extracts the object entries from the specified object and returns them in an array of keys-values pairs.
+ * Trích xuất các **cặp key-value** từ một object.
+ * @hidden
  *
- * Type parameters:
+ * Type này tạo ra một tuple dạng `[key, value]`
+ * đại diện cho entry của object.
  *
- * - `T` (`Record<string, any>`) - The object to get the object entries from.
+ * @typeParam T - Object cần trích xuất entries.
  *
- * @template T - The object to get the object entries from.
+ * @example
+ * type User = {
+ *   id: number;
+ *   name: string;
+ * };
+ *
+ * type Entry = ExtractObjectEntries<User>;
+ * // Kết quả:
+ * // ["id" | "name", number | string]
+ *
+ * @example
+ * type Config = {
+ *   host: string;
+ *   port: number;
+ * };
+ *
+ * type Entry = ExtractObjectEntries<Config>;
+ * // ["host" | "port", string | number]
  */
 export type ExtractObjectEntries<T extends Record<string, any>> = [ExtractObjectKeys<T>, ExtractObjectValues<T>];
 /**
- * Determines if the specified type is `any` and returns the checking result as boolean.
+ * Kiểm tra xem một kiểu dữ liệu có phải là `any` hay không.
+ * @hidden
  *
- * Type parameters:
+ * Type này sử dụng kỹ thuật đặc biệt của TypeScript
+ * để phát hiện kiểu `any`. Nếu `T` là `any` thì kết quả
+ * sẽ là `true`, ngược lại sẽ là `false`.
  *
- * - `T` (`any`) - The type to check.
+ * @typeParam T - Kiểu dữ liệu cần kiểm tra.
  *
- * @template T - The type to check.
+ * @example
+ * type A = IsAny<any>;
+ * // Kết quả: true
+ *
+ * @example
+ * type B = IsAny<string>;
+ * // Kết quả: false
+ *
+ * @example
+ * type C = IsAny<unknown>;
+ * // Kết quả: false
  */
 export type IsAny<T> = 0 extends (1 & T) ? true : false;
 /**
- * Makes the string union type autocompletable with a `string` type.
+ * Tạo kiểu `string` hỗ trợ **autocomplete từ union string**
+ * nhưng vẫn cho phép nhập bất kỳ chuỗi nào.
+ * @hidden
  *
- * Type parameters:
+ * Type này thường dùng khi muốn:
  *
- * - `S` (`string`) - The autocompletable union string type to make compatible with a `string` type.
+ * - IDE gợi ý các giá trị có sẵn
+ * - nhưng vẫn cho phép người dùng nhập string tùy ý
  *
- * @template S - The autocompletable union string type to make compatible with a `string` type.
+ * @typeParam S - Union các chuỗi được dùng để autocomplete.
+ *
+ * @example
+ * type Status = AutocompletableString<"online" | "offline" | "idle">;
+ *
+ * const a: Status = "online";  // IDE autocomplete
+ * const b: Status = "offline"; // IDE autocomplete
+ * const c: Status = "custom";  // vẫn hợp lệ
  */
 export type AutocompletableString<S extends string> = S | (string & {});
 /**
- * Extracts the first key from the specified object path.
- * (for example, in key `member.user.id`, the first key will be `member`)
+ * Trích xuất **key đầu tiên** từ một object path dạng chuỗi.
+ * @hidden
  *
- * Type parameters:
+ * Ví dụ với path `"member.user.id"` thì key đầu tiên sẽ là `"member"`.
  *
- * - `TKey` (`ObjectPath<string, any>`) - The object path to extract the key from.
+ * Type này thường được dùng để xác định **object cấp cao nhất**
+ * khi làm việc với các path dạng `dot notation`.
  *
- * @template TKey - The object path to extract the key from.
+ * @typeParam TKey - Object path cần trích xuất key đầu tiên.
+ *
+ * @example
+ * type A = FirstObjectKey<"user.profile.name">;
+ * // Kết quả: "user"
+ *
+ * @example
+ * type B = FirstObjectKey<"settings">;
+ * // Kết quả: "settings"
  */
 export type FirstObjectKey<TKey extends ObjectPath<string, any>> = TKey extends `${infer Key}.${infer _Rest}` ? Key : TKey extends string ? TKey : never;
 /**
- * Represents a path to a nested property in an object.
+ * Đại diện cho **đường dẫn (path)** tới một thuộc tính trong object,
+ * hỗ trợ truy cập các property lồng nhau bằng `dot notation`.
+ * @hidden
  *
- * Type parameters:
+ * Type này được dùng để tạo **autocomplete path** trong IDE.
  *
- * - `T` (`any`) - The object to get the path from.
- * - `TKey` (`keyof T`, defaults to `keyof T`) - The key of the object to get the path from.
+ * @typeParam T - Object cần tạo path.
+ * @typeParam TKey - Key của object (mặc định là `keyof T`).
  *
- * @template T - The object to get the path from.
- * @template TKey - The key of the object to get the path from.
+ * @example
+ * type User = {
+ *   id: number;
+ *   profile: {
+ *     name: string;
+ *     age: number;
+ *   };
+ * };
+ *
+ * type Paths = ObjectPath<User>;
+ *
+ * // Kết quả:
+ * // "id"
+ * // "profile"
+ * // "profile.name"
+ * // "profile.age"
+ *
+ * @example
+ * type Example = {
+ *   user: {
+ *     profile: {
+ *       name: string;
+ *     };
+ *   };
+ * };
+ *
+ * type Paths = ObjectPath<Example>;
+ * // "user"
+ * // "user.profile"
+ * // "user.profile.name"
  */
 export type ObjectPath<T, TKey extends keyof T = keyof T> = IsAny<T> extends true ? string : T extends string | number | boolean | symbol ? string : T extends Array<any> ? TKey & string : TKey extends string ? T[TKey] extends Array<any> ? TKey : T[TKey] extends Record<string, any> ? `${TKey}` | `${TKey}.${ObjectPath<T[TKey]>}` : TKey : never;
 /**
- * Extracts the value from the specified object path.
+ * Trích xuất kiểu dữ liệu của giá trị tại một object path.
+ * @hidden
  *
- * Type parameters:
+ * Type này cho phép suy ra kiểu của thuộc tính dựa trên
+ * đường dẫn dạng `dot notation`.
  *
- * - `T` (`any`) - The object to extract the value from.
- * - `P` (`ObjectPath<T>` or `AutocompletableString<ObjectPath<T>>`) - The object path to extract the value from.
+ * @typeParam T - Object nguồn.
+ * @typeParam P - Object path cần lấy giá trị.
  *
- * @template T - The object to extract the value from.
- * @template P - The object path to extract the value from.
+ * @example
+ * type User = {
+ *   profile: {
+ *     name: string;
+ *     age: number;
+ *   };
+ * };
+ *
+ * type A = ObjectValue<User, "profile.name">;
+ * // Kết quả: string
+ *
+ * @example
+ * type B = ObjectValue<User, "profile.age">;
+ * // Kết quả: number
+ *
+ * @example
+ * type C = ObjectValue<User, "profile">;
+ * // Kết quả: { name: string; age: number }
  */
 export type ObjectValue<T, P extends ObjectPath<T> | AutocompletableString<ObjectPath<T>>> =
     T extends AutocompletableString<P> | string | number | boolean | symbol

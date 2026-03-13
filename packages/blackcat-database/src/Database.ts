@@ -1,189 +1,174 @@
-import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray } from "./types";
+import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver } from "./types";
 import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
 
 /**
- * Database class.
+ * Class Database cung cấp API thao tác dữ liệu dạng key-path
+ * trên nhiều loại storage khác nhau thông qua `DatabaseDriver`.
  *
- * Type parameters:
+ * Đây là **lớp database chính (logic layer)** của hệ thống.
  *
- * - `V` (`any`) - The type of the values in the database.
+ * Class này chịu trách nhiệm:
+ * - parse key path (`user.profile.name`)
+ * - validate dữ liệu
+ * - thao tác object
+ * - query dữ liệu (find, filter, map...)
  *
- * @template V (`any`) - The type of the values in the database.
+ * Việc lưu trữ dữ liệu thực tế sẽ được thực hiện bởi các **driver phụ trợ**
+ * như:
  *
- * @example
- * 
- * // JSON
- * import { Database, JSONDriver } from "blackcat-database";
+ * - `JSONDriver`
+ * - `MemoryDriver`
+ * - `SQLiteDriver`
+ * - `MongoDriver`
  *
- * const database = new Database({
- *    driver: new JSONDriver({ filePath: "./database.json", minifyJSON: false }),
- * });
- *  
- * 
+ * Các driver này chỉ chịu trách nhiệm:
+ * - đọc toàn bộ dữ liệu database
+ * - ghi toàn bộ dữ liệu database
+ *
+ * @template V Kiểu dữ liệu tổng thể của database.
  */
 export class Database<V = any> {
     /**
-     * The low-level database driver handling basic operations.
+     * Storage driver được sử dụng để đọc và ghi dữ liệu database.
+     *
+     * Driver phải implement interface `DatabaseDriver`.
+     *
+     * Ví dụ:
+     * ```ts
+     * const db = new Database({
+     *   driver: new JSONDriver({ filePath: "./database.json" }),
+     * })
+     * ```
      */
-    public driver: any;
+    public driver: DatabaseDriver;
+    /**
+     * Khởi tạo Database instance.
+     *
+     * @param options Cấu hình database.
+     * @param options.driver Driver lưu trữ dữ liệu.
+     *
+     * @example
+     * ```ts
+     * const db = new Database({
+     *   driver: new JSONDriver({ filePath: "./database.json" }),
+     * })
+     * ```
+     *
+     * Ví dụ với MongoDB:
+     *
+     * ```ts
+     * const db = new Database({
+     *   driver: new MongoDriver({
+     *     uri: "mongodb://localhost:27017",
+     *     databaseName: "mydb"
+     *   })
+     * });
+     * ```
+     */
     constructor(options: DatabaseConfiguration) {
         this.driver = options.driver;
     }
     /**
-     * Gets all the database contents from the cache.
+     * Lấy toàn bộ dữ liệu từ database thông qua driver.
      *
-     * Type parameters:
+     * @template T Kiểu dữ liệu object database trả về.
      *
-     * - `T` (`object`, defaults to `Record<string, any>`) - The type of object of all the database object to be returned.
-     *
-     * @returns {T} Cached database contents.
-     *
-     * @template T (object, defaults to `Record<string, any>`) -
-     * The type of object of all the database object to be returned.
+     * @returns Promise chứa toàn bộ dữ liệu database.
      *
      * @example
-     * const databaseContents = await database.all();
-     * console.log(databaseContents); // -> { ... (the object of all the data stored in database) }
+     * ```ts
+     * const data = await db.all();
+     * console.log(data.users);
+     * ```
      */
     public async all<T extends Record<string, any> = Record<string, any>>(): Promise<T> {
-        return await this.driver.all() as Promise<T>;
+        return await this.driver.all<T>();
     }
     /**
-     * Retrieves a value from database by a key.
+     * Lấy giá trị từ database theo key-path.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Maybe<ObjectValue<V, P>>} The value of the target in database.
+     * Key có thể là chuỗi dạng path:
+     *
+     * ```
+     * user.profile.name
+     * economy.users.123.balance
+     * ```
+     *
+     * Nếu không truyền `key`, method sẽ trả về **toàn bộ database**.
+     *
+     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
+     *
+     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần lấy.
+     *
+     * @returns Giá trị tại key hoặc `null` nếu không tồn tại.
      *
      * @example
-     * const simpleValue = await database.get("simpleValue");
-     * console.log(simpleValue); // -> 123
+     * ```ts
+     * const name = await db.get("user.profile.name");
+     * ```
      *
-     * const databaseObjectPropertyAccessed = await database.get("youCanAlso.accessDatabaseObjectProperties.likeThat");
-     * console.log(databaseObjectPropertyAccessed); // -> "hello world!"
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    simpleValue: 123,
-     * //    youCanAlso: {
-     * //        accessDatabaseObjectProperties: {
-     * //            likeThat: "hello world!"
-     * //        }
-     * //    }
-     * // }
+     * @example
+     * ```ts
+     * const all = await db.get();
+     * ```
      */
     public async get<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>> | V> {
-        if (key !== undefined) {
-            if (typeof key !== "string") {
-                throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
-            }
-            return this.driver.get(key);
-        } else {
-            return this.all() as V;
-        };
+        const data = await this.all();
+        if (key === undefined) return data as V;
+        if (typeof key !== "string") {
+            throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
+        }
+        const keys = key.split(".");
+        let result: any = data;
+        for (const k of keys) {
+            if (!isObject(result) && !Array.isArray(result)) return null;
+            result = result[k];
+            if (result === undefined) return null;
+        }
+        return result;
     }
     /**
-     * Retrieves a value from database by a key.
+     * Kiểm tra một key-path có tồn tại trong database hay không.
      *
-     * - This method is an alias for {@link Database.get()} method.
+     * Method này sử dụng `get()` để xác định giá trị có tồn tại.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Maybe<ObjectValue<V, P>>} The value from database.
+     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
      *
-     * @example
-     * const simpleValue = await database.fetch("simpleValue");
-     * console.log(simpleValue); // -> 123
+     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần kiểm tra.
      *
-     * // You can use the dot notation to access the database object properties:
-     * const playerInventory = await database.fetch("player.inventory");
-     * console.log(playerInventory); // -> []
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    simpleValue: 123,
-     * //    player: {
-     * //        inventory: []
-     * //    }
-     * // }
-     */
-    public async fetch<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>> | V> {
-        return this.get(key);
-    }
-    /**
-     * Determines if the data is stored in database.
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {boolean} Whether the data is stored in database.
+     * @returns `true` nếu key tồn tại, ngược lại `false`.
      *
      * @example
-     * const isSimpleValueInDatabase = await database.has("simpleValue");
-     * console.log(isSimpleValueInDatabase); // -> true
-     *
-     * const somethingElse = await database.has("somethingElse");
-     * console.log(somethingElse); // -> false
-     *
-     * // You can use the dot notation to check the database object properties:
-     * const isObjectInDatabase = await database.has("youCanAlso.accessObjectProperties.likeThat");
-     * console.log(isObjectInDatabase); // -> true
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    simpleValue: 123,
-     * //    player: {
-     * //        inventory: []
-     * //    },
-     * //    youCanAlso: {
-     * //        accessObjectProperties: {
-     * //            likeThat: "hello world!"
-     * //        }
-     * //    }
-     * // }
+     * ```ts
+     * const exists = await db.has("users.123");
+     * ```
      */
     public async has<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
-        return this.get(key) !== null && this.get(key) !== undefined;
+        const value = await this.get(key);
+        return value !== null && value !== undefined;
     }
     /**
-     * Writes the specified value into database under the specified key.
+     * Gán giá trị cho một key-path trong database.
      *
-     * @param {AutocompletableString<P>} key The key to write in the target.
-     * @param {ObjectValue<V, P>} value The value to write.
+     * Nếu key-path chưa tồn tại, các object trung gian
+     * sẽ được tự động tạo.
      *
-     * @returns {Promise<If<IsObject<V>, FirstObjectKey<P>, V>>}
-     * - If the `value` parameter's type is not an object (string, number, boolean, etc), then the specified
-     * `value` parameter (type of `ObjectValue<V, P>`) will be returned.
+     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
      *
-     * - If an object is specified in the `value` parameter, then the object of the first key will be returned.
-     * (type of `FirstObjectKey<P>` - first object key (e.g. in key `member.user.id`, the first key will be `member`))
+     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần gán giá trị.
+     * @param {ObjectValue<V, P>} value Giá trị mới.
+     *
+     * @returns {Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>>} Giá trị vừa được set hoặc object root nếu value là object.
      *
      * @example
-     * // Assuming that the initial database object for this example is empty.
+     * ```ts
+     * await db.set("users.123.name", "Alice");
+     * ```
      *
-     * await database.set("something", "hello");
-     * const hello = await database.get("something");
-     *
-     * console.log(hello); // -> "hello"
-     *
-     * // You can use the dot notation to write data in objects:
-     * const dotNotationSetResult = await database.set("member.user.id", 2000);
-     * console.log(dotNotationSetResult); // -> 2000
-     *
-     * await database.set("member.inventory", []);
-     * const inventory = await database.get("member.inventory");
-     *
-     * console.log(inventory); // -> []
-     *
-     * // Using objects as value will return the object of key `thats`:
-     * await database.set("member.user", { name: "Jerry" }); // -> { member: { user: { name: "Jerry" } } }
-     *
-     * // After these manipulations, the database object will look like this:
-     * // {
-     * //     "something": "hello",
-     * //     "member": {
-     * //       "inventory": [],
-     * //       "user": { 
-     * //          "name": "Jerry",
-     * //          "id": 2000 
-     * //       }
-     * //     }
-     * // }
+     * @example
+     * ```ts
+     * await db.set("config.prefix", "!");
+     * ```
      */
     public async set<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>> {
         const allDatabase = await this.all();
@@ -206,21 +191,81 @@ export class Database<V = any> {
                 currentObj = currentObj[keys[i]];
             };
         };
-        await this.driver.set(keys as any, allDatabase);
+        await this.driver.set(allDatabase);
         return typeof value == "object" && value !== null ? await this.get(keys[0]) as any : value as any;
     }
     /**
-     * Update the specified value into database under the specified key.
+     * Xóa một key khỏi database.
      *
-     * @param {AutocompletableString<P>} key The key to update the target.
-     * @param {ObjectValue<V, P>} value The value to update.
+     * Hỗ trợ nested path bằng dot notation.
      *
-     * @returns {Promise<If<IsObject<V>, FirstObjectKey<P>, V>>}
-     * - If the `value` parameter's type is not an object (string, number, boolean, etc), then the specified
-     * `value` parameter (type of `ObjectValue<V, P>`) will be returned.
+     * @typeParam P - Path của object.
      *
-     * - If an object is specified in the `value` parameter, then the object of the first key will be returned.
-     * (type of `FirstObjectKey<P>` - first object key (e.g. in key `member.user.id`, the first key will be `member`))
+     * @param key - Đường dẫn key cần xóa.
+     *
+     * @returns
+     * - `true` nếu xóa thành công
+     * - `false` nếu key không tồn tại
+     *
+     * @throws BlackCatError
+     * - INVALID_TYPE nếu key không phải string
+     *
+     * @example
+     * await db.delete("user.name");
+     */
+    public async delete<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<boolean> {
+        if (typeof key !== "string") {
+            throw new BlackCatError("INVALID_TYPE", "key", "string", typeof key);
+        }
+        const allDatabase = await this.all();
+        const keys = key.split(".");
+        const lastKey = keys.pop() as string;
+        let currentObj: any = allDatabase;
+        for (const k of keys) {
+            if (!isObject(currentObj[k])) {
+                return false;
+            }
+            currentObj = currentObj[k];
+        }
+        if (!(lastKey in currentObj)) return false;
+        delete currentObj[lastKey];
+        await this.driver.set(allDatabase);
+        return true;
+    }
+    /**
+     * Xóa toàn bộ dữ liệu trong database.
+     *
+     * Method này gọi trực tiếp `driver.delete()` để reset storage.
+     *
+     * @returns `true` sau khi dữ liệu đã được xóa.
+     *
+     * @example
+     * await db.deleteAll();
+     */
+    public async deleteAll(): Promise<boolean> {
+        await this.driver.delete();
+        return true;
+    }
+    /**
+     * Cập nhật giá trị của một key-path trong database.
+     *
+     * Khác với `set()`, method này chỉ ghi đè giá trị của key cuối cùng
+     * trong path mà không thay đổi cấu trúc object phía trên.
+     *
+     * Nếu các object trung gian trong path chưa tồn tại
+     * thì chúng sẽ được tự động tạo.
+     *
+     * @template P Key path trong database.
+     *
+     * @param key Đường dẫn dữ liệu cần cập nhật.
+     * @param value Giá trị mới.
+     *
+     * @returns Object cha của key vừa cập nhật.
+     *
+     * @example
+     * ```ts
+     * await db.update("users.123.name", "Alice");
+     * ```
      */
     public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>> {
         const allDatabase = await this.all();
@@ -238,34 +283,25 @@ export class Database<V = any> {
         const lastKey = keys[keys.length - 1];
         current[lastKey] = value;
 
-        await this.driver.set(keys, allDatabase);
+        await this.driver.set(allDatabase);
         return current;
     }
     /**
-     * Performs an arithmetical addition on a target number in database.
+     * Cộng thêm giá trị vào một key dạng number.
      *
-     * [!!!] The type of target value must be a number.
+     * Nếu key chưa tồn tại, giá trị mặc định sẽ là `0`.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @param {number} numberToAdd The number to add to the target number in database.
-     * @returns {Promise<number>} Addition operation result.
+     * @template P Key path trong database.
+     *
+     * @param key Đường dẫn dữ liệu dạng number.
+     * @param numberToAdd Số cần cộng thêm.
+     *
+     * @returns Giá trị mới sau khi cộng.
      *
      * @example
-     * const additionResult = await database.add("points", 5);
-     * console.log(additionResult); // -> 10 (5 + 5 = 10)
-     *
-     * // Notice that we don't need to assign a value to unexistent properties in database
-     * // before performing an addition since the initial target value is 0 and will be used
-     * // as the value of the unexistent property:
-     * const unexistentAdditionResult = await database.add("somethingElse", 3);
-     *
-     * console.log(unexistentAdditionResult); // -> 3 (0 + 3 = 3)
-     * // the property didn't exist in database, that's why 0 is added to 3
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    points: 5
-     * // }
+     * ```ts
+     * await db.add("economy.users.123.balance", 50);
+     * ```
      */
     public async add<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, numberToAdd: number): Promise<number> {
         const targetNumber = await this.get(key) as any ?? 0;
@@ -282,30 +318,21 @@ export class Database<V = any> {
         return await this.set(key, targetNumber + numberToAdd) as Promise<number>;
     }
     /**
-     * Performs an arithmetical subtraction on a target number in database.
+     * Trừ giá trị khỏi một key dạng number.
      *
-     * [!!!] The type of target value must be a number.
+     * Nếu key chưa tồn tại, giá trị mặc định sẽ là `0`.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @param {number} numberToSubtract The number to subtract from the target number in database.
-     * @returns {Promise<number>} Subtraction operation result.
+     * @template P Key path trong database.
+     *
+     * @param key Đường dẫn dữ liệu dạng number.
+     * @param numberToSubtract Số cần trừ.
+     *
+     * @returns Giá trị mới sau khi trừ.
      *
      * @example
-     * const subtractionResult = await database.subtract("points", 5)
-     * console.log(subtractionResult) // -> 5 (10 - 5 = 5)
-     *
-     * // Notice that we don't need to assign a value to unexistent properties in database
-     * // before performing a subtraction since the initial target value is 0 and will be used
-     * // as the value of the unexistent property:
-     * const unexistentSubtractionitionResult = await database.subtract("somethingElse", 3)
-     *
-     * console.log(unexistentSubtractionitionResult) // -> 3 (0 - 3 = -3)
-     * // the property didn't exist in database, so 3 is subtracted from 0
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    points: 10
-     * // }
+     * ```ts
+     * await db.subtract("economy.users.123.balance", 20);
+     * ```
      */
     public async subtract<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, numberToSubtract: number): Promise<number> {
         const targetNumber = await this.get(key) as any ?? 0;
@@ -322,27 +349,31 @@ export class Database<V = any> {
         return await this.set(key, targetNumber - numberToSubtract as any) as Promise<number>;
     }
     /**
-     * Pushes the specified value(s) into the target array in database.
+     * Thêm một hoặc nhiều phần tử vào cuối array tại key-path.
      *
-     * [!!!] The type of target value must be an array.
-     * [!!!] get only values ​​not stored in the database.
+     * Method này sẽ:
+     * - kiểm tra target có phải array không
+     * - chỉ thêm các giá trị **chưa tồn tại** trong array
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @param {RestOrArray<ExtractFromArray<ObjectValue<V, P>>>} values
-     * The value(s) to be pushed into the target array in database.
+     * ⚠️ Nếu key không tồn tại hoặc target không phải array
+     * thì sẽ ném lỗi.
      *
-     * @returns {Promise<Array<ExtractFromArray<ObjectValue<V, P>>>>} Updated target array from database.
+     * @template P Key path trong database.
+     *
+     * @param key Đường dẫn tới array cần thêm phần tử.
+     * @param values Một hoặc nhiều giá trị cần thêm.
+     *
+     * @returns Array sau khi thêm phần tử.
      *
      * @example
-     * console.log(await database.push("members", "Jerry")); // -> ["Tom", "Jerry"]
-     * // You can also pass in multiple values to push into the target array:
-     * console.log(await database.push("currencies", "VND")); // -> ["USD", "VND"]
+     * ```ts
+     * await db.push("users.123.roles", "admin");
+     * ```
      *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    members: ["Tom"],
-     * //    currencies: ["USD"]
-     * // }
+     * @example
+     * ```ts
+     * await db.push("queue.songs", song1, song2);
+     * ```
      */
     public async push<P extends ObjectPath<V>>(key: AutocompletableString<P>, ...values: RestOrArray<ExtractFromArray<ObjectValue<V, P>>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
         if (!values.length) {
@@ -371,23 +402,25 @@ export class Database<V = any> {
         return target[pathParts[pathParts.length - 1]];
     }
     /**
-    * Replaces the specified element in target array with the specified value in the target array in database.
-    *
-    * [!!!] The type of target value must be an array.
-    *
-    * @param {AutocompletableString<P>} key The key to access the target in database by.
-    * @param {number} targetArrayElementIndex The index to find the element in target array by.
-    * @param {V} value The value to be pushed into the target array in database.
-    * @returns {Promise<Array<ExtractFromArray<ObjectValue<V, P>>>>} Updated target array from database.
-    *
-    * @example
-    * console.log(await database.pull("members", 1, "James")); // -> ["Jerry", "James", "Tom"]
-    *
-    * // Assuming that the initial database object for this example is:
-    * // {
-    * //    members: ["Jerry", "William", "Tom"]
-    * // }
-    */
+     * Thay thế phần tử trong array theo index.
+     *
+     * @typeParam P - Path trỏ đến array.
+     *
+     * @param key - Đường dẫn array.
+     * @param targetArrayElementIndex - Index cần thay.
+     * @param value - Giá trị mới.
+     *
+     * @returns Array sau khi thay thế.
+     *
+     * @throws BlackCatError
+     * - INVALID_TYPE nếu index không phải number
+     * - REQUIRED_PARAMETER_MISSING nếu thiếu value
+     * - INVALID_KEY nếu path không tồn tại
+     * - INVALID_TARGET nếu target không phải array
+     *
+     * @example
+     * await db.pull("users", 0, { id: 2 });
+     */
     public async pull<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, targetArrayElementIndex: number, value: ExtractFromArray<ObjectValue<V, P>>,): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
         if (!isNumber(targetArrayElementIndex)) {
             throw new BlackCatError("INVALID_TYPE", "targetArrayElementIndex", "number", typeOf(targetArrayElementIndex));
@@ -421,26 +454,25 @@ export class Database<V = any> {
         return target[pathParts[pathParts.length - 1]];
     }
     /**
-     * Removes the specified element(s) from the target array in database.
+     * Xóa phần tử khỏi array theo index.
      *
-     * [!!!] The type of target value must be an array.
+     * Có thể truyền nhiều index hoặc một array index.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @param {RestOrArray<ExtractFromArray<number>>} targetArrayElementIndexes
-     * The index(es) to find the element(s) in target array by.
+     * @typeParam P - Path trỏ đến array.
      *
-     * @returns {Promise<Array<ExtractFromArray<ObjectValue<V, P>>>>} Updated target array from database.
+     * @param key - Đường dẫn array.
+     * @param targetArrayElementIndexes - Các index cần xóa.
+     *
+     * @returns Danh sách phần tử đã bị xóa.
+     *
+     * @throws BlackCatError
+     * - INVALID_TARGET nếu target không phải array
+     * - REQUIRED_PARAMETER_MISSING nếu thiếu index
+     * - ONE_OR_MORE_ARRAY_TYPES_INVALID nếu index không phải number
      *
      * @example
-     * console.log(await database.pop("members", 1)); // -> ["Jerry", "Tom"]
-     *
-     * console.log(await database.pop("currencies", 1)); // -> ["VND", "Euro"]
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    members: ["Jerry", "William", "Tom"],
-     * //    currencies: ["VND", "USD", "Euro"]
-     * // }
+     * await db.pop("users", 0);
+     * await db.pop("numbers", [1, 2, 3]);
      */
     public async pop<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, ...targetArrayElementIndexes: RestOrArray<ExtractFromArray<number>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
         const targetArray = await this.get(key) ?? [];
@@ -478,87 +510,52 @@ export class Database<V = any> {
         return removedElements;
     }
     /**
-     * Determines whether the specified target is an array.
+     * Kiểm tra xem giá trị tại key có phải là Array hay không.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Promise<boolean>} Whether the target is an array.
+     * @typeParam P - Path của object trong database.
+     * @param key - Đường dẫn key cần kiểm tra.
+     *
+     * @returns `true` nếu giá trị là Array, ngược lại `false`.
      *
      * @example
-     * console.log(await databse.isTargetArray("array")); // => true
-     * console.log(await databse.isTargetArray("notArray")); // => false
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    array: [],
-     * //    notArray: 123
-     * // }
+     * const result = await db.isTargetArray("users");
+     * console.log(result);
      */
     public async isTargetArray<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
         const target = await this.get(key);
         return Array.isArray(target);
     }
     /**
-     * Determines whether the specified target is a number.
+     * Kiểm tra xem giá trị tại key có phải là Number hay không.
      *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Promise<boolean>} Whether the target is a number.
+     * @typeParam P - Path của object trong database.
+     *
+     * @param key - Đường dẫn key cần kiểm tra.
+     *
+     * @returns `true` nếu giá trị là Number, ngược lại `false`.
      *
      * @example
-     * console.log(await database.isTargetNumber("number")); // -> true
-     * console.log(await database.isTargetNumber("notNumber")); // -> false
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    number: 123,
-     * //    notNumber: []
-     * // }
+     * const result = await db.isTargetNumber("stats.score");
+     * console.log(result);
      */
     public async isTargetNumber<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
         const target = await this.get(key);
         return isNumber(target);
     }
     /**
-     * Returns an array of object keys by specified database key.
+     * Lấy danh sách các key của object trong database.
      *
-     * If `key` parameter is omitted, then an array of object keys of database root object will be returned.
+     * Nếu không truyền `key` → trả về các key cấp cao nhất của database.
      *
-     * Type parameters:
+     * @typeParam P - Path của object.
      *
-     * - `TKeys` (`TupleOrArray<string>`, defaults to `K[]`) - The tuple or array of a type of keys to be returned.
+     * @param key - Path của object cần lấy danh sách key.
      *
-     * @param {P} [key] The key to access the target in database by.
-     * @returns {Array<ObjectPath<P>>} Database object keys array.
+     * @returns Mảng các key tồn tại (không bao gồm `null` hoặc `undefined`).
      *
      * @example
-     * const prop3Keys = await database.keys("prop3");
-     * console.log(prop3Keys) // -> ["prop4", "prop5"]
-     *
-     * const prop5Keys = await database.keys("prop3.prop5");
-     * console.log(prop5Keys) // -> ["prop6"]
-     *
-     * const prop6Keys = await database.keys("prop3.prop5.prop6");
-     * console.log(prop6Keys)
-     * // -> [] (empty since the value in `prop6`, 111, is a primitive value and not an actual object)
-     *
-     * const databaseKeys = await database.keys();
-     * // in this example, `key` parameter is omitted - object keys of database object are being returned
-     *
-     * console.log(databaseKeys) // -> ["prop1", "prop2", "prop3"]
-     *
-     * const unexistentKeys = await database.keys("somethingElse");
-     * console.log(unexistentKeys) // -> [] (empty since the key `somethingElse` does not exist in database)
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    prop1: 123,
-     * //    prop2: 456,
-     * //    prop3: { 
-     * //       prop4: 789, 
-     * //       prop5: { 
-     * //          prop6: 111 
-     * //       } 
-     * //    }
-     * // }
+     * const rootKeys = await db.keys();
+     * const userKeys = await db.keys("user");
      */
     public async keys<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectPath<P>[]> {
         if (!key) return TypedObject.keys(await this.all()) as ObjectPath<P>[];
@@ -566,51 +563,33 @@ export class Database<V = any> {
         return TypedObject.keys(data).filter((key) => data[key] !== undefined && data[key] !== null) as any
     }
     /**
-     * Determines the number of keys in the root of the database.
-     * @type {Promise<number>} amount of data.
+     * Lấy số lượng key cấp cao nhất trong database.
+     *
+     * @returns Tổng số key ở root level.
+     *
+     * @example
+     * const count = await db.size();
      */
     public async size(): Promise<number> {
         const keys = await this.keys();
         return keys.length;
     }
     /**
-     * Returns an array of object values by specified database key.
+     * Lấy danh sách các giá trị từ database.
      *
-     * If `key` parameter is omitted, then an array of object values of database root object will be returned.
+     * Nếu không truyền `key` → trả về toàn bộ values ở root level.
+     * Nếu truyền `key` → trả về values của object tại path đó.
      *
-     * @param {P} [key] The key to access the target in database by.
-     * @returns {Array<ObjectValue<V, P>>} Database object values array.
+     * @typeParam P - Path của object trong database.
+     *
+     * @param key - Đường dẫn object cần lấy values.
+     *
+     * @returns Mảng các giá trị.
      *
      * @example
-     * const prop3Values = await database.values("prop3");
-     * console.log(prop3Values); // -> [789, { prop6: 111 }]
+     * const allValues = await db.values();
      *
-     * const prop5Values = await database.values("prop3.prop5");
-     * console.log(prop5Values); // -> []
-     *
-     * const prop6Values = await database.values("prop3.prop5.prop6");
-     * console.log(prop6Values);
-     * // -> [] (empty since the value in `prop6`, 111, is a primitive value and not an actual object)
-     *
-     * const databaseValues = await database.values();
-     * // in this example, `key` parameter is omitted - object values of database object are being returned
-     *
-     * console.log(databaseValues); // -> [123, 456, { prop4: 789, prop5: { prop6: 111 } }]
-     *
-     * const unexistentValues = await database.values("somethingElse");
-     * console.log(unexistentValues); // -> [] (empty since the key `somethingElse` does not exist in database)
-     *
-     * // Assuming that the initial database object for this example is:
-     * // {
-     * //    prop1: 123,
-     * //    prop2: 456,
-     * //    prop3: { 
-     * //       prop4: 789, 
-     * //       prop5: { 
-     * //          prop6: 111 
-     * //       } 
-     * //    }
-     * // }
+     * const userValues = await db.values("users");
      */
     public async values<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectValue<V, P>[]> {
         if (!key) return TypedObject.values(await this.all());
@@ -618,117 +597,19 @@ export class Database<V = any> {
         return TypedObject.values(data) as ObjectValue<V, P>[];
     }
     /**
-     * This method works the same way as `Array.find()`.
+     * Lấy ngẫu nhiên một phần tử từ array tại path được chỉ định.
      *
-     * Iterates over root database values, finds the element in database values array
-     * by specified condition in the callback function and returns the result.
+     * @typeParam P - Path trỏ đến array trong database.
      *
-     * @param {QueryFunction<V>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `find` method calls the `queryFunction` once for each element in database object values array.
+     * @param key - Đường dẫn đến array.
      *
-     * @returns {Promise<Maybe<V>>} The search
-     */
-    public async find(queryFunction: QueryFunction<V>): Promise<Maybe<V>> {
-        const values = await this.values();
-        return values.find(queryFunction as QueryFunction<ObjectValue<V, any>>) as Promise<Maybe<V>> ?? null;
-    }
-    /**
-     * This method works the same way as `Array.map()`.
+     * @returns Một phần tử ngẫu nhiên trong array hoặc `null` nếu array rỗng.
      *
-     * Calls a defined callback function on each element of an array,
-     * and returns an array that contains the results.
-     *
-     * @param {QueryFunction<V, TReturnType>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `map` method calls the `queryFunction` once for each element in database object values array.
-     *
-     * @returns {Promise<TReturnType[]>}
-     */
-    public async map<TReturnType>(queryFunction: QueryFunction<V, TReturnType>): Promise<TReturnType[]> {
-        const values = await this.values();
-        return values.map(queryFunction as QueryFunction<ObjectValue<V, any>, TReturnType>);
-    }
-    /**
-     * This method works the same way as `Array.findIndex()`.
-     *
-     * Iterates over root database values, finds the index of the element in database values array
-     * by specified condition in the callback function and returns the result.
-     *
-     * @param {QueryFunction<V>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `findIndex` method calls the `queryFunction` once for each element in database object values array.
-     *
-     * @returns {Promise<number>}
-     */
-    public async findIndex(queryFunction: QueryFunction<V>): Promise<number> {
-        const values = await this.values();
-        return values.findIndex(queryFunction as QueryFunction<ObjectValue<V, any>>);
-    }
-    /**
-     * This method works the same way as `Array.filter()`.
-     *
-     * Iterates over root database values, finds all the element that match the
-     * specified condition in the callback function and returns the result.
-     *
-     * @param {QueryFunction<V>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `filter` method calls the `queryFunction` once for each element in database object values array.
-     *
-     * @returns {Promise<V[]>}
-     */
-    public async filter(queryFunction: QueryFunction<V>): Promise<V[]> {
-        const values = await this.values();
-        return values.filter(queryFunction as QueryFunction<ObjectValue<V, any>>) as any;
-    }
-    /**
-     * This method works the same way as `Array.some()`.
-     *
-     * Iterates over root database values and checks if the
-     * specified condition in the callback function returns `true`
-     * for **any** of the elements of the database object values array.
-     *
-     * @param {QueryFunction<V>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `some` method calls the `queryFunction` once for each element in database object values array.
-     *
-     * @returns {Promise<boolean>}
-     */
-    public async some(queryFunction: QueryFunction<V>): Promise<boolean> {
-        const values = await this.values();
-        return values.some(queryFunction as QueryFunction<ObjectValue<V, any>>);
-    }
-    /**
-     * This method works the same way as `Array.every()`.
-     *
-     * Iterates over root database values and checks if the
-     * specified condition in the callback function returns `true`
-     * for **all** of the elements of the database object values array.
-     *
-     * @param {QueryFunction<V>} queryFunction
-     * A function that accepts up to three arguments.
-     * The `every` method calls the `queryFunction` once for each element in database object values array.
-     *
-     * @returns {Promise<boolean>}
-     */
-    public async every(queryFunction: QueryFunction<V>): Promise<boolean> {
-        const values = await this.values();
-        return values.every(queryFunction as QueryFunction<ObjectValue<V, any>>);
-    }
-    /**
-     * Picks a random element of array in database and returns the picked array element.
-     *
-     * [!!!] The type of target value must be an array.
-     *
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Promise<Maybe<ObjectValue<V, P>>>} The randomly picked element in the database array.
+     * @throws BlackCatError
+     * - INVALID_TARGET nếu giá trị tại key không phải array
      *
      * @example
-     * const array = await database.get("array"); // assuming that the array is ['example1', 'example2', 'example3']
-     * console.log(array); // -> ['example1', 'example2', 'example3']
-     *
-     * const randomArrayElement = await database.random("exampleArray");
-     * console.log(randomArrayElement); // -> randomly picked array element: either 'example1', 'example2', or 'example3'
+     * const randomUser = await db.random("users");
      */
     public async random<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>>> {
         const array = await this.get(key);
@@ -738,36 +619,101 @@ export class Database<V = any> {
         return array[Math.floor(Math.random() * array.length)] ?? null;
     }
     /**
-     * Deletes the data from database by key.
-     * @param {AutocompletableString<P>} key The key to access the target in database by.
-     * @returns {Promise<boolean>} Whether the deletion was successful.
+     * Tìm phần tử đầu tiên thỏa điều kiện.
+     *
+     * Hoạt động tương tự `Array.prototype.find`.
+     *
+     * @param queryFunction - Hàm kiểm tra điều kiện.
+     *
+     * @returns Phần tử đầu tiên thỏa điều kiện hoặc `null` nếu không tìm thấy.
+     *
+     * @example
+     * const user = await db.find(u => u.id === 1);
      */
-    public async delete<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<boolean> {
-        if (typeof key !== "string") {
-            throw new BlackCatError("INVALID_TYPE", "key", "string", typeof key);
-        };
-        const allDatabase = await this.all();
-        const keys = key.split(".");
-        const lastKey = keys.pop() as string;
-        let currentObj: any = allDatabase;
-        for (const k of keys) {
-            if (!isObject(currentObj[k])) {
-                return false;
-            }
-            currentObj = currentObj[k];
-        }
-        if (!(lastKey in currentObj)) return false;
-        delete currentObj[lastKey];
-        await this.driver.delete(keys, key, allDatabase);
-        return true;
+    public async find(queryFunction: QueryFunction<V>): Promise<Maybe<V>> {
+        const values = await this.values();
+        return values.find(queryFunction as QueryFunction<ObjectValue<V, any>>) as Promise<Maybe<V>> ?? null;
     }
     /**
-     * Deletes everything from the database.
+     * Biến đổi tất cả giá trị trong database thành một mảng mới.
      *
-     * @returns {Promise<boolean>} `true` if cleared successfully, `false` otherwise.
+     * Hoạt động giống `Array.prototype.map`.
+     *
+     * @typeParam TReturnType - Kiểu dữ liệu của phần tử trả về.
+     *
+     * @param queryFunction - Hàm transform từng phần tử.
+     *
+     * @returns Mảng kết quả sau khi transform.
+     *
+     * @example
+     * const names = await db.map(user => user.name);
      */
-    public async deleteAll(): Promise<boolean> {
-        await this.driver.delete();
-        return true;
+    public async map<TReturnType>(queryFunction: QueryFunction<V, TReturnType>): Promise<TReturnType[]> {
+        const values = await this.values();
+        return values.map(queryFunction as QueryFunction<ObjectValue<V, any>, TReturnType>);
+    }
+    /**
+     * Tìm index của phần tử đầu tiên thỏa điều kiện.
+     *
+     * Hoạt động giống `Array.prototype.findIndex`.
+     *
+     * @param queryFunction - Hàm kiểm tra điều kiện.
+     *
+     * @returns Index của phần tử hoặc `-1` nếu không tìm thấy.
+     *
+     * @example
+     * const index = await db.findIndex(user => user.id === 1);
+     */
+    public async findIndex(queryFunction: QueryFunction<V>): Promise<number> {
+        const values = await this.values();
+        return values.findIndex(queryFunction as QueryFunction<ObjectValue<V, any>>);
+    }
+    /**
+     * Lọc các phần tử thỏa điều kiện.
+     *
+     * Hoạt động giống `Array.prototype.filter`.
+     *
+     * @param queryFunction - Hàm kiểm tra điều kiện.
+     *
+     * @returns Mảng các phần tử thỏa điều kiện.
+     *
+     * @example
+     * const admins = await db.filter(user => user.role === "admin");
+     */
+    public async filter(queryFunction: QueryFunction<V>): Promise<V[]> {
+        const values = await this.values();
+        return values.filter(queryFunction as QueryFunction<ObjectValue<V, any>>) as any;
+    }
+    /**
+     * Kiểm tra có ít nhất một phần tử thỏa điều kiện hay không.
+     *
+     * Hoạt động giống `Array.prototype.some`.
+     *
+     * @param queryFunction - Hàm kiểm tra điều kiện.
+     *
+     * @returns `true` nếu tồn tại phần tử thỏa điều kiện.
+     *
+     * @example
+     * const hasAdmin = await db.some(user => user.role === "admin");
+     */
+    public async some(queryFunction: QueryFunction<V>): Promise<boolean> {
+        const values = await this.values();
+        return values.some(queryFunction as QueryFunction<ObjectValue<V, any>>);
+    }
+    /**
+     * Kiểm tra tất cả phần tử có thỏa điều kiện hay không.
+     *
+     * Hoạt động giống `Array.prototype.every`.
+     *
+     * @param queryFunction - Hàm kiểm tra điều kiện.
+     *
+     * @returns `true` nếu tất cả phần tử đều thỏa điều kiện.
+     *
+     * @example
+     * const allActive = await db.every(user => user.active === true);
+     */
+    public async every(queryFunction: QueryFunction<V>): Promise<boolean> {
+        const values = await this.values();
+        return values.every(queryFunction as QueryFunction<ObjectValue<V, any>>);
     }
 }

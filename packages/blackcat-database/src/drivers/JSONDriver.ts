@@ -1,107 +1,129 @@
 import { promises as fs } from "fs";
+import { DatabaseDriver } from "../types";
 
+/**
+ * Cấu hình khởi tạo cho {@link JSONDriver}.
+ */
 interface JSONDriverOptions {
     /**
-     * JSON database file path.
-     * @type {string}
+     * Đường dẫn tới file JSON dùng làm database.
+     *
+     * Ví dụ:
+     * ```ts
+     * "./database.json"
+     * "./data/users.json"
+     * ```
      */
     filePath: string;
     /**
-     * Minifies the JSON content in database file to save some space.
-     * @type {boolean}
+     * Nếu bật, nội dung JSON sẽ được **minify**
+     * (không format khoảng trắng) để giảm dung lượng file.
+     *
+     * Nếu tắt, JSON sẽ được format với indentation để dễ đọc.
+     *
+     * @default false
      */
     minifyJSON?: boolean;
 }
+
 /**
- * JSONDriver class.
+ * Driver lưu trữ dữ liệu dạng JSON.
+ *
+ * ⚠️ Đây **không phải database hoàn chỉnh**.
+ * Class này chỉ đóng vai trò **driver lưu trữ (storage layer)**
+ * cho class chính `Database`.
+ *
+ * Toàn bộ logic xử lý key path (`a.b.c`), validate dữ liệu,
+ * và các thao tác database sẽ được thực hiện trong class `Database`.
+ *
+ * `JSONDriver` chỉ chịu trách nhiệm:
+ *
+ * - Đọc dữ liệu từ file JSON
+ * - Ghi dữ liệu xuống file JSON
+ * 
+ * @example  
+ * ```ts
+ * const database = new Database({
+ *      driber: new JSONDriver({\
+ *          filePath: "./database.json",
+ *          minifyJSON: false
+ *      })
+ * });
+ * ```
  */
-export class JSONDriver {
+export class JSONDriver implements DatabaseDriver {
     /**
-     * JSON database file path.
-     * @type {string}
+     * Đường dẫn tới file database JSON.
      */
     private filePath: string;
     /**
-     * Minifies the JSON content in database file to save some space.
-     * @type {boolean}
+     * Cho biết có minify JSON khi ghi file hay không.
      */
     public minifyJSON: boolean;
     /**
-     * JSONDriver class.
-     * @param options.filePath Json database file path.
-     * @param options.minifyJSON Minifies the JSON content in database file to save some space.
+     * Khởi tạo một instance mới của {@link JSONDriver}.
+     *
+     * @param options - Cấu hình driver
+     *
+     * @param options.filePath
+     * Đường dẫn tới file JSON dùng làm database.
+     *
+     * @param options.minifyJSON
+     * Nếu `true`, nội dung JSON sẽ được minify khi ghi ra file để giảm dung lượng.
+     *
+     * @example
+     * ```ts
+     * const database = new Database({
+     *      driver: db = new JSONDriver({
+     *          filePath: "./database.json"
+     *      })
+     * });
+     * ```
      */
     constructor(options: JSONDriverOptions) {
         this.filePath = options.filePath || "database.json";
         this.minifyJSON = options.minifyJSON || false;
     }
     /**
-     * Returns all data from JSON database.
-     * 
-     * @returns {Promise<any>} All data from JSON database.
-     * 
-     * @template V The type of data being returned.
+     * Đọc toàn bộ dữ liệu từ file database JSON.
+     *
+     * Nếu file không tồn tại hoặc lỗi parse,
+     * method sẽ trả về object rỗng.
+     *
+     * @template V Kiểu dữ liệu database.
+     * @returns Promise chứa toàn bộ dữ liệu database.
      */
     public async all<V>(): Promise<V> {
         return fs.readFile(this.filePath, "utf-8").then((content) => JSON.parse(content) as V).catch((error) => {
-            console.error(`Failed to load database file: ${this.filePath}`, error);
+            console.error(`Không thể đọc file database: ${this.filePath}`, error);
             return {} as V;
         });
     }
     /**
-     * Parses the key and fetches the value from JSON database.
+     * Ghi toàn bộ dữ liệu database xuống file JSON.
      *
-     * Type parameters:
+     * Method này **không xử lý key path**.
+     * Logic cập nhật dữ liệu sẽ được xử lý ở class `Database`
+     * trước khi truyền object hoàn chỉnh vào đây.
      *
-     * - `V` - The type of data being returned.
+     * @param data Toàn bộ dữ liệu database sau khi đã được cập nhật.
      *
-     * @param {string} key The key in JSON database.
-     * @returns {Promise<V>} The data from JSON database.
-     *
-     * @template V The type of data being returned.
+     * @template R Kiểu dữ liệu database.
+     * @returns Promise chứa dữ liệu đã ghi.
      */
-    public async get<V = any>(key: string): Promise<V | null> {
-        const data = await this.all<any>();
-        const keys = key.split(".");
-        let result = data;
-        for (const k of keys) {
-            if (result === null || typeof result !== "object") return null;
-            result = result[k];
-        }
-        return result as V;
-    }
-    /**
-     * Parses the key and sets the value in JSON database.
-     *
-     * Type parameters:
-     *
-     * - `V` - The type of data being set.
-     * - `R` - The type of data being returned.
-     *
-     * @param {string} keys The key in JSON database.
-     * @returns {Promise<R>} The data from JSON database.
-     *
-     * @template V The type of data being set.
-     * @template R The type of data being returned.
-     */
-    public async set<V = any, R = any>(keys: string, value: V): Promise<R> {
-        const data = await this.all<R>();
-        await fs.writeFile(this.filePath, JSON.stringify(value, null, this.minifyJSON ? undefined : "\t"));
+    public async set<R = any>(data: R): Promise<R> {
+        await fs.writeFile(this.filePath, JSON.stringify(data, null, this.minifyJSON ? undefined : "\t"));
         return data;
     }
     /**
-     * Parses the key and deletes it from JSON database. If no key is provided, clears the database.
-     * @param {V} keys The key in JSON database.
-     * @returns {Promise<boolean>} `true` if deleted successfully.
+     * Xóa toàn bộ database.
+     *
+     * Method này chỉ reset file JSON về `{}`.
+     *
+     * @returns `true` nếu reset thành công.
      */
-    public async delete<V = any>(keys?: V): Promise<boolean> {
-        if(keys === undefined) {
-            await fs.writeFile(this.filePath, "{}");
-            return true;
-        } else {
-            await fs.writeFile(this.filePath, JSON.stringify(keys, null, this.minifyJSON ? undefined : "\t"));
-        };
+    public async delete(): Promise<boolean> {
+        await fs.writeFile(this.filePath, "{}");
         return true;
     }
-
 }

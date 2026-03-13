@@ -1,0 +1,11 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "plugin": ["typedoc-rhineai-theme"],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "includeVersion": true,
+  "disableSources": true,
+  "readme": "README.md",
+  "name": "blackcat.js-discord"
+}

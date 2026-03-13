@@ -1,144 +1,162 @@
-import { Model, MongooseError, Schema, model, models, connect, disconnect } from "mongoose";
-import { MongoClientOptions } from "mongodb";
-import { Emitter, setAsyncFunctionTimer } from "../utils";
-import type { Database } from "..";
+import { MongoClient, Db, Collection } from "mongodb";
+import type { DatabaseDriver } from "../types";
 
-
-interface IMongoDriverEvents<TInitialDatabaseData extends Record<string, any> = any> {
-    connect: [connected: Database<TInitialDatabaseData>];
-    disconnect: [voidParam: void];
+/**
+ * Cấu hình cho MongoDriver.
+ */
+interface MongoDriverOptions {
+    /**
+     * Chuỗi kết nối MongoDB.
+     *
+     * @default "mongodb://localhost:27017"
+     */
+    mongourl?: string;
+    /**
+     * Tên database MongoDB.
+     *
+     * @default "database"
+     */
+    databaseName?: string;
+    /**
+     * Tên collection lưu dữ liệu JSON.
+     *
+     * @default "json_store"
+     */
+    collectionName?: string;
 }
 /**
- * Represents the object of the way data stored in the internal
- * `[__KEY]-[__VALUE]` storage format that was made to achieve better data accessibility across the module.
- *
- * @template T The type of `__VALUE` property in each raw data object.
+ * Schema document dùng để lưu trữ database trong MongoDB.
  */
-interface IDatabaseInternalStructure<T = any> {
-    __KEY: string
-    __VALUE: T
+interface DatabaseDocument<V = any> {
+    _id: string;
+    data: V;
 }
-
-interface MongoDriverOptions {
-    mongourl: string;
-    name: string;
-    collectionName?: string;
-    mongoClientOptions?: MongoClientOptions;
-}
-
-const internalDatabaseSchema = new Schema<IDatabaseInternalStructure<any>>({
-    __KEY: {
-        type: String,
-        required: false
-    },
-    __VALUE: {
-        type: Schema.Types.Mixed,
-        required: false
-    }
-});
-
-export class MongoDriver<TInitialDatabaseData extends Record<string, any> = any> extends Emitter<IMongoDriverEvents<TInitialDatabaseData>> {
+/**
+ * Driver lưu trữ dữ liệu bằng MongoDB.
+ *
+ * ⚠️ Đây **không phải database chính**.
+ * Class này chỉ là **driver lưu trữ phụ trợ** cho class `Database`.
+ *
+ * Logic xử lý:
+ * - parse key path
+ * - validate dữ liệu
+ * - cập nhật object
+ *
+ * sẽ được xử lý bởi class `Database`.
+ *
+ * `MongoDriver` chỉ chịu trách nhiệm:
+ * - lưu toàn bộ database object
+ * - trả về database object
+ *
+ * Toàn bộ database được lưu trong **một document duy nhất**.
+ * 
+ * @example 
+ * ```ts
+ * const database = new Database({ 
+ *      driver: new MongoDriver({
+ *          mongourl: "mongodb://localhost:27017", 
+ *          databaseName: "mydb",  
+ *          collectionName: "store" 
+ *      })
+ * });
+ * ```
+ */
+export class MongoDriver implements DatabaseDriver {
     /**
-    * The MongoDB cluster connection URI to connect to.
-    * @type {string}
-    * @private
-    */
-    private mongourl: string;
-    /**
-     * Determines if the MongoDB cluster connection is established.
-     * @type {boolean}
+     * MongoDB client instance.
      */
-    public connected = false;
+    private client: MongoClient;
     /**
-     * MongoDB client connection options.
-     * @type {MongoClientOptions}
+     * MongoDB database instance.
      */
-    public mongoClientOptions?: MongoClientOptions;
-    public name: string;
-    private _model: Model<IDatabaseInternalStructure<any>>;
-    constructor(options: MongoDriverOptions) {
-        super();
-        if (typeof options.mongourl !== "string" || (!options.mongourl.startsWith("mongodb://") && !options.mongourl.startsWith("mongodb+srv://"))) {
-            throw new Error('INVALID_CONNECTION_URI');
-        }
-        if (!options.mongourl.includes("localhost") && !options.mongourl.includes("127.0.0.1")) {
-            setAsyncFunctionTimer(async () => fetch('https://example.com'), 10000).then((isOnline) => {
-                if (!isOnline) {
-                    throw new Error('DEVICE_IS_OFFLINE');
-                }
-            });
-        }
-        this.name = options.name || "blackcat.js-database"
-        this.mongourl = options.mongourl;
-        this.mongoClientOptions = options.mongoClientOptions;
-        this._model = models[this.name] || model<IDatabaseInternalStructure<any>>(this.name, internalDatabaseSchema, options.collectionName);
-    }
+    private db!: Db;
     /**
-     * Opens a connection to a MongoDB cluster.
-     * @returns {Promise<QuickMongoClient<TInitialDatabaseData>>} Connected QuickMongoClient instance.
+     * Collection lưu dữ liệu JSON.
      */
-    public async connect(): Promise<MongoDriver<TInitialDatabaseData>> {
-        try {
-            await connect(this.mongourl, { 
-                ...this.mongoClientOptions 
-            });
-            this.connected = true;
-            this.emit("connect", this as any);
-            return this;
-        } catch (err) {
-            console.log(err)
-            throw new Error('CONNECTION_NOT_ESTABLISHED');
-        }
-    }
+    private collection!: Collection<DatabaseDocument>;
     /**
-     * Closes the connection to a MongoDB cluster.
+     * Tên database MongoDB.
+     */
+    private databaseName: string;
+    /**
+     * Tên collection MongoDB.
+     */
+    private collectionName: string;
+    /**
+     * Khởi tạo MongoDriver.
      *
-     * This will also disconnect all the instances of `QuickMongo` database class from the MongoDB cluster.
-     * @returns {Promise<void>}
+     * @param options Cấu hình MongoDB driver.
+     * 
+     * @example 
+     * ```ts
+     * const database = new Database({ 
+     *      driver: new MongoDriver({
+     *          mongourl: "mongodb://localhost:27017", 
+     *          databaseName: "mydb",  
+     *          collectionName: "store" 
+     *      })
+     * });
      */
-    public async disconnect(): Promise<void> {
-        await disconnect();
-        this.connected = false;
-        this.emit("disconnect")
+    constructor(options: MongoDriverOptions = {}) {
+        const {
+            mongourl = "mongodb://localhost:27017",
+            databaseName = "database",
+            collectionName = "json_store"
+        } = options;
+        this.client = new MongoClient(mongourl);
+        this.databaseName = databaseName;
+        this.collectionName = collectionName;
     }
-
-    public async set(keys: string, allDatabase: any): Promise<any> {
-        const data = await this._model.findOne({ __KEY: keys[0] });
-        if (!data) {
-            this._model.insertMany({
-                __KEY: keys[0],
-                __VALUE: allDatabase[keys[0]]
-            })
-        } else {
-            await this._model.updateOne({
-                __KEY: keys[0]
-            }, {
-                __VALUE: allDatabase[keys[0]]
-            });
+    /**
+     * Thiết lập kết nối MongoDB nếu chưa kết nối.
+     */
+    private async connect(): Promise<void> {
+        if (!this.db) {
+            await this.client.connect();
+            this.db = this.client.db(this.databaseName);
+            this.collection = this.db.collection(this.collectionName);
+            const doc = await this.collection.findOne({ _id: "database" });
+            if (!doc) {
+                await this.collection.insertOne({
+                    _id: "database",
+                    data: {}
+                });
+            }
         }
+    }
+    /**
+     * Lấy toàn bộ dữ liệu database từ MongoDB.
+     */
+    public async all<T = any>(): Promise<T> {
+        await this.connect();
+        const doc = await this.collection.findOne({ _id: "database" });
+        return (doc?.data ?? {}) as T;
+    }
+    /**
+     * Ghi toàn bộ database vào MongoDB.
+     *
+     * ⚠️ Method này **không xử lý key-path**.
+     * Object database đã được xử lý bởi class `Database`.
+     * 
+     * @param data Toàn bộ object database
+     */
+    public async set<T = any>(data: T): Promise<T> {
+        await this.connect();
+        await this.collection.updateOne(
+            { _id: "database" },
+            { $set: { data } }
+        );
         return data;
     }
-
-    public async delete(keys: string[], key: string, allDatabase: any): Promise<any> {
-        if (keys.length == 1) {
-            await this._model.deleteOne({
-                __KEY: key,
-            });
-        } else {
-            await this._model.updateOne({
-                __KEY: keys[0],
-            }, {
-                __VALUE: allDatabase[keys[0]],
-            });
-        }
-    }
-
-    public async all(): Promise<any> {
-        const obj = {} as any;
-        const elements = await this._model.find() || []
-        for (const element of elements) {
-            obj[element.__KEY] = element.__VALUE;
-        }
-        return obj as any;
+    /**
+     * Reset toàn bộ database về object rỗng.
+     */
+    public async delete(): Promise<boolean> {
+        await this.connect();
+        await this.collection.updateOne(
+            { _id: "database" },
+            { $set: { data: {} } }
+        );
+        return true;
     }
 }

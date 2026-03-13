@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-database",
-  "version": "1.0.0-test",
+  "version": "1.0.0",
   "description": "json datatabase driver for blackcat.js",
   "author": "Nguyen Vinh",
   "license": "ISC",
@@ -20,7 +20,9 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "node --test"
+    "docs": "typedoc",
+    "dev": "npx tsx test/index.ts",
+    "build:all": "node --run build && node --run docs"
   },
   "files": [
     "dist"
@@ -42,6 +44,11 @@
     "quick-database"
   ],
   "dependencies": {
-    "mongoose": "^9.2.3"
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.6.2",
+    "mongodb": "^7.1.0",
+    "mongoose": "^9.2.3",
+    "typedoc": "^0.28.17",
+    "typedoc-rhineai-theme": "^1.2.0"
   }
 }
