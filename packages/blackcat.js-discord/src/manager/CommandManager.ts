@@ -101,6 +101,7 @@ export class CommandManager {
     }
     /**
      * Đọc đệ quy các file command trong thư mục.
+     * @hidden
      *
      * @param dir - Thư mục cần đọc
      */
@@ -122,6 +123,7 @@ export class CommandManager {
     }
     /**
      * Load một file command.
+     * @hidden
      *
      * @param filePath - Đường dẫn file command
      */
@@ -166,6 +168,7 @@ export class CommandManager {
     }
     /**
      * Gắn listener cho sự kiện `messageCreate`.
+     * @hidden
      *
      * Listener này sẽ:
      * - kiểm tra prefix
@@ -192,6 +195,7 @@ export class CommandManager {
     }
     /**
      * Xác định prefix được sử dụng trong message.
+     * @hidden
      *
      * @param content - Nội dung message
      * @returns Prefix được sử dụng hoặc `null`
@@ -207,6 +211,7 @@ export class CommandManager {
     }
     /**
      * Resolve command từ:
+     * @hidden
      *
      * - command name
      * - alias

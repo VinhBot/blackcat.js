@@ -15,7 +15,7 @@ type CollectorInteraction = | ButtonInteraction | StringSelectMenuInteraction | 
  * Cấu hình cho `createComponentCollector`.
  * @public
  */
-export interface CreateComponentCollector {
+export interface CreateMessageComponentCollector {
     /**
      * Thời gian tồn tại tối đa của collector (seconds).
      *
@@ -171,11 +171,11 @@ export interface CreateComponentCollector {
  * });
  * ```
  */
-export const createComponentCollector = async (target: CollectorTarget, options: CreateComponentCollector = {}) => {
+export const createMessageComponentCollector = async (target: CollectorTarget, options: CreateMessageComponentCollector = {}) => {
     const message = target instanceof Message ? target : await target.fetchReply();
     const collector = message.createMessageComponentCollector({
-        time: parseTime(options.time || "5s"),
-        idle: parseTime(options.idle || "15s"),
+        time: parseTime(options.time ?? "5s"),
+        idle: parseTime(options.idle as number),
         max: options.max,
         maxUsers: options.maxUsers,
         componentType: options.componentType,

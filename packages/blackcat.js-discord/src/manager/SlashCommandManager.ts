@@ -20,6 +20,25 @@ export interface SlashCommandManagerOptions {
      */
     guildID?: string;
     /**
+     * Cấu hình reset commands trước khi đăng ký.
+     */
+    reset?: {
+        /**
+         * Xóa toàn bộ Global Commands trước khi đăng ký.
+         *
+         * @default false
+         */
+        global?: boolean;
+        /**
+         * Xóa toàn bộ Guild Commands trước khi đăng ký.
+         *
+         * Chỉ hoạt động nếu có `guildID`.
+         *
+         * @default false
+         */
+        guild?: boolean;
+    },
+    /**
      * Callback được gọi khi một slash command được load thành công.
      *
      * @param command - Slash command đã load
@@ -56,6 +75,10 @@ export class SlashCommandManager {
      */
     private readonly guildID?: string;
     /**
+     * Cấu hình reset commands trước khi đăng ký.
+     */
+    private readonly reset: SlashCommandManagerOptions["reset"];
+    /**
      * Callback khi command được load.
      */
     private readonly onLoad?: SlashCommandManagerOptions["onLoad"];
@@ -72,10 +95,12 @@ export class SlashCommandManager {
     constructor(client: Client, options?: SlashCommandManagerOptions) {
         this.client = client;
         this.directory = options?.directory;
+        this.reset = options?.reset;
         this.onLoad = options?.onLoad;
         this.onError = options?.onError;
         this.guildID = options?.guildID;
         this._attachInteractionListener();
+        this._registerCommands();
     }
     /**
      * Load toàn bộ slash commands từ thư mục đã cấu hình.
@@ -83,11 +108,12 @@ export class SlashCommandManager {
      * @returns Promise hoàn thành khi load xong
      */
     public async loadAll(): Promise<void> {
-        if(!this.directory) return;
+        if (!this.directory) return;
         await this._readDirectory(path.resolve(this.directory));
     }
     /**
      * Đọc đệ quy tất cả file command trong thư mục.
+     * @hidden
      *
      * @param dir - Thư mục cần đọc
      */
@@ -109,6 +135,7 @@ export class SlashCommandManager {
     }
     /**
      * Load một file slash command.
+     * @hidden
      *
      * @param filePath - Đường dẫn file command
      */
@@ -131,16 +158,10 @@ export class SlashCommandManager {
         } catch (error) {
             this.onError?.({ file: filePath, error: error as Error });
         }
-        this.client.once(Events.ClientReady, async (bot) => {
-            const rest = new REST({ version: "10" }).setToken(this.client.token!);
-            const slashCmds = slashCommands.map((cmds) => cmds.build().toJSON());
-            await rest.put(this.guildID ? Routes.applicationGuildCommands(bot.user!.id, this.guildID) : Routes.applicationCommands(bot.user!.id), {
-                body: slashCmds
-            });
-        });
     }
     /**
      * Gắn listener xử lý interactionCreate.
+     * @hidden
      *
      * Listener này sẽ:
      * - kiểm tra ChatInputCommand
@@ -162,6 +183,30 @@ export class SlashCommandManager {
                     await interaction.reply({ content: "Có lỗi xảy ra khi thực thi lệnh.", ephemeral: true });
                 }
             }
+        });
+    }
+    /**
+     * Đăng ký toàn bộ Slash Commands với Discord API.
+     * @hidden
+     */
+    private async _registerCommands(): Promise<void> {
+        this.client.once(Events.ClientReady, async () => {
+            const rest = new REST({ version: "10" }).setToken(this.client.token!);
+            const slashCmds = this.client.slashCommands.map(c => c.build().toJSON());
+            if (!this.client.user) return;
+
+            if (this.reset?.global) {
+                await this.client.application!.commands.set([]);
+            }
+
+            if (this.reset?.guild && this.guildID) {
+                const guild = this.client.guilds.cache.get(this.guildID);
+                await guild?.commands.set([]);
+            }
+
+            await rest.put(this.guildID ? Routes.applicationGuildCommands(this.client.user.id, this.guildID) : Routes.applicationCommands(this.client.user.id), {
+                body: slashCmds
+            });
         });
     }
     /**

@@ -200,6 +200,7 @@ export class CooldownManager {
     };
     /**
      * Lấy role cao nhất của member
+     * @hidden
      *
      * Discord priority dựa trên position
      */
@@ -209,6 +210,7 @@ export class CooldownManager {
     }
     /**
      * Tính duration thực tế dựa trên roleWeights
+     * @hidden
      *
      * Nếu user có nhiều role được cấu hình weight
      * -> lấy weight nhỏ nhất (cooldown ngắn nhất)
@@ -225,6 +227,7 @@ export class CooldownManager {
     }
     /**
      * Kiểm tra bypass cooldown dựa trên PermissionLevel
+     * @hidden
      *
      * Ví dụ: permissionBypass: PermissionLevel.ADMIN
      *
@@ -238,6 +241,7 @@ export class CooldownManager {
     }
     /**
      * Build key dựa trên scope
+     * @hidden
      *
      * Scope có thể là:
      *  - user

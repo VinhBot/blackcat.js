@@ -21,7 +21,7 @@ import { Client, Message, User } from "discord.js";
  *
  * @example
  * ```ts
- * const user = await resolveUser(client, message, args[0]);
+ * const user = await findUser(client, message, args[0]);
  *
  * if (!user) {
  *   return message.reply("Không tìm thấy user.");
@@ -30,7 +30,7 @@ import { Client, Message, User } from "discord.js";
  * message.reply(`Đã tìm thấy user: ${user.tag}`);
  * ```
  */
-export const resolveUser = async(client: Client, message: Message<true>, input?: string): Promise<User | null> => {
+export const findUser = async(client: Client, message: Message<true>, input?: string): Promise<User | null> => {
     if (!input) return null;
     // 1. Kiểm tra mention
     const mention = message.mentions.users.first();

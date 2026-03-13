@@ -1,5 +1,5 @@
 import { GatewayIntentBits } from "discord.js";
-import { Client, functions } from "blackcat.js-discord";
+import { Client } from "blackcat.js-discord";
 
 const config = {
     botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GPO6MK.M0vxzkmPsaQibXb2D4kGFIumSiFEPIcC3js9U0",
@@ -31,6 +31,9 @@ const client = new Client({
     registerSlashCommands: {
         directory: "./slashCommands",
         guildID: "1055150050357022840",
+        reset: {
+            guild: true
+        },
         onLoad: (command) => {
             console.log(`slashCommands: ${command.commandName} - ok`);
         },
@@ -39,5 +42,16 @@ const client = new Client({
         }
     }
 });
+
+client.on("clientReady", async () => {
+    const commands = await client.application!.commands.fetch();
+
+    console.log(commands.map(c => ({
+        name: c.name,
+        description: c.description,
+        guildId: c.guildId
+    })));
+});
+
 
 client.start();

@@ -449,8 +449,81 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
      * Handler được gọi khi command được thực thi.
      */
     private readonly handler: ISlashCommandWithSubsConfig<TSubs, TGroups>["execute"];
-
-
+    /**
+     * Tạo một instance mới của {@link SlashCommandBuilderWithSubs}.
+     *
+     * Constructor này nhận cấu hình cho một **Slash Command có subcommands
+     * và/hoặc subcommand groups**, sau đó khởi tạo toàn bộ metadata cần thiết
+     * để framework có thể:
+     *
+     * - Build schema Slash Command cho Discord API
+     * - Resolve và định tuyến subcommand khi interaction xảy ra
+     * - Áp dụng kiểm tra cooldown và permission
+     * - Thực thi handler chính của command
+     *
+     * ### Cấu trúc command hỗ trợ
+     *
+     * Command có thể chứa:
+     *
+     * - **Subcommands trực tiếp**
+     * ```
+     * /admin reload
+     * /admin stats
+     * ```
+     *
+     * - **Subcommand groups**
+     * ```
+     * /admin user ban
+     * /admin user kick
+     * ```
+     *
+     * Các subcommand và group sẽ được lưu trong `subs` và `groups`
+     * để phục vụ cho quá trình:
+     *
+     * - Build command schema
+     * - Resolve subcommand khi interaction được gửi từ Discord
+     *
+     * @typeParam TSubs - Kiểu định nghĩa các subcommands trực tiếp.
+     * Được sử dụng để suy luận type của subcommand khi xử lý interaction.
+     *
+     * @typeParam TGroups - Kiểu định nghĩa các subcommand groups.
+     * Cho phép framework suy luận chính xác các group và subcommand bên trong.
+     *
+     * @param config - Cấu hình đầy đủ của slash command.
+     * @param config.commandName - Tên của slash command.
+     * @param config.description - Mô tả command hiển thị trong Discord UI.
+     * @param config.cooldown - (Tuỳ chọn) Cấu hình cooldown để hạn chế spam command.
+     * @param config.userPermission - (Tuỳ chọn) Cấu hình permission cần thiết
+     * để người dùng có thể thực thi command.
+     *
+     * @param config.subcommands - (Tuỳ chọn) Object chứa các subcommands trực tiếp
+     * của command.
+     *
+     * @param config.groups - (Tuỳ chọn) Object chứa các subcommand groups.
+     *
+     * @param config.execute - Handler được gọi khi command được thực thi.
+     * Handler này chịu trách nhiệm định tuyến tới subcommand hoặc group tương ứng.
+     *
+     * @example
+     * ```ts
+     * const adminCommand = new SlashCommandBuilderWithSubs({
+     *   commandName: "admin",
+     *   description: "Admin commands",
+     *
+     *   subcommands: {
+     *     reload: reloadSubCommand
+     *   },
+     * 
+     *   groups: {
+     *     user: userGroup
+     *   },
+     *
+     *   execute: async (client, interaction, ctx) => {
+     *     // ctx chứa thông tin subcommand / group được gọi
+     *   }
+     * });
+     * ```
+     */
     constructor(config: ISlashCommandWithSubsConfig<TSubs, TGroups>) {
         this.commandName = config.commandName;
         this.description = config.description;
@@ -524,7 +597,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
                 sub: subName,
                 options: parsed,
             } as any);
-        }   
+        }
         // Subcommand
         const subName = interaction.options.getSubcommand(true);
         const subBuilder = this.subs[subName as keyof typeof this.subs];

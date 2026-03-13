@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "blackcat.js-discord";
 
 const ping = new SlashCommandBuilder({
-    commandName: "ping",
+    commandName: "pings",
     description: "ping bot",
     cooldown: {
         duration: 5,
@@ -15,8 +15,7 @@ const ping = new SlashCommandBuilder({
         string: o.string({ description: "string description", required: false }),
     }),
     execute: async (client, interaction, options) => {
-        const string = options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,
-        return interaction.reply({ content: `pong ${client.ws.ping}` });
+        return interaction.reply({ content: `pong ${client.ws.ping}......` });
     }
 });
 
