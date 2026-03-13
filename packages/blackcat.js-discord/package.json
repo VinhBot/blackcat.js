@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-discord",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "discord.js wrapper for blackcat.js",
   "author": "Nguyen Vinh",
   "license": "ISC",

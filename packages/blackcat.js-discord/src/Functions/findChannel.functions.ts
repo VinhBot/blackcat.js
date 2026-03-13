@@ -45,7 +45,6 @@ import { Client, Channel, Guild, ChannelType } from "discord.js";
  */
 export const findChannel = async (client: Client, guild: Guild, query: string): Promise<Channel | null> => {
     if (!query) return null;
-
     let channelId: string | null = null;
     // 1. Channel Mention <#123456789>
     const mentionMatch = query.match(/^<#(\d+)>$/);

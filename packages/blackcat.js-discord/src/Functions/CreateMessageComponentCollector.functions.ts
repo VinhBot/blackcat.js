@@ -87,7 +87,7 @@ export interface CreateMessageComponentCollector {
          * Collector instance gốc của discord.js.
          */
         collector: InteractionCollector<CollectorInteraction>;
-    }) => void | Promise<void>;
+    }) => any | Promise<any>;
     /**
      * Callback được gọi khi collector kết thúc.
      *
@@ -117,7 +117,7 @@ export interface CreateMessageComponentCollector {
          * Helper để chỉnh sửa message gốc.
          */
         edit: (options: MessageEditOptions | InteractionReplyOptions) => Promise<any>;
-    }) => void | Promise<void>;
+    }) => any | Promise<any>;
 }
 
 /**
@@ -173,9 +173,11 @@ export interface CreateMessageComponentCollector {
  */
 export const createMessageComponentCollector = async (target: CollectorTarget, options: CreateMessageComponentCollector = {}) => {
     const message = target instanceof Message ? target : await target.fetchReply();
+    const time = parseTime(options.time ?? "10s");
+    const idle = parseTime(options.idle ?? "200s");
     const collector = message.createMessageComponentCollector({
-        time: parseTime(options.time ?? "5s"),
-        idle: parseTime(options.idle as number),
+        time: time,
+        idle: idle,
         max: options.max,
         maxUsers: options.maxUsers,
         componentType: options.componentType,
