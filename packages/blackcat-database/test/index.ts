@@ -5,30 +5,49 @@ interface User {
         user: {
             name: string;
             age: number;
-            test: string[]
+            test: string[];
+            database: {
+                username: string;
+                guild: string;
+            }[]
         };
     }
 }
 
 const database = new Database<User>({
-    driver: new MongoDriver({
-        mongourl: "mongodb+srv://BlackCat-Club:blackcat2k3@blackcat-club.sfgyw.mongodb.net/"
-    }),
+    driver: new JSONDriver({
+        filePath: "./database.json"
+    })
 });
- 
+
 (async () => {
     // const set = await database.set("member.user", {
     //     name: "blackcat.js",
     //     age: 24,
     //     test: [
     //         "test1", "test2", "test3"
+    //     ],
+    //     database: [
+    //         {
+    //             username: "vinh",
+    //             guild: "1234566666666"
+    //         },
+    //         {
+    //             username: "zzzz",
+    //             guild: "1234566655656566666"
+    //         }
     //     ]
     // });
     // console.log(`🐈 set: ${set}`);
     // const data = await database.update("member.user.test", [
     //     "test", "xxxxxxxxxxxxxxxx", "22222222222"
     // ]);
-
+    const data = await database.findOne("member.user.database", {
+        guild: "1234566666666"
+    });
+    const data = await database.deleteMany("member.user.database", {
+        guild: "1234566666666"
+    })
     // const data = await database.get("member.user.name");
     // const data = await database.delete("member.user.name");
     // const data = await database.all();
@@ -44,5 +63,5 @@ const database = new Database<User>({
     // const data = await database.values("member.user.test");
     // const data = await database.random("member.user.test");
     // const data = await database.deleteAll();
-    // console.log(data);
+    console.log(data);
 })();

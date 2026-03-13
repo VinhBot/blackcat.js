@@ -112,6 +112,10 @@ export interface DatabaseConfiguration {
  */
 export type Maybe<T> = Exclude<T | null, undefined>;
 /**
+ * 
+ */
+export type ArrayElement<T> = T extends (infer U)[] ? U : T;
+/**
  * Utility type điều kiện dùng để trả về một kiểu dữ liệu
  * dựa trên giá trị boolean của điều kiện.
  * @hidden

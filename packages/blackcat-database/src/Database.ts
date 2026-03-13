@@ -1,4 +1,4 @@
-import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver } from "./types";
+import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver, ArrayElement } from "./types";
 import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
 
 /**
@@ -128,6 +128,51 @@ export class Database<V = any> {
         return result;
     }
     /**
+     * Tìm và trả về một bản ghi đầu tiên khớp với điều kiện trong database.
+     *
+     * Hàm này có hai cách sử dụng:
+     *
+     * 1. **Chỉ truyền `key`**
+     *    → Trả về toàn bộ dữ liệu của key (tương tự `get()`).
+     *
+     * 2. **Truyền `key` và `query`**
+     *    → Tìm phần tử đầu tiên trong mảng dữ liệu của key khớp với điều kiện.
+     *
+     * @template V - Kiểu dữ liệu của database.
+     * @template P - Đường dẫn key trong object (`ObjectPath<V>`).
+     *
+     * @param key - Key hoặc đường dẫn đến dữ liệu cần truy vấn.
+     * @param query - Đối tượng điều kiện để tìm bản ghi phù hợp.
+     *
+     * @returns
+     * - Nếu chỉ có `key`: trả về toàn bộ dữ liệu của key.
+     * - Nếu có `query`: trả về bản ghi đầu tiên khớp điều kiện.
+     * - Nếu không tìm thấy: trả về `null`.
+     *
+     * @example
+     * Chỉ lấy dữ liệu theo key
+     * ```ts
+     * const users = await db.findOne("user");
+     * ```
+     *
+     * @example
+     * Tìm một bản ghi theo điều kiện
+     * ```ts
+     * const user = await db.findOne("user", {
+     *   guild: 1234566
+     * });
+     * ```
+     */
+    public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>> | V> {
+        const data = await this.get(key as any);
+        if (!query) return data;
+        if (!Array.isArray(data)) return null as Maybe<ObjectValue<V, P>>;
+        const result = data.find((item) => {
+            return Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v);
+        });
+        return (result ?? null) as Maybe<ObjectValue<V, P>>;
+    }
+    /**
      * Kiểm tra một key-path có tồn tại trong database hay không.
      *
      * Method này sử dụng `get()` để xác định giá trị có tồn tại.
@@ -245,6 +290,60 @@ export class Database<V = any> {
     public async deleteAll(): Promise<boolean> {
         await this.driver.delete();
         return true;
+    }
+    /**
+     * Xóa nhiều bản ghi trong một mảng dữ liệu dựa trên điều kiện truy vấn.
+     *
+     * ⚠️ Method này **chỉ hoạt động với dữ liệu dạng mảng (array)**.
+     * Nếu dữ liệu tại `key` không phải là mảng, method sẽ **không thực hiện xóa**
+     * và trả về `0`.
+     *
+     * Method sẽ duyệt qua toàn bộ phần tử trong mảng và xóa những phần tử
+     * khớp với điều kiện `query`.
+     *
+     * @template V - Kiểu dữ liệu của database.
+     * @template P - Đường dẫn key trong object (`ObjectPath<V>`).
+     *
+     * @param key - Đường dẫn đến mảng dữ liệu cần thao tác.
+     * @param query - Điều kiện để xác định các phần tử cần xóa.
+     * Có thể truyền:
+     * - Một object điều kiện
+     *
+     * @returns Số lượng phần tử đã bị xóa khỏi mảng.
+     *
+     * @example
+     * Database mẫu:
+     * ```json
+     * {
+     *   "member": {
+     *     "user": {
+     *       "database": [
+     *         { "guild": "123", "username": "vinh" },
+     *         { "guild": "456", "username": "test" }
+     *       ]
+     *     }
+     *   }
+     * }
+     * ```
+     *
+     * @example
+     * Xóa tất cả user có guild = "123"
+     * ```ts
+     * await db.deleteMany("member.user.database", {
+     *   guild: "123"
+     * });
+     * ```
+     */
+    public async deleteMany<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, query: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<number> {
+        const data = await this.get(key as any);
+        if (!Array.isArray(data)) return 0;
+        const originalLength = data.length;
+        const filtered = data.filter((item: any) => {
+            return !Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v);
+        });
+        await this.set(key, filtered as any);
+
+        return originalLength - filtered.length;
     }
     /**
      * Cập nhật giá trị của một key-path trong database.

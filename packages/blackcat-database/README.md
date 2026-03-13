@@ -1,9 +1,8 @@
-# blackcat.js-database
-
 Một **database nhẹ, typed và hỗ trợ autocomplete path cho TypeScript**.
 
 `blackcat.js-database` cho phép bạn lưu trữ và truy vấn dữ liệu bằng **dot notation** với **type inference mạnh mẽ trong IDE**.
 
+[Xem tài liệu ở đây](blackcat-js-database.vercel.app)
 ---
 
 # Tính năng
@@ -29,10 +28,12 @@ npm install blackcat.js-database
 # Khởi tạo Database
 
 ```ts
-import { Database, MemoryDriver } from "blackcat.js-database";
+import { Database, JSONDriver } from "blackcat.js-database";
 
 const db = new Database({
-  driver: new MemoryDriver()
+  driver: db = new JSONDriver({
+    filePath: "./database.json"
+  })
 });
 ```
 
@@ -53,7 +54,9 @@ type Schema = {
 };
 
 const db = new Database<Schema>({
-  driver: new MemoryDriver()
+  driver: db = new JSONDriver({
+    filePath: "./database.json"
+  })
 });
 ```
 
@@ -78,6 +81,14 @@ Lấy toàn bộ database
 
 ```ts
 await db.get();
+```
+
+Lấy bằng điều kiện nhất định
+
+```ts
+const data = await database.findOne("users", {
+  name: "username"
+});
 ```
 
 ---
@@ -116,6 +127,14 @@ Xóa toàn bộ database
 
 ```ts
 await db.deleteAll();
+```
+
+xóa bằng điều kiện nhất đinh
+
+```ts
+const data = await database.deleteMany("member.user.database", {
+  name: "username"
+})
 ```
 
 ---

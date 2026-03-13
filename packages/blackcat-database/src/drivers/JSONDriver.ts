@@ -83,6 +83,18 @@ export class JSONDriver implements DatabaseDriver {
     constructor(options: JSONDriverOptions) {
         this.filePath = options.filePath || "database.json";
         this.minifyJSON = options.minifyJSON || false;
+
+    }
+    /**
+     * Đảm bảo file database tồn tại.
+     * Nếu file chưa tồn tại sẽ tự động tạo file `{}`.
+     */
+    private async ensureFile(): Promise<void> {
+        try {
+            await fs.access(this.filePath);
+        } catch {
+            await fs.writeFile(this.filePath, "{}");
+        }
     }
     /**
      * Đọc toàn bộ dữ liệu từ file database JSON.
@@ -94,6 +106,7 @@ export class JSONDriver implements DatabaseDriver {
      * @returns Promise chứa toàn bộ dữ liệu database.
      */
     public async all<V>(): Promise<V> {
+        await this.ensureFile();
         return fs.readFile(this.filePath, "utf-8").then((content) => JSON.parse(content) as V).catch((error) => {
             console.error(`Không thể đọc file database: ${this.filePath}`, error);
             return {} as V;
@@ -112,6 +125,7 @@ export class JSONDriver implements DatabaseDriver {
      * @returns Promise chứa dữ liệu đã ghi.
      */
     public async set<R = any>(data: R): Promise<R> {
+        await this.ensureFile();
         await fs.writeFile(this.filePath, JSON.stringify(data, null, this.minifyJSON ? undefined : "\t"));
         return data;
     }
@@ -123,6 +137,7 @@ export class JSONDriver implements DatabaseDriver {
      * @returns `true` nếu reset thành công.
      */
     public async delete(): Promise<boolean> {
+        await this.ensureFile();
         await fs.writeFile(this.filePath, "{}");
         return true;
     }
