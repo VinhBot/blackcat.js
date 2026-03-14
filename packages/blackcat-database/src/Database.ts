@@ -346,44 +346,87 @@ export class Database<V = any> {
         return originalLength - filtered.length;
     }
     /**
-     * Cập nhật giá trị của một key-path trong database.
+     * Cập nhật dữ liệu trong database theo đường dẫn key.
      *
-     * Khác với `set()`, method này chỉ ghi đè giá trị của key cuối cùng
-     * trong path mà không thay đổi cấu trúc object phía trên.
+     * Hàm này sẽ tìm đến vị trí của `key` trong database và gán `value` vào đó.
+     * Nếu `value` và giá trị hiện tại tại key đều là object thì sẽ thực hiện
+     * **shallow merge** thay vì ghi đè toàn bộ object.
      *
-     * Nếu các object trung gian trong path chưa tồn tại
-     * thì chúng sẽ được tự động tạo.
+     * Điều này giúp tránh việc làm mất các thuộc tính đã tồn tại.
      *
-     * @template P Key path trong database.
+     * @template P - Đường dẫn key hợp lệ trong object database.
      *
-     * @param key Đường dẫn dữ liệu cần cập nhật.
-     * @param value Giá trị mới.
+     * @param key - Đường dẫn tới giá trị cần cập nhật.
+     * Hỗ trợ nested path dạng `"a.b.c"`.
      *
-     * @returns Object cha của key vừa cập nhật.
+     * @param value - Giá trị mới sẽ được cập nhật tại key.
+     *
+     * @returns
+     * Trả về giá trị cuối cùng sau khi cập nhật.
      *
      * @example
-     * ```ts
-     * await db.update("users.123.name", "Alice");
+     * Database ban đầu:
+     * ```json
+     * {
+     *   "123": {
+     *     "guildID": "123",
+     *     "guildName": "BlackCat",
+     *     "history": []
+     *   }
+     * }
      * ```
+     *
+     * Cập nhật:
+     * ```ts
+     * await db.update("123", {
+     *   history: [1,2,3]
+     * });
+     * ```
+     *
+     * Kết quả:
+     * ```json
+     * {
+     *   "123": {
+     *     "guildID": "123",
+     *     "guildName": "BlackCat",
+     *     "history": [1,2,3]
+     *   }
+     * }
+     * ```
+     *
+     * @throws {BlackCatError}
+     * - `REQUIRED_PARAMETER_MISSING` nếu key không được cung cấp
+     * - `INVALID_TYPE` nếu key không phải string
      */
     public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>> {
+        if (!key) {
+            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
+        }
+        if (typeof key !== "string") {
+            throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
+        }
         const allDatabase = await this.all();
         const keys = key.split(".");
         let current: any = allDatabase;
-
         for (let i = 0; i < keys.length - 1; i++) {
             const part = keys[i];
-            if (!(part in current)) {
+            if (!isObject(current[part])) {
                 current[part] = {};
             }
             current = current[part];
         }
 
         const lastKey = keys[keys.length - 1];
-        current[lastKey] = value;
-
+        if (isObject(value) && isObject(current[lastKey])) {
+            current[lastKey] = {
+                ...current[lastKey],
+                ...value
+            };
+        } else {
+            current[lastKey] = value;
+        }
         await this.driver.set(allDatabase);
-        return current;
+        return current[lastKey];
     }
     /**
      * Cộng thêm giá trị vào một key dạng number.

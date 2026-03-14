@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-database",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "json datatabase driver for blackcat.js",
   "author": "Nguyen Vinh",
   "license": "ISC",
