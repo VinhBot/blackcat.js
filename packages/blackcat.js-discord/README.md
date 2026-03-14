@@ -8,7 +8,7 @@
 > Thư viện hỗ trợ xây dựng Discord Bot với cấu trúc lệnh mạnh mẽ, typed an toàn và dễ mở rộng.  
 > Tối ưu cho cả **message command** và **slash command**.
 
-> [xem document ở đây.](https://blackcat-js-discord-document.vercel.app/)
+> [xem document ở đây.](https://blackcatjs-discord-docs.vercel.app/)
 
 ---
 
@@ -272,92 +272,6 @@ const exampleCommand = new SlashCommandBuilderWithSubs({
 export default exampleCommand;
 ```
 ---
-# 🧩 ComponentBuilder
-
-```ts
-import { ComponentBuilder } from "blackcat.js-discord";
-
-const components = new ComponentBuilder([
-  {
-    type: "button",
-    options: [
-      { customId: "accept", label: "Chấp nhận", style: "Success" },
-      { customId: "decline", label: "Từ chối", style: "Danger" }
-    ]
-  },
-  {
-    type: "select",
-    options: {
-      customId: "color",
-      placeholder: "Chọn màu",
-      options: [
-        { label: "Đỏ", value: "red" },
-        { label: "Xanh", value: "blue" }
-      ]
-    }
-  }
-] as const);
-
-const msg = await message.reply({
-  content: "Hãy chọn một tùy chọn",
-  components: components.components()
-});
-
-components.createCollector({
-  source: msg,
-  userId: message.author.id,
-  onCollect: async (interaction, id) => {
-    // id sẽ được TypeScript suy ra:
-    // "accept" | "decline" | "color"
-    if (interaction.isButton()) {
-      if (id === "accept") {
-        await interaction.reply("Bạn đã chấp nhận");
-      }
-      if (id === "decline") {
-        await interaction.reply("Bạn đã từ chối");
-      }
-    }
-    if (interaction.isStringSelectMenu()) {
-      if (id === "choose_color") {
-        await i.reply({
-          content: `Bạn chọn: ${i.values[0]}`,
-          ephemeral: true
-        });
-      }
-    }
-  }
-});
-
-// ===== Slash Command (Interaction) =====
-
-await interaction.reply({
-  content: "Hãy chọn một tùy chọn",
-  components: components.components()
-});
-
-await components.createCollector({
-  source: interaction,
-  userId: interaction.user.id,
-  time: 60000,
-  onCollect: async (i, id) => {
-    if (i.isButton()) {
-      if (id === "accept") await i.reply({ content: "Bạn đã chấp nhận", ephemeral: true });
-      if (id === "decline") await i.reply({ content: "Bạn đã từ chối", ephemeral: true });
-    }
-    if (i.isStringSelectMenu()) {
-      if (id === "choose_color") {
-        await i.reply({
-          content: `Bạn chọn: ${i.values[0]}`,
-          ephemeral: true
-        });
-      }
-    }
-
-  }
-});    
-```
-
----
 # 🧩 PaginationBuilder
 
 **Hệ thống pagination cho Discord message với:**
@@ -431,26 +345,6 @@ const pagination = new PaginationBuilder<User[]>({
   })
 });
 ```
----
-
-# 🔐 Hệ thống Cooldown
-
-| Scope   | Mô tả |
-|---------|--------|
-| user    | Mỗi user một cooldown |
-| guild   | Mỗi server một cooldown |
-| global  | Toàn bộ bot |
-
-## roleWeights
-
-Cho phép giảm thời gian cooldown theo role.
-
-```ts
-roleWeights: {
-    "id role": 0.5 // giảm 50%
-}
-```
-
 ---
 
 # 📜 License

@@ -1,406 +1,485 @@
 import {
     ActionRowBuilder,
     ButtonBuilder,
-    StringSelectMenuBuilder,
     ButtonStyle,
-    type APIMessageComponentEmoji,
+    StringSelectMenuBuilder,
+    RoleSelectMenuBuilder,
+    UserSelectMenuBuilder,
+    ChannelSelectMenuBuilder,
+    MentionableSelectMenuBuilder,
+    APIActionRowComponent,
+    APISelectMenuOption,
+    ChannelType,
     Message,
-    type ChatInputCommandInteraction,
-    type ButtonInteraction,
-    type StringSelectMenuInteraction,
-    type InteractionCollector,
-    MessageFlags
+    ChatInputCommandInteraction,
+    InteractionCollector,
 } from "discord.js";
-
-import { parseTime } from "..";
-
-/**
- * Cấu hình cho một Button component.
- *
- * @template ID customId của button
- */
-export type ComponentButtonOption<ID extends string = string> = {
-    /**
-     * ID dùng để nhận diện interaction.
-     */
-    customId: ID;
-    /**
-     * Style của button.
-     */
-    style: | "Primary" | "Secondary" | "Success" | "Danger" | "Link";
-    /**
-     * Nội dung hiển thị trên button.
-     */
-    label?: string;
-    /**
-     * Emoji của button.
-     */
-    emoji?: string | APIMessageComponentEmoji;
-    /**
-     * URL cho Link Button.
-     */
-    url?: string;
-    /**
-     * Trạng thái disabled.
-     */
-    disabled?: boolean;
-};
+import { CollectorInteraction, CreateMessageComponentCollector, createMessageComponentCollector, parseTime } from "../Functions";
 
 /**
- * Một option trong Select Menu.
+ * Union type đại diện cho tất cả component builder có thể được sử dụng
+ * trong ActionRow của Discord.
+ * @hidden
  */
-export type ComponentSelectOption = {
-    /**
-     * Label hiển thị.
-     */
+type AnyComponent = | ButtonBuilder | StringSelectMenuBuilder | RoleSelectMenuBuilder | UserSelectMenuBuilder | ChannelSelectMenuBuilder | MentionableSelectMenuBuilder;
+
+/**
+ * Cấu hình đầu vào cho một button.
+ */
+type ButtonInput = {
+    /** Custom ID của button (không dùng khi là link button) */
+    customId: string;
+    /** Text hiển thị trên button */
     label: string;
-    /**
-     * Value trả về khi được chọn.
-     */
-    value: string;
-    /**
-     * Mô tả option.
-     */
-    description?: string;
-    /**
-     * Emoji của option.
-     */
-    emoji?: string | APIMessageComponentEmoji;
-    /**
-     * Option mặc định được chọn.
-     */
-    default?: boolean;
-};
-
-/**
- * Cấu hình cho Select Menu component.
- *
- * @template ID customId của menu
- */
-export type ComponentSelectMenuOption<ID extends string = string> = {
-    /**
-     * ID dùng để nhận diện interaction.
-     */
-    customId: ID;
-    /**
-     * Placeholder text.
-     */
-    placeholder?: string;
-    /**
-     * Số lượng option tối thiểu có thể chọn.
-     */
-    minValues?: number;
-    /**
-     * Số lượng option tối đa có thể chọn.
-     */
-    maxValues?: number;
-    /**
-     * Trạng thái disabled.
-     */
+    /** Emoji hiển thị trên button */
+    emoji?: string;
+    /** Kiểu button */
+    style: "Primary" | "Secondary" | "Success" | "Danger" | "Link" | "Premium";
+    /** URL cho Link Button */
+    url?: string;
+    /** Button có bị disable hay không */
     disabled?: boolean;
-    /**
-     * Danh sách options.
-     */
-    options: ComponentSelectOption[];
 };
 
 /**
- * Schema định nghĩa các component.
- * @hidden
+ * Input cấu hình component để tự động build ActionRow.
  */
-export type ComponentSchema = | {
+type ComponentInput = | {
+    /** Button row */
     type: "button";
-    options: readonly ComponentButtonOption[];
+    options: ButtonInput[];
 } | {
-    type: "select";
-    options: ComponentSelectMenuOption;
+    /** String select menu */
+    type: "stringmenu";
+    options: {
+        customId: string;
+        placeholder?: string;
+        minValues?: number;
+        maxValues?: number;
+        options: APISelectMenuOption[];
+    };
+} | {
+    /** Role select menu */
+    type: "rolemenu";
+    options: {
+        customId: string;
+        placeholder?: string;
+        minValues?: number;
+        maxValues?: number;
+    };
+} | {
+    /** User select menu */
+    type: "usermenu";
+    options: {
+        customId: string;
+        placeholder?: string;
+        minValues?: number;
+        maxValues?: number;
+    };
+} | {
+    /** Channel select menu */
+    type: "channelmenu";
+    options: {
+        customId: string;
+        placeholder?: string;
+        minValues?: number;
+        maxValues?: number;
+        channelTypes?: ChannelType[];
+    };
+} | {
+    /** Mentionable select menu (role + user) */
+    type: "mentionmenu";
+    options: {
+        customId: string;
+        placeholder?: string;
+        minValues?: number;
+        maxValues?: number;
+    };
 };
-
 /**
- * Utility type dùng để trích xuất tất cả `customId` từ schema và tạo thành union type.
- * @hidden
- */
-export type ComponentExtractCustomIds<T extends readonly ComponentSchema[]> = T[number] extends { options: infer O } ? O extends readonly any[] ? O[number] extends { customId: infer A } ? A : never : O extends { customId: infer A } ? A : never : never;
-
-/**
- * Options cấu hình cho collector.
+ * Builder hỗ trợ tạo và quản lý Discord Message Components
+ * (Buttons, Select Menus...) thông qua `ActionRowBuilder`.
  *
- * @template IdUnion union type của customId
- */
-export type ComponentCollectorOptions<IdUnion extends string> = {
-    /**
-     * Nguồn tạo collector.
-     *
-     * Có thể là:
-     * - Message
-     * - Slash Command Interaction
-     */
-    source: Message | ChatInputCommandInteraction;
-    /**
-     * Thời gian collector hoạt động (giây).
-     *
-     * @default 60
-     */
-    time?: number;
-    /**
-     * Chỉ cho phép user cụ thể tương tác.
-     */
-    userId?: string;
-    /**
-     * Callback khi interaction được collect.
-     */
-    onCollect: (interaction: ButtonInteraction | StringSelectMenuInteraction, customId: IdUnion) => any;
-};
-
-/**
- * Builder tiện ích để tạo **Discord Message Components**
- * (Button và Select Menu) với **TypeScript type inference mạnh**
- * và hệ thống **collector tích hợp sẵn**.
+ * Class này giúp bạn:
+ * - Tạo component từ cấu hình JSON
+ * - Quản lý nhiều ActionRow
+ * - Disable toàn bộ components
+ * - Tạo collector cho component interaction
  *
- * Class này tự động:
- * - Tạo `ActionRowBuilder`
- * - Tự chia tối đa **5 button mỗi row**
- * - Hỗ trợ cả **Prefix Command (Message)** và **Slash Command (Interaction)**
- * - Tự suy ra union type của tất cả `customId`
- * - Cung cấp helper `createCollector()` để xử lý interaction
+ * @template T Loại component builder
  *
- * @template T Schema định nghĩa components
- * @template IdUnion Union type của tất cả `customId` (tự động suy ra)
+ * @remarks
+ * Discord giới hạn:
+ * - **Tối đa 5 ActionRow trong một message**
+ * - **Mỗi ActionRow tối đa 5 buttons**
+ * - **Select menu mỗi row chỉ được 1**
+ *
+ * Class này tự động chia button thành nhiều row khi > 5.
+ *
+ * ---
  *
  * @example
- * ```ts
- * import { ComponentBuilder } from "blackcat.js-discord";
+ * ### Tạo button đơn giản
  *
- * const components = new ComponentBuilder([
+ * ```ts
+ * const builder = new ComponentBuilder([
  *   {
  *     type: "button",
  *     options: [
- *       { customId: "accept", label: "Chấp nhận", style: "Success" },
- *       { customId: "decline", label: "Từ chối", style: "Danger" }
+ *       {
+ *         customId: "confirm",
+ *         label: "Confirm",
+ *         style: "Success"
+ *       },
+ *       {
+ *         customId: "cancel",
+ *         label: "Cancel",
+ *         style: "Danger"
+ *       }
  *     ]
- *   },
+ *   }
+ * ]);
+ *
+ * await message.reply({
+ *   content: "Bạn có chắc không?",
+ *   components: builder.build()
+ * });
+ * ```
+ *
+ * ---
+ *
+ * @example
+ * ### Tạo Select Menu
+ *
+ * ```ts
+ * const builder = new ComponentBuilder([
  *   {
- *     type: "select",
+ *     type: "stringmenu",
  *     options: {
- *       customId: "color",
+ *       customId: "choose-color",
  *       placeholder: "Chọn màu",
  *       options: [
- *         { label: "Đỏ", value: "red" },
- *         { label: "Xanh", value: "blue" }
+ *         { label: "Red", value: "red" },
+ *         { label: "Blue", value: "blue" }
  *       ]
  *     }
  *   }
- * ] as const);
+ * ]);
+ * ```
  *
- * const msg = await message.reply({
- *   content: "Hãy chọn một tùy chọn",
- *   components: components.components()
- * });
+ * ---
  *
- * components.createCollector({
- *   source: msg,
- *   userId: message.author.id,
- *   onCollect: async (interaction, id) => {
- *     // id sẽ được TypeScript suy ra:
- *     // "accept" | "decline" | "color"
- *     if (interaction.isButton()) {
- *       if (id === "accept") {
- *         await interaction.reply("Bạn đã chấp nhận");
- *       }
- *       if (id === "decline") {
- *         await interaction.reply("Bạn đã từ chối");
- *       }
- *     }
- *     if (interaction.isStringSelectMenu()) {
- *       if (id === "choose_color") {
- *         await i.reply({
- *           content: `Bạn chọn: ${i.values[0]}`,
- *           ephemeral: true
- *         });
- *       }
- *     }
- *   }
- * });
- * 
- * // ===== Slash Command (Interaction) =====
+ * @example
+ * ### Tạo Interaction Collector
  *
- * await interaction.reply({
- *   content: "Hãy chọn một tùy chọn",
- *   components: components.components()
- * });
- *
- * await components.createCollector({
- *   source: interaction,
- *   userId: interaction.user.id,
- *   time: 60000,
- *   onCollect: async (i, id) => {
- *     if (i.isButton()) {
- *       if (id === "accept") await i.reply({ content: "Bạn đã chấp nhận", ephemeral: true });
- *       if (id === "decline") await i.reply({ content: "Bạn đã từ chối", ephemeral: true });
- *     }
- *     if (i.isStringSelectMenu()) {
- *       if (id === "choose_color") {
- *         await i.reply({
- *           content: `Bạn chọn: ${i.values[0]}`,
- *           ephemeral: true
- *         });
- *       }
- *     }
- *
+ * ```ts
+ * const collector = await builder.createCollector({
+ *   source: message,
+ *   time: "30s",
+ *   onCollector: async (ctx) => {
+ *     console.log(ctx.interaction.customId);
  *   }
  * });
  * ```
- * @remarks
- * Giới hạn của Discord:
- * - Tối đa **5 component rows**
- * - Mỗi row tối đa **5 buttons**
- * - **Select menu chỉ có 1 trên mỗi row**
  *
- * `ComponentBuilder` đảm bảo layout luôn hợp lệ với các giới hạn này.
+ * ---
+ *
+ * @example
+ * ### Disable toàn bộ components
+ *
+ * ```ts
+ * builder.disableAll();
+ *
+ * await message.edit({
+ *   components: builder.build()
+ * });
+ * ```
  */
-export class ComponentBuilder<T extends readonly ComponentSchema[], IdUnion extends string = ComponentExtractCustomIds<T>> {
+export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
+    /** 
+     * Danh sách ActionRow đã được build
+     * @hidden 
+     * */
+    private rows: ActionRowBuilder<T>[] = [];
     /**
-     * Danh sách rows đã build.
-     */
-    private rows: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-    /**
-     * Tập hợp tất cả customId hợp lệ.
-     */
-    private validIds = new Set<string>();
-    /**
-     * Khởi tạo ComponentBuilder.
+     * Tạo ComponentBuilder
      *
-     * @param schema Schema định nghĩa components
+     * @param components Danh sách cấu hình component
      */
-    constructor(private schema: T) {
-        for (const component of this.schema) {
-            if (component.type === "button") {
-                component.options.forEach(b => this.validIds.add(b.customId));
-                this.buildButtons(component.options);
-            }
-            if (component.type === "select") {
-                this.validIds.add(component.options.customId);
-                this.buildSelect(component.options);
-            }
-        }
-        if (this.rows.length > 5) {
-            throw new Error("Discord chỉ cho phép tối đa 5 hàng.");
-        }
+    constructor(components?: ComponentInput[]) {
+        if (components) this.parse(components);
     }
     /**
-     * Build button components.
+     * Parse cấu hình component thành ActionRowBuilder.
      *
-     * Tự động chia tối đa **5 buttons mỗi row**.
+     * @param components Danh sách component input
      */
-    private buildButtons(options: readonly ComponentButtonOption[]) {
-        for (let i = 0; i < options.length; i += 5) {
-            const row = new ActionRowBuilder<ButtonBuilder>();
-            for (let j = i; j < i + 5 && j < options.length; j++) {
-                const btn = options[j];
-                const button = new ButtonBuilder();
-                if (btn.style === "Link") {
-                    if (!btn.url) {
-                        throw new Error("Nút liên kết yêu cầu URL");
+    private parse(components: ComponentInput[]) {
+        for (const comp of components) {
+            if (comp.type === "button") {
+                let row = new ActionRowBuilder<ButtonBuilder>();
+                comp.options.forEach((btn, index) => {
+                    // nếu đủ 5 button thì push row và tạo row mới
+                    if (index !== 0 && index % 5 === 0) {
+                        this.rows.push(row as any);
+                        row = new ActionRowBuilder<ButtonBuilder>();
                     }
-                    button.setStyle(ButtonStyle.Link).setURL(btn.url);
-                } else {
-                    button.setStyle(ButtonStyle[btn.style]).setCustomId(btn.customId);
+                    const button = new ButtonBuilder();
+                    if (btn.url) {
+                        button.setStyle(ButtonStyle.Link).setURL(btn.url);
+                    } else {
+                        button.setCustomId(btn.customId).setStyle(btn.style as any);
+                    }
+                    if (btn.label) button.setLabel(btn.label);
+                    if (btn.emoji) button.setEmoji(btn.emoji);
+                    if (btn.disabled) button.setDisabled(true);
+                    row.addComponents(button);
+                });
+                if (row.components.length) {
+                    this.rows.push(row as any);
                 }
-                if (btn.label) button.setLabel(btn.label);
-                if (btn.emoji) button.setEmoji(btn.emoji);
-                if (btn.disabled) button.setDisabled(true);
-                row.addComponents(button);
+            } else {
+                const row = new ActionRowBuilder<any>();
+                if (comp.type === "stringmenu") {
+                    const menu = new StringSelectMenuBuilder().setCustomId(comp.options.customId);
+                    if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
+                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues)
+                    if (comp.options.options) menu.addOptions(comp.options.options);
+                    row.addComponents(menu);
+                } else if (comp.type === "rolemenu") {
+                    const menu = new RoleSelectMenuBuilder().setCustomId(comp.options.customId);
+                    if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
+                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    row.addComponents(menu);
+                } else if (comp.type === "usermenu") {
+                    const menu = new UserSelectMenuBuilder().setCustomId(comp.options.customId);
+                    if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
+                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    row.addComponents(menu);
+                } else if (comp.type === "channelmenu") {
+                    const menu = new ChannelSelectMenuBuilder().setCustomId(comp.options.customId);
+                    if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
+                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    if (comp.options.channelTypes) menu.setChannelTypes(comp.options.channelTypes);
+                    row.addComponents(menu);
+                } else if (comp.type === "mentionmenu") {
+                    const opt = comp.options;
+                    const menu = new MentionableSelectMenuBuilder().setCustomId(opt.customId);
+                    if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
+                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    row.addComponents(menu);
+                }
+                this.rows.push(row);
             }
-            this.rows.push(row);
         }
     }
     /**
-     * Build select menu component.
-     */
-    private buildSelect(data: ComponentSelectMenuOption) {
-        const row = new ActionRowBuilder<StringSelectMenuBuilder>();
-        const menu = new StringSelectMenuBuilder().setCustomId(data.customId).setOptions(data.options);
-        if (data.placeholder) {
-            menu.setPlaceholder(data.placeholder);
-        }
-        if (data.minValues !== undefined) {
-            menu.setMinValues(data.minValues);
-        }
-        if (data.maxValues !== undefined) {
-            menu.setMaxValues(data.maxValues);
-        }
-        if (data.disabled) {
-            menu.setDisabled(true);
-        }
-        row.addComponents(menu);
-        this.rows.push(row);
-    }
-    /**
-     * Trả về danh sách component rows đã được build.
+     * Thêm một ActionRow mới vào builder.
      *
-     * @returns Mảng `ActionRowBuilder` chứa Button hoặc Select Menu
+     * Phương thức này cho phép thêm trực tiếp các component builder
+     * (ButtonBuilder, SelectMenuBuilder, ...) vào một ActionRow mới.
+     *
+     * @param components Danh sách component cần thêm vào row
+     * @returns ComponentBuilder instance để tiếp tục chain
      *
      * @example
+     * ### Thêm một row chứa button
+     * ```ts
+     * const builder = new ComponentBuilder();
+     *
+     * builder.addRow(
+     *   new ButtonBuilder()
+     *     .setCustomId("confirm")
+     *     .setLabel("Confirm")
+     *     .setStyle(ButtonStyle.Success),
+     *
+     *   new ButtonBuilder()
+     *     .setCustomId("cancel")
+     *     .setLabel("Cancel")
+     *     .setStyle(ButtonStyle.Danger)
+     * );
+     *
      * await message.reply({
-     *   content: "Chọn một tùy chọn",
-     *   components: components.components()
+     *   content: "Bạn có chắc không?",
+     *   components: builder.build()
      * });
-     */
-    public components(): readonly ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] {
-        return [...this.rows];
-    }
-    /**
-     * Tạo `InteractionCollector` cho components hiện tại.
-     *
-     * Hỗ trợ nguồn từ:
-     * - `Message` (prefix command)
-     * - `ChatInputCommandInteraction` (slash command)
-     *
-     * @param options Cấu hình collector
-     * @returns `InteractionCollector`
+     * ```
      *
      * @example
-     * components.createCollector({
+     * ### Chain nhiều row
+     * ```ts
+     * builder
+     *   .addRow(button1, button2)
+     *   .addRow(button3)
+     *   .addRow(selectMenu);
+     * ```
+     */
+    public addRow(...components: T[]) {
+        const row = new ActionRowBuilder<T>().addComponents(...components);
+        this.rows.push(row);
+        return this;
+    }
+    /**
+     * Thay thế một ActionRow đã tồn tại.
+     *
+     * Hữu ích khi bạn muốn chỉnh sửa layout component
+     * sau khi đã build trước đó.
+     *
+     * @param index Vị trí row cần thay
+     * @param row ActionRowBuilder mới
+     * @returns ComponentBuilder instance
+     *
+     * @example
+     * ```ts
+     * const newRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+     *   new ButtonBuilder()
+     *     .setCustomId("retry")
+     *     .setLabel("Retry")
+     *     .setStyle(ButtonStyle.Primary)
+     * );
+     *
+     * builder.replace(0, newRow);
+     *
+     * await message.edit({
+     *   components: builder.build()
+     * });
+     * ```
+     */
+    public replace(index: number, row: ActionRowBuilder<T>) {
+        this.rows[index] = row;
+        return this;
+    }
+    /**
+     * Disable toàn bộ components trong builder.
+     *
+     * Phương thức này sẽ gọi `setDisabled(true)` cho mọi component
+     * có hỗ trợ thuộc tính `setDisabled`.
+     *
+     * Thường được sử dụng khi collector kết thúc để tránh user tiếp tục bấm button cũ.
+     *
+     * @returns ComponentBuilder instance
+     *
+     * @example
+     * ```ts
+     * collector.on("end", async () => {
+     *   builder.disableAll();
+     *
+     *   await message.edit({
+     *     components: builder.build()
+     *   });
+     * });
+     * ```
+     */
+    public disableAll() {
+        for (const row of this.rows) {
+            for (const comp of row.components) {
+                if ("setDisabled" in comp) {
+                    comp.setDisabled(true);
+                }
+            }
+        }
+        return this;
+    }
+    /**
+     * Build danh sách ActionRowBuilder để gửi vào message Discord.
+     *
+     * @returns Danh sách ActionRowBuilder
+     *
+     * @example
+     * ```ts
+     * const builder = new ComponentBuilder([
+     *   {
+     *     type: "button",
+     *     options: [
+     *       {
+     *         customId: "ping",
+     *         label: "Ping",
+     *         style: "Primary"
+     *       }
+     *     ]
+     *   }
+     * ]);
+     *
+     * await message.reply({
+     *   content: "Test button",
+     *   components: builder.build()
+     * });
+     * ```
+     */
+    public build(): ActionRowBuilder<T>[] {
+        return this.rows;
+    }
+    /**
+     * Tạo Message Component Collector từ message hoặc interaction.
+     *
+     * Collector giúp lắng nghe interaction từ button hoặc select menu.
+     *
+     * @param options Collector options
+     * @returns InteractionCollector
+     *
+     * @example
+     * ```ts
+     * const collector = await builder.createCollector({
      *   source: message,
-     *   userId: message.author.id,
-     *   time: 60000,
-     *   onCollect: (interaction, id) => {
-     *     if (id === "accept") {
-     *       interaction.reply("Đã chấp nhận");
+     *   time: "30s",
+     *
+     *   onCollector: async (ctx) => {
+     *     const interaction = ctx.interaction;
+     *
+     *     if (interaction.customId === "confirm") {
+     *       await interaction.reply("Đã xác nhận!");
      *     }
+     *   },
+     *
+     *   onEnd: async () => {
+     *     builder.disableAll();
+     *
+     *     await message.edit({
+     *       components: builder.build()
+     *     });
      *   }
      * });
+     * ```
      */
-    public async createCollector(options: ComponentCollectorOptions<IdUnion>): Promise<InteractionCollector<ButtonInteraction | StringSelectMenuInteraction>> {
-        let message: Message;
-        if (options.source instanceof Message) {
-            message = options.source;
-        } else {
-            if (options.source.replied || options.source.deferred) {
-                message = await options.source.fetchReply() as Message;
-            } else {
-                const response = await options.source.reply({
-                    flags: MessageFlags.Ephemeral,
-                    withResponse: true
-                });
-                message = response.resource?.message!;
-            }
-        }
-        const collector = message.createMessageComponentCollector({
-            time: parseTime(options.time ?? "60s") as number,
-            filter: (interaction) => {
-                if (!interaction.isButton() && !interaction.isStringSelectMenu()) return false;
-                if (options.userId && interaction.user.id !== options.userId) return false;
-                if (!this.validIds.has(interaction.customId)) return false;
-                return true;
+    public async createCollector(options: CreateMessageComponentCollector & { source: Message | ChatInputCommandInteraction }): Promise<InteractionCollector<CollectorInteraction>> {
+        const { source, time, idle, ...rest } = options;
+        const collector = await createMessageComponentCollector(source, {
+            time: parseTime(time ?? "20s"),
+            idle: idle ? parseTime(idle) : undefined,
+            ...rest,
+            onCollector: async (ctx) => {
+                return options.onCollector(ctx);
             },
-            ...options,
+            onEnd: (ctx) => {
+                if (!options.onEnd) return;
+                return options.onEnd(ctx);
+            }
         });
-        collector.on("collect", (interaction) => {
-            const id = interaction.customId as IdUnion;
-            options.onCollect(interaction as any, id);
-        });
-        return collector as any;
+        return collector;
     }
-
+    /**
+     * Convert toàn bộ ActionRowBuilder sang JSON Discord API format.
+     *
+     * Phương thức này hữu ích khi:
+     * - Debug
+     * - Serialize component
+     * - Gửi qua REST API
+     *
+     * @returns APIActionRowComponent[]
+     *
+     * @example
+     * ```ts
+     * const json = builder.toJSON();
+     *
+     * console.log(json);
+     * ```
+     */
+    public toJSON(): APIActionRowComponent<ReturnType<T["toJSON"]>>[] {
+        return this.rows.map((r) => r.toJSON());
+    }
 }

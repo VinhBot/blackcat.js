@@ -1,17 +1,6 @@
-import { APIMessageComponentEmoji, BaseMessageOptions, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, InteractionReplyOptions, MessageCreateOptions, StringSelectMenuBuilder, StringSelectMenuInteraction } from "discord.js";
+import { APIMessageComponentEmoji, BaseMessageOptions, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction } from "discord.js";
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Message, MessageFlags, LabelBuilder } from "discord.js";
-import { ComponentBuilder, parseTime } from "..";
-
-/**
- * Nguồn khởi tạo pagination.
- * @hidden
- */
-export type PaginationSource = Message | ChatInputCommandInteraction;
-/**
- * Các loại interaction component được pagination xử lý.
- * @hidden
- */
-export type PaginationComponentInteraction = | ButtonInteraction | StringSelectMenuInteraction;
+import { ComponentBuilder, createMessageComponentCollector, parseTime } from "..";
 
 /**
  * Schema mô tả một button được tạo bởi pagination.
@@ -141,7 +130,7 @@ export type PaginationComponentContext<T> = {
     /**
      * Interaction từ component.
      */
-    interaction: PaginationComponentInteraction;
+    interaction: | ButtonInteraction | StringSelectMenuInteraction;
     /**
      * Instance của PaginationBuilder.
      */
@@ -244,16 +233,16 @@ export type PaginationOptions<T> = {
     /**
      * Gọi mỗi khi có interaction xảy ra.
      */
-    onComponent?: (ctx: PaginationComponentContext<T>) => Promise<void> | void;
+    onComponent?: (ctx: PaginationComponentContext<T>) => Promise<any> | any;
     /**
      * Gọi khi trang thay đổi.
      */
     onPageChange?: (ctx: {
         oldPage: number;
         newPage: number;
-        interaction: PaginationComponentInteraction;
+        interaction: | ButtonInteraction | StringSelectMenuInteraction;
         pagination: PaginationBuilder<T>;
-    }) => Promise<void> | void;
+    }) => Promise<any> | any;
     /**
      * Filter cho interaction.
      *
@@ -264,7 +253,7 @@ export type PaginationOptions<T> = {
      * interactionFilter: (i) => i.user.id === message.author.id
      * ```
      */
-    interactionFilter?: (interaction: PaginationComponentInteraction) => boolean;
+    interactionFilter?: (interaction: | ButtonInteraction | StringSelectMenuInteraction) => boolean;
     /**
      * Cấu hình navigation buttons.
      *
@@ -311,10 +300,6 @@ export type PaginationOptions<T> = {
      * Gọi khi collector timeout.
      */
     onTimeout?: (ctx: { message: Message }) => any;
-    /**
-     * Gọi khi destroy pagination.
-     */
-    onDestroy?: () => any;
     /**
      * Bắt lỗi nội bộ.
      */
@@ -390,7 +375,7 @@ export class PaginationBuilder<T> {
      * - `Message` khi dùng prefix command
      * - `ChatInputCommandInteraction` khi dùng slash command
      *
-     * @returns Promise<void>
+     * @returns Promise<any>
      *
      * @throws {Error}
      * Nếu không có `pages` hoặc `pageLoader` được cung cấp.
@@ -454,27 +439,19 @@ export class PaginationBuilder<T> {
      *   - `onTimeout`
      *   - `onStop`
      */
-    public async start(source: PaginationSource) {
+    public async start(source: Message | ChatInputCommandInteraction) {
         const data = await this.getPageData(this.page);
         const content = await this.options.renderPage({
             page: this.page,
             totalPages: this.totalPages,
             data: data,
             pagination: this
-        } as any);
-        const components = this.buildComponents(data);
-        const messagePayload: MessageCreateOptions = {
-            ...content,
-            components: components
-        };
-        const interactionPayload: InteractionReplyOptions = {
-            ...content,
-            components: components
-        };
+        });
+        const components = await this.buildComponents(data);
         if (source instanceof Message) {
-            this.message = await source.reply(messagePayload);
+            this.message = await source.reply({ ...content, components: components });
         } else {
-            await source.reply(interactionPayload);
+            await source.reply({ ...content, components: components });
             this.message = await source.fetchReply() as Message;
         }
         await this.createCollector();
@@ -499,14 +476,14 @@ export class PaginationBuilder<T> {
      * Xây dựng toàn bộ message components
      * bao gồm navigation, select menu và custom components.
      */
-    private buildComponents(data: T) {
+    private async buildComponents(data: T) {
         const schema: any[] = [];
         const nav = this.buildNavigationSchema();
         const select = this.buildSelectSchema();
         if (nav) schema.push(nav);
         if (select) schema.push(select);
-        this.componentBuilder = new ComponentBuilder(schema as any);
-        const rows = [...this.componentBuilder.components()];
+        this.componentBuilder = new ComponentBuilder(schema);
+        const rows = [...this.componentBuilder.build()];
         const button = (schemas: PaginationButtonOption[]): ActionRowBuilder<ButtonBuilder>[] => {
             const builtRows: ActionRowBuilder<ButtonBuilder>[] = [];
             for (let i = 0; i < schemas.length; i += 5) {
@@ -609,20 +586,20 @@ export class PaginationBuilder<T> {
      * Tạo schema select menu để nhảy trang.
      */
     private buildSelectSchema() {
-        if (!this.options.selectMenu?.enabled) return null;
         const options = [];
-        for (let i = 0; i < this.totalPages; i++) {
-            options.push({
-                label: this.options.selectMenu.pageLabel ? this.options.selectMenu.pageLabel(i) : `Trang ${i + 1}`,
-                value: String(i),
-                default: i === this.page
-            });
-        }
+        if (!this.options.selectMenu?.enabled !== true) return null;
+
+        for (let i = 0; i < this.totalPages; i++) options.push({
+            label: this.options.selectMenu?.pageLabel ? this.options.selectMenu.pageLabel(i) : `Trang ${i + 1}`,
+            value: String(i),
+            default: i === this.page
+        });
+
         return {
-            type: "select",
+            type: "stringmenu",
             options: {
                 customId: "pagination:select",
-                placeholder: this.options.selectMenu.placeholder ?? "Nhảy đến trang",
+                placeholder: this.options.selectMenu?.placeholder ?? "Nhảy đến trang",
                 options: options
             }
         };
@@ -634,16 +611,16 @@ export class PaginationBuilder<T> {
     private async createCollector() {
         const collector = await this.componentBuilder.createCollector({
             source: this.message,
-            time: parseTime(this.options.timeout ?? 120),
-            onCollect: async (interaction, id) => {
+            time: this.options.timeout ?? 120,
+            onCollector: async ({ interaction, customId }) => {
                 try {
-                    if (this.options.interactionFilter && !this.options.interactionFilter(interaction)) {
+                    if (this.options.interactionFilter && !this.options.interactionFilter(interaction as any)) {
                         return await interaction.reply({
                             content: "Bạn không thể sử dụng cái này.",
                             flags: MessageFlags.Ephemeral
                         });
                     }
-                    if (id === "pagination:jump") {
+                    if (customId === "pagination:jump") {
                         const modal = new ModalBuilder({
                             customId: "pagination:jumpModal",
                             title: "Nhảy đến trang",
@@ -676,64 +653,66 @@ export class PaginationBuilder<T> {
                         return;
                     }
                     if (interaction.isButton()) {
-                        if (id === "pagination:first") return this.goto(0, interaction);
-                        if (id === "pagination:prev") return this.goto(this.page - 1, interaction);
-                        if (id === "pagination:next") return this.goto(this.page + 1, interaction);
-                        if (id === "pagination:last") return this.goto(this.totalPages - 1, interaction);
+                        if (customId === "pagination:first") return this.goto(0, interaction);
+                        if (customId === "pagination:prev") return this.goto(this.page - 1, interaction);
+                        if (customId === "pagination:next") return this.goto(this.page + 1, interaction);
+                        if (customId === "pagination:last") return this.goto(this.totalPages - 1, interaction);
                     }
                     if (interaction.isStringSelectMenu()) {
-                        if (id === "pagination:select") return this.goto(Number(interaction.values[0]), interaction);
+                        if (customId === "pagination:select") return this.goto(Number(interaction.values[0]), interaction);
                     }
                 } catch (error) {
                     this.options.onError?.(error);
                 }
+            },
+            onEnd: (ctx) => {
+                this.options.onTimeout?.({ message: ctx.message });
+                this.options.onStop?.({ message: ctx.message });
             }
         });
-        collector.on("end", () => {
-            this.options.onTimeout?.({ message: this.message });
-            this.options.onStop?.({ message: this.message });
-        });
+        return collector;
     }
 
     private async createCollector2() {
         if (!this.message) return;
-        const collector = this.message.createMessageComponentCollector({
-            time: parseTime(this.options.timeout ?? 120),
-        });
-        collector.on("collect", async (interaction) => {
-            try {
-                if (!interaction.isMessageComponent()) return;
-                if (this.options.interactionFilter && !this.options.interactionFilter(interaction as any)) {
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({
-                            content: "Bạn không thể sử dụng cái này.",
-                            flags: MessageFlags.Ephemeral
-                        });
+        const collector = await createMessageComponentCollector(this.message, {
+            time: this.options.timeout ?? 120,
+            onCollector: async ({ interaction }) => {
+                try {
+                    if (!interaction.isMessageComponent()) return;
+                    if (this.options.interactionFilter && !this.options.interactionFilter(interaction as any)) {
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({
+                                content: "Bạn không thể sử dụng cái này.",
+                                flags: MessageFlags.Ephemeral
+                            });
+                        }
+                        return;
                     }
-                    return;
+                    const data = await this.getPageData(this.page);
+                    await this.options.onComponent?.({
+                        interaction: interaction as | ButtonInteraction | StringSelectMenuInteraction,
+                        pagination: this,
+                        page: this.page,
+                        totalPages: this.totalPages,
+                        data: data
+                    } as PaginationComponentContext<T>);
+                } catch (error) {
+                    this.options.onError?.(error);
                 }
-                const data = await this.getPageData(this.page);
-                await this.options.onComponent?.({
-                    interaction: interaction as PaginationComponentInteraction,
-                    pagination: this,
-                    page: this.page,
-                    totalPages: this.totalPages,
-                    data: data
-                } as PaginationComponentContext<T>);
-            } catch (error) {
-                this.options.onError?.(error);
-            }
-        });
-        collector.on("end", (_, reason) => {
-            try {
-                if (reason === "time" || reason === "idle") {
-                    this.options.onTimeout?.({ message: this.message });
+            },
+            onEnd: ({ reason, message }) => {
+                try {
+                    if (reason === "time" || reason === "idle") {
+                        this.options.onTimeout?.({ message: message });
+                    }
+                    this.options.onStop?.({ message: message });
+                } catch (error) {
+                    this.options.onError?.(error);
                 }
-                this.options.onStop?.({ message: this.message });
-            } catch (error) {
-                this.options.onError?.(error);
-            }
+            },
         });
+        return collector;
     }
     /**
      * Chuyển sang một trang cụ thể trong pagination.
@@ -752,7 +731,7 @@ export class PaginationBuilder<T> {
      * @param page Số trang cần chuyển tới (bắt đầu từ `0`)
      * @param interaction Interaction gây ra việc chuyển trang
      *
-     * @returns Promise<void>
+     * @returns Promise<any>
      *
      * @example
      * ```ts
@@ -779,7 +758,7 @@ export class PaginationBuilder<T> {
      * - Nếu `page` lớn hơn `totalPages` → sẽ đặt thành trang cuối
      * - Method này **không dừng collector**
      */
-    public async goto(page: number, interaction?: PaginationComponentInteraction) {
+    public async goto(page: number, interaction?: | ButtonInteraction | StringSelectMenuInteraction) {
         if (page < 0) page = 0;
         if (page >= this.totalPages) page = this.totalPages - 1;
         const oldPage = this.page;
@@ -791,19 +770,12 @@ export class PaginationBuilder<T> {
             data: data,
             pagination: this
         });
-        const components = this.buildComponents(data);
+        const components = await this.buildComponents(data);
         if (interaction) {
             if (interaction.isButton() || interaction.isStringSelectMenu()) {
-                await interaction.update({
-                    ...content,
-                    components: components
-                });
-            } else {
-                // ModalSubmitInteraction
-                await this.message.edit({
-                    ...content,
-                    components: components
-                });
+                await interaction.update({ ...content, components: components });
+            } else { // ModalSubmitInteraction
+                await this.message.edit({ ...content, components: components });
             }
             await this.options.onPageChange?.({
                 oldPage: oldPage,
@@ -812,10 +784,7 @@ export class PaginationBuilder<T> {
                 pagination: this
             });
         } else {
-            await this.message.edit({
-                ...content,
-                components: components
-            });
+            await this.message.edit({ ...content, components: components });
         }
     }
     /**
@@ -829,22 +798,12 @@ export class PaginationBuilder<T> {
      *
      * Không thay đổi trang hiện tại.
      *
-     * @returns Promise<void>
+     * @returns Promise<any>
      *
      * @example Refresh dữ liệu
      * ```ts
      * await pagination.reload();
      * ```
-     *
-     * @example Dùng với button refresh
-     * ```ts
-     * actions: {
-     *   refresh: async ({ pagination }) => {
-     *     await pagination.reload();
-     *   }
-     * }
-     * ```
-     *
      * @remarks
      * - Hữu ích khi dữ liệu trang thay đổi (database, API)
      * - Collector và state pagination vẫn giữ nguyên
@@ -859,40 +818,7 @@ export class PaginationBuilder<T> {
         });
         await this.message.edit({
             ...content,
-            components: this.buildComponents(data)
+            components: await this.buildComponents(data),
         });
-    }
-    /**
-     * Hủy pagination và dừng tất cả interaction collectors.
-     *
-     * Method này sẽ:
-     *
-     * - Dừng collector
-     * - Gọi hook `onDestroy`
-     *
-     * Sau khi destroy:
-     * - Buttons và select menu sẽ không hoạt động nữa
-     * - Pagination instance không nên sử dụng lại
-     *
-     * @returns void
-     *
-     * @example
-     * ```ts
-     * pagination.destroy();
-     * ```
-     *
-     * @example Tự động hủy khi command kết thúc
-     * ```ts
-     * setTimeout(() => {
-     *    pagination.destroy();
-     * }, 60000);
-     * ```
-     *
-     * @remarks
-     * Nếu muốn **disable components khi destroy**,
-     * bạn cần tự edit message sau khi gọi method này.
-     */
-    destroy() {
-        this.options.onDestroy?.();
     }
 }

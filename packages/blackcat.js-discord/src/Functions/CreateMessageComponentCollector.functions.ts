@@ -1,5 +1,5 @@
 import { Message, InteractionCollector, ChatInputCommandInteraction, InteractionReplyOptions, MessageEditOptions } from "discord.js";
-import type { MessageComponentType, ButtonInteraction, ChannelSelectMenuInteraction, MentionableSelectMenuInteraction, RoleSelectMenuInteraction, StringSelectMenuInteraction, UserSelectMenuInteraction, } from "discord.js";
+import type { MessageComponentType, ButtonInteraction, ChannelSelectMenuInteraction, MentionableSelectMenuInteraction, RoleSelectMenuInteraction, StringSelectMenuInteraction, UserSelectMenuInteraction } from "discord.js";
 
 import { parseTime } from ".";
 /**
@@ -9,7 +9,7 @@ type CollectorTarget = Message | ChatInputCommandInteraction;
 /**
  * @hidden
  */
-type CollectorInteraction = | ButtonInteraction | StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction;
+export type CollectorInteraction = | ButtonInteraction | StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | MentionableSelectMenuInteraction | ChannelSelectMenuInteraction;
 
 /**
  * Cấu hình cho `createComponentCollector`.
@@ -21,14 +21,14 @@ export interface CreateMessageComponentCollector {
      *
      * Khi hết thời gian, collector sẽ tự động stop với reason `"time"`.
      */
-    time?: number | string;
+    time?: number;
     /**
      * Thời gian tối đa không có interaction nào trước khi collector stop.
      *
      * Nếu không có interaction trong khoảng thời gian này
      * collector sẽ stop với reason `"idle"`.
      */
-    idle?: number | string;
+    idle?: number;
     /**
      * Số interaction tối đa collector có thể nhận.
      *
@@ -58,7 +58,7 @@ export interface CreateMessageComponentCollector {
      *
      * @param ctx - Context chứa thông tin interaction và collector.
      */
-    onCollector?: (ctx: {
+    onCollector: (ctx: {
         /**
          * Interaction gốc từ Discord.
          */
@@ -171,19 +171,19 @@ export interface CreateMessageComponentCollector {
  * });
  * ```
  */
-export const createMessageComponentCollector = async (target: CollectorTarget, options: CreateMessageComponentCollector = {}) => {
+export const createMessageComponentCollector = async (target: CollectorTarget, options: CreateMessageComponentCollector) => {
     const message = target instanceof Message ? target : await target.fetchReply();
     const time = parseTime(options.time ?? "10s");
-    const idle = parseTime(options.idle ?? "200s");
+    const idle = options.idle ? parseTime(options.idle) : undefined;
     const collector = message.createMessageComponentCollector({
-        time: time,
-        idle: idle,
+        componentType: options.componentType,
+        filter: options.filter,
         max: options.max,
         maxUsers: options.maxUsers,
-        componentType: options.componentType,
-        filter: options.filter
+        time: time,
+        idle: idle
     });
-
+    
     collector.on("collect", async (interaction) => {
         if (!options.onCollector) return;
         await options.onCollector({

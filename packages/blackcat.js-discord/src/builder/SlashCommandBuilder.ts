@@ -180,29 +180,6 @@ export type InferOptions<T extends Record<string, any>> = {
 export type ResolveOptions<T> = T extends Record<string, any> ? InferOptions<T> : {};
 
 /**
- * Context truyền vào permission message.
- */
-export interface SlashCommandContext {
-    /**
-     * Tên command đang thực thi.
-     */
-    commandName: string;
-    /**
-     * User gọi command.
-     */
-    user: User;
-    /**
-     * Bot client user.
-     */
-    bot: ClientUser & {
-        avatarURL: string | null;
-        displayAvatarURL: string;
-        id: string;
-        username: string;
-    };
-}
-
-/**
  * Cấu hình permission cho slash command.
  *
  * Cho phép định nghĩa:
@@ -242,7 +219,25 @@ export interface SlashPermissionConfig {
      * }
      * ```
      */
-    message?: (ctx: SlashCommandContext) => InteractionReplyOptions;
+    message?: (ctx: {
+        /**
+         * Tên command đang thực thi.
+         */
+        commandName: string;
+        /**
+         * User gọi command.
+         */
+        user: User;
+        /**
+         * Bot client user.
+         */
+        bot: ClientUser & {
+            avatarURL: string | null;
+            displayAvatarURL: string;
+            id: string;
+            username: string;
+        };
+    }) => InteractionReplyOptions;
 }
 
 /**
@@ -292,7 +287,7 @@ export interface SlashCommandBuilderOptions<TOptions extends Record<string, any>
      *
      * Lưu ý:
      * - Nếu TOptions là undefined thì tham số options cũng có thể undefined.
-     * - Hàm này không trả về giá trị (void).
+     * - Hàm này không trả về giá trị (any).
      */
     execute(client: Client, interaction: ChatInputCommandInteraction, options: ResolveOptions<TOptions>): any | Promise<any>;
 }
@@ -488,7 +483,7 @@ export class SlashCommandBuilder<TOptions extends Record<string, any> | undefine
      * });
      * ```
      */
-    constructor(config: SlashCommandBuilderOptions<TOptions>) {
+    constructor(config?: SlashCommandBuilderOptions<TOptions>) {
         if (config) this.applyConfig(config);
     }
     /**

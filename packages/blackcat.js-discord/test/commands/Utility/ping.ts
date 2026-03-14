@@ -1,4 +1,5 @@
-import { CommandBuilder} from "blackcat.js-discord";
+import { CommandBuilder, ComponentBuilder, PaginationBuilder } from "../../../src";
+import { ChannelType, MessageFlags } from "discord.js";
 
 const pingCommand = new CommandBuilder()
     .setName("ping")
@@ -17,8 +18,30 @@ const pingCommand = new CommandBuilder()
         message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
     })
     .setExecute(async (client, message, args) => {
-        if(!message.guildId) return;
-        
+        const pagination = new PaginationBuilder<string>({
+            pages: ["Page 1", "Page 2", "Page 3"],
+            renderPage: ({ data, page, totalPages }) => ({
+                content: `Trang ${page + 1}/${totalPages}\n${data}`
+            }),
+            buildComponents: ({ button }) => button([
+                {
+                    customId: "test",
+                    label: "test",
+                    style: "Danger"
+                }
+            ]),
+            onComponent: ({ interaction }) => {
+                if(interaction.isButton()) {
+                    if(interaction.customId === "test") {
+                        interaction.reply({
+                            content: "testtt"
+                        })
+                    } 
+                }
+            }
+        });
+
+        await pagination.start(message);
     })
 
 

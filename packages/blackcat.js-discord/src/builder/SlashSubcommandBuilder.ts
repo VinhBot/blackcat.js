@@ -1,5 +1,5 @@
 import { SlashCommandBuilder as DiscordSlashCommandBuilder, MessageFlags, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from "discord.js";
-import type { ChatInputCommandInteraction, GuildMember } from "discord.js";
+import type { ChatInputCommandInteraction, GuildMember, SlashCommandAttachmentOption, SlashCommandBooleanOption, SlashCommandChannelOption, SlashCommandIntegerOption, SlashCommandStringOption } from "discord.js";
 import type { CommandBuilder, InferOptions, OptionFactory, SlashCommandBuilder, Client, CooldownConfig, SlashPermissionConfig } from "..";
 import { cooldownManager, option } from "..";
 
@@ -23,7 +23,7 @@ export interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | 
      * @param name Tên subcommand
      * @param parent Parent builder (command hoặc group)
      */
-    build(name: string, parent: DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder): void;
+    build(name: string, parent: DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder): any;
     /**
      * Parse options từ interaction.
      *
@@ -110,21 +110,24 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
      * Build subcommand vào slash command hoặc subcommand group.
      * @hidden
      */
-    public build(name: string, parent: | DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
-        parent.addSubcommand((sub: SlashCommandSubcommandBuilder) => {
+    public build(name: string, parent: DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
+        parent.addSubcommand((sub) => {
             sub.setName(name).setDescription(this.description);
-            if (!this.defs) return sub;
-            for (const key in this.defs) {
-                const def = this.defs[key];
-                const method = def.method.replace("get", "add") + "Option";
-                (sub as any)[method]((opt: any) => {
+
+            const defs = this.defs;
+            if (!defs) return sub;
+
+            for (const [key, def] of Object.entries(defs)) {
+                const addOption = (sub as any)[def.method.replace("get", "add") + "Option"].bind(sub);
+                addOption((opt: any) => {
                     opt.setName(key).setDescription(def.description).setRequired(def.required);
-                    if (def.choices && def.choices.length > 0) opt.addChoices(...def.choices);
+                    if (def.choices?.length) opt.addChoices(...def.choices);
                     if (def.minLength !== undefined) opt.setMinLength(def.minLength);
                     if (def.maxLength !== undefined) opt.setMaxLength(def.maxLength);
                     return opt;
                 });
             }
+            
             return sub;
         });
     }
@@ -159,7 +162,7 @@ export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCom
      * Build group vào SlashCommandBuilder.
      * @hidden
      */
-    build(name: string, builder: DiscordSlashCommandBuilder): void;
+    build(name: string, builder: DiscordSlashCommandBuilder): any;
 }
 
 

@@ -24,7 +24,7 @@ export interface EventBuilderOptions<K extends keyof ClientEvents = keyof Client
      * Hàm xử lý khi event được kích hoạt.
      * Tham số sẽ được suy ra tự động từ `ClientEvents[K]`.
      */
-    execute: (client: Client, ...args: ClientEvents[K]) => Promise<void> | void;
+    execute: (client: Client, ...args: ClientEvents[K]) => Promise<any> | any;
 }
 
 /**
