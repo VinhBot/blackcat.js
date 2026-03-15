@@ -561,12 +561,7 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
                 const response = this.userPermission.message?.({
                     commandName: this.commandName,
                     user: interaction.user,
-                    bot: Object.assign(client.user!, {
-                        avatarURL: client.user?.avatarURL(),
-                        displayAvatarURL: client.user?.displayAvatarURL(),
-                        id: client.user?.id,
-                        username: client.user?.username,
-                    }),
+                    bot: client.user!,
                 });
                 return interaction.reply(response ?? { content: `Này <@${interaction.user.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`, flags: MessageFlags.Ephemeral });
             }
@@ -603,12 +598,14 @@ export class SlashCommandBuilderWithSubs<TSubs extends Record<string, ISlashSubC
         }
         // Subcommand
         const subName = interaction.options.getSubcommand(true);
-        const subBuilder = this.subs[subName as keyof typeof this.subs];
-        const parsed = subBuilder.parse(interaction);
-        return this.handler(client, interaction, {
-            type: "sub",
-            sub: subName,
-            options: parsed,
-        } as any);
+        if(subName) {
+            const subBuilder = this.subs[subName as keyof typeof this.subs];
+            const parsed = subBuilder.parse(interaction);
+            return this.handler(client, interaction, {
+                type: "sub",
+                sub: subName,
+                options: parsed,
+            } as any);
+        }
     }
 }
