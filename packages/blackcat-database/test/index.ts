@@ -42,12 +42,12 @@ const database = new Database<User>({
     // const data = await database.update("member.user.test", [
     //     "test", "xxxxxxxxxxxxxxxx", "22222222222"
     // ]);
-    const data = await database.findOne("member.user.database", {
-        guild: "1234566666666"
-    });
-    const data = await database.deleteMany("member.user.database", {
-        guild: "1234566666666"
-    })
+    // const data = await database.findOne("member.user.database", {
+    //     guild: "1234566666666"
+    // });
+    // const data = await database.deleteMany("member.user.database", {
+    //     guild: "1234566666666"
+    // })
     // const data = await database.get("member.user.name");
     // const data = await database.delete("member.user.name");
     // const data = await database.all();

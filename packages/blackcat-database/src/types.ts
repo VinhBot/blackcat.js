@@ -487,7 +487,7 @@ export type FirstObjectKey<TKey extends ObjectPath<string, any>> = TKey extends 
  * // "user.profile"
  * // "user.profile.name"
  */
-export type ObjectPath<T, TKey extends keyof T = keyof T> = IsAny<T> extends true ? string : T extends string | number | boolean | symbol ? string : T extends Array<any> ? TKey & string : TKey extends string ? T[TKey] extends Array<any> ? TKey : T[TKey] extends Record<string, any> ? `${TKey}` | `${TKey}.${ObjectPath<T[TKey]>}` : TKey : never;
+export type ObjectPath<T, TKey extends keyof T = keyof T> = IsAny<T> extends true ? string : T extends string | number | boolean | symbol ? string : T extends Array<any> ? TKey & string : TKey extends string ? NonNullable<T[TKey]> extends Array<any> ? TKey : NonNullable<T[TKey]> extends Record<string, any> ? `${TKey}` | `${TKey}.${ObjectPath<NonNullable<T[TKey]>>}` : TKey : never;
 /**
  * Trích xuất kiểu dữ liệu của giá trị tại một object path.
  * @hidden
