@@ -177,16 +177,7 @@ const exampleCommand = new SlashCommandBuilder({
         message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
     },
     options: (o) => ({ 
-        string: o.string({ description: "string description", required: true | false }),
-        integer,
-        number,
-        boolean,
-        user,
-        member,
-        role,
-        channel,
-        mentionable,
-        attachment,
+        string: o.string({ description: "string description", required: true | false }), //  // integer, number, boolean, user, member, role, channel, mentionable, attachment
     }),
     execute: (client, interaction, options) => {
         const string = options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,
@@ -195,53 +186,160 @@ const exampleCommand = new SlashCommandBuilder({
 });
 
 export default exampleCommand;
-```
 
----
-# 🧩 Cấu trúc Slash sub Command
-
-```ts
-import { SlashCommandBuilderWithSubs, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
-
-const exampleCommand = new SlashCommandBuilderWithSubs({
-    commandName: "example",
-    description: "example description",
+// sub commands 
+const exampleCommand = new SlashCommandBuilder({
+    commandName: "admin",
+    description: "Admin commands",
     cooldown: {
         duration: 5,
-        scope: ["user"], // "user" | "guild" | "global"
-        roleWeights: {
-            "id role": 0.5, // giảm 50%
-        },
-        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`
+        scope: "user"
     },
     userPermission: {
         permission: ["SendMessages"],
-        message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
     },
     /* SUB COMMAND TRỰC TIẾP */
     subcommands: {
-        example1: new SlashSubCommandBuilder({
-            description: "example1 description",
-            options: (o) => ({ 
-                // giống với SlashCommandBuilder.
+        reload: new SlashSubCommandBuilder({
+            description: "Reload bot",
+            options: (o) => ({
+                channel: o.channel({
+                    description: "test",
+                    channelTypes: ["GuildText"],
+                    required: false
+                })
+            })
+        }),
+    },
+    /* EXECUTE */
+    execute: async (client, interaction, options) => {
+        // sub commands
+        if (options.payload?.type === "sub") {
+            if (options.payload.sub === "reload") {
+                const channel = options.payload.options.channel;
+                console.log(channel);
+            }
+        }
+    },
+})
+
+// groups
+import { SlashCommandBuilder, SlashSubCommandGroupBuilder, SlashSubCommandBuilder } from "blackcat.js-ddiscord";
+
+const exampleCommand = new SlashCommandBuilder({
+    commandName: "admin",
+    description: "Admin commands",
+    cooldown: {
+        duration: 5,
+        scope: "user"
+    },
+    userPermission: {
+        permission: ["SendMessages"],
+    },
+    /* GROUP */
+    groups: {
+        user: new SlashSubCommandGroupBuilder({
+            description: "User management",
+            subcommands: {
+                ban: new SlashSubCommandBuilder({
+                    description: "Ban user",
+                    options: (o) => ({
+                        user: o.user({
+                            description: "Target user",
+                            required: true,
+                        }),
+                        reason: o.string({
+                            description: "Reason",
+                            required: true,
+                        }),
+                    }),
+                }),
+                kick: new SlashSubCommandBuilder({
+                    description: "Kick user",
+                    options: (o) => ({
+                        user: o.user({
+                            description: "Target user",
+                            required: false,
+                        }),
+                        userid: o.number({
+                            description: "user id",
+                            required: false
+                        }),
+                    }),
+                }),
+            },
+        }),
+    },
+    /* EXECUTE */
+    execute: async (client, interaction, options) => {
+        // group commands
+        if (options.payload?.type === "group") {
+            // sub commands
+            if (options.payload.group === "user" && options.payload.sub === "ban") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.reason);
+            }
+            if (options.payload.group === "user" && options.payload.sub === "kick") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.userid);
+            }
+        }
+    },
+})
+
+// sub và groups
+const exampleCommand = new SlashCommandBuilder({
+    commandName: "admin",
+    description: "Admin commands",
+    cooldown: {
+        duration: 5,
+        scope: "user"
+    },
+    userPermission: {
+        permission: ["SendMessages"],
+    },
+    /* SUB COMMAND TRỰC TIẾP */
+    subcommands: {
+        reload: new SlashSubCommandBuilder({
+            description: "Reload bot",
+            options: (o) => ({
+                channel: o.channel({
+                    description: "test",
+                    channelTypes: ["GuildText"],
+                    required: false
+                })
             })
         }),
     },
     /* GROUP */
     groups: {
-        example1: new SlashSubCommandGroupBuilder({
-            description: "example1 description",
+        user: new SlashSubCommandGroupBuilder({
+            description: "User management",
             subcommands: {
-                example2: new SlashSubCommandBuilder({
-                    description: "example2 description",
+                ban: new SlashSubCommandBuilder({
+                    description: "Ban user",
                     options: (o) => ({
-                        // giống với SlashCommandBuilder.
+                        user: o.user({
+                            description: "Target user",
+                            required: true,
+                        }),
+                        reason: o.string({
+                            description: "Reason",
+                            required: true,
+                        }),
                     }),
                 }),
-                example3: new SlashSubCommandBuilder({
-                    description: "example3 description",
+                kick: new SlashSubCommandBuilder({
+                    description: "Kick user",
                     options: (o) => ({
-                        // giống với SlashCommandBuilder.
+                        user: o.user({
+                            description: "Target user",
+                            required: false,
+                        }),
+                        userid: o.number({
+                            description: "user id",
+                            required: false
+                        }),
                     }),
                 }),
             },
@@ -249,25 +347,77 @@ const exampleCommand = new SlashCommandBuilderWithSubs({
     },
 
     /* EXECUTE */
-    execute: async (client, interaction, payload) => {
-        if (payload.type === "sub") {
-            if (payload.sub === "example1") {
-                // logic code.
-            };
-        };
-        if (payload.type === "group") {
-            if (payload.group === "example1" && payload.sub === "example2") {
-                const string = payload.options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,
-                // logic code.
-            };
-            if (payload.group === "example1" && payload.sub === "example3") {
-                const string = payload.options.string; // integer, number, boolean, user, member, role, channel, mentionable, attachment,
-                // logic code.
-            };
-        };
+    execute: async (client, interaction, options) => {
+        // sub commands
+        if (options.payload?.type === "sub") {
+            if (options.payload.sub === "reload") {
+                const channel = options.payload.options.channel;
+                console.log(channel);
+            }
+        }
+        // group commands
+        if (options.payload?.type === "group") {
+            // sub commands
+            if (options.payload.group === "user" && options.payload.sub === "ban") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.reason);
+            }
+            if (options.payload.group === "user" && options.payload.sub === "kick") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.userid);
+            }
+        }
+        // slash commands
+        // logic code 
     },
 });
 
+// hoặc 
+import { SlashCommandBuilder, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
+
+const exampleCommand = new SlashCommandBuilder()
+    .setName("example")
+    .setDescription("example description")
+    .setCooldown({
+        duration: 5,
+        scope: "user"
+    })
+    .setUserPermissions({ permission: ["SendMessages"] })
+    .setGroups({
+        user: new SlashSubCommandGroupBuilder({
+            description: "User management",
+            subcommands: {
+                ban: new SlashSubCommandBuilder({ .... }),
+                kick: new SlashSubCommandBuilder({ ... }),
+            },
+        }),
+    })
+    .setSubcommands({
+        reload: new SlashSubCommandBuilder({ ... }),
+    })
+    .setExecute(async (client, interaction, options) => {
+        // sub commands
+        if (options.payload?.type === "sub") {
+            if (options.payload.sub === "reload") {
+                const channel = options.payload.options.channel;
+                console.log(channel);
+            }
+        }
+        // group commands
+        if (options.payload?.type === "group") {
+            // sub commands
+            if (options.payload.group === "user" && options.payload.sub === "ban") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.reason);
+            }
+            if (options.payload.group === "user" && options.payload.sub === "kick") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.userid);
+            }
+        }
+        // slash commands
+        // logic code 
+    });
 
 export default exampleCommand;
 ```

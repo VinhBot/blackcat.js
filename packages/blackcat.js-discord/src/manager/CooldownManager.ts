@@ -1,5 +1,5 @@
 import { Collection, GuildMember, PermissionsBitField } from "discord.js";
-import type { CommandBuilder, SlashCommandBuilderOptions } from "..";
+import type { CommandBuilder, SlashCommandBuilder } from "..";
 /**
  * PermissionLevel
  *
@@ -271,7 +271,7 @@ export class CooldownManager {
      * - Nếu đang cooldown -> trả về message string
      * - Nếu không -> set cooldown mới và trả về null
      */
-    public check(command: CommandBuilder | SlashCommandBuilderOptions, ctx: CooldownCommandContext): string | null {
+    public check(command: CommandBuilder | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | null {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
         // Bypass nếu có quyền phù hợp

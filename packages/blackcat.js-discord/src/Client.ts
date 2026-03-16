@@ -1,7 +1,7 @@
 import type { ClientOptions as DiscordClientOptions } from "discord.js";
 import { Client as DiscordClient, Collection } from "discord.js";
 
-import type { CommandBuilderOptions, SlashCommandBuilder, SlashCommandBuilderWithSubs } from "./builder";
+import type { CommandBuilderOptions, SlashCommandBuilder } from "./builder";
 import type { SlashCommandManagerOptions, EventManagerOptions, CommandManagerOptions } from "./manager";
 import { CommandManager, EventManager, SlashCommandManager } from "./manager";
 /**
@@ -41,12 +41,6 @@ export interface ClientOptions extends DiscordClientOptions {
 }
 
 /**
- * Kiểu union đại diện cho mọi dạng slash command builder.
- * @hidden
- */
-type AnySlashCommand = | SlashCommandBuilder<any> | SlashCommandBuilderWithSubs<any, any>;
-
-/**
  * Client mở rộng từ {@link DiscordClient}.
  *
  * Class này là trung tâm của framework bot, quản lý:
@@ -76,7 +70,7 @@ export class Client extends DiscordClient<boolean> {
     /**
      * Danh sách slash commands.
      */
-    public readonly slashCommands: Collection<string, AnySlashCommand>;
+    public readonly slashCommands: Collection<string, SlashCommandBuilder<any>>;
     /**
      * Danh sách categories của command.
      *
@@ -113,7 +107,7 @@ export class Client extends DiscordClient<boolean> {
         // Collection
         this.commands = new Collection<string, CommandBuilderOptions>();
         this.aliases = new Collection<string, string>();
-        this.slashCommands = new Collection<string, AnySlashCommand>();
+        this.slashCommands = new Collection<string, SlashCommandBuilder<any>>();
         this.categories = new Collection<string, Collection<string, CommandBuilderOptions>>();
         // Manager
         this.eventManager = new EventManager(this, options.registerEvents as any);

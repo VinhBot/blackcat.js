@@ -1,5 +1,4 @@
-import { CommandBuilder, ComponentBuilder, PaginationBuilder } from "../../../src";
-import { ChannelType, MessageFlags } from "discord.js";
+import { CommandBuilder, PaginationBuilder, PermissionLevel } from "../../../src";
 
 const pingCommand = new CommandBuilder()
     .setName("ping")
@@ -10,7 +9,7 @@ const pingCommand = new CommandBuilder()
         roleWeights: {
             // "id Role": 0.7,
         },
-        // permissionBypass: PermissionLevel.ADMIN,
+        permissionBypass: PermissionLevel.ADMIN,
         message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
     })
     .setUserPermission({

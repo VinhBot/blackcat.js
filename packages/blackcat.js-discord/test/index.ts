@@ -28,19 +28,19 @@ const client = new Client({
             console.error(`${command.file}:`, command.error);
         }
     },
-    // registerSlashCommands: {
-    //     directory: "./slashCommands",
-    //     guildID: "1055150050357022840",
-    //     reset: {
-    //         guild: true
-    //     },
-    //     onLoad: (command) => {
-    //         console.log(`slashCommands: ${command.commandName} - ok`);
-    //     },
-    //     onError: (command) => {
-    //         console.error(`${command.file}:`, command.error);
-    //     }
-    // }
+    registerSlashCommands: {
+        directory: "./slashCommands",
+        guildID: "1055150050357022840",
+        reset: {
+            guild: true
+        },
+        onLoad: (command) => {
+            console.log(`slashCommands: ${command.commandName} - ok`);
+        },
+        onError: (command) => {
+            console.error(`${command.file}:`, command.error);
+        }
+    }
 });
 
 client.start();

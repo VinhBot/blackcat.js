@@ -1,6 +1,6 @@
-import { SlashCommandBuilderWithSubs, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
+import { SlashCommandBuilder, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
 
-const adminCommand = new SlashCommandBuilderWithSubs({
+const exampleCommand = new SlashCommandBuilder({
     commandName: "admin",
     description: "Admin commands",
     cooldown: {
@@ -59,25 +59,28 @@ const adminCommand = new SlashCommandBuilderWithSubs({
     },
 
     /* EXECUTE */
-    execute: async (client, interaction, payload) => {
-        if (payload.type === "sub") {
-            if (payload.sub === "reload") {
-                await interaction.reply("Bot reloaded.");
+    execute: async (client, interaction, options) => {
+        // sub commands
+        if (options.payload?.type === "sub") {
+            if (options.payload.sub === "reload") {
+                const channel = options.payload.options.channel;
+                console.log(channel);
             }
         }
-
-        if (payload.type === "group") {
-            if (payload.group === "user" && payload.sub === "ban") {
-                payload.options.user;   // strongly typed User
-                payload.options.reason; // string
+        // group commands
+        if (options.payload?.type === "group") {
+            // sub commands
+            if (options.payload.group === "user" && options.payload.sub === "ban") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.reason);
             }
-            if (payload.group === "user" && payload.sub === "kick") {
-                payload.options.user;
-                payload.options.userid
+            if (options.payload.group === "user" && options.payload.sub === "kick") {
+                console.log(options.payload.options.user);
+                console.log(options.payload.options.userid);
             }
         }
+        // slash commands
+        // logic code 
     },
 });
-
-
-export default adminCommand;
+export default exampleCommand;
