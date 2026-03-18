@@ -1,52 +1,59 @@
 {
   "name": "blackcat.js-discord",
   "version": "1.0.6",
-  "description": "discord.js wrapper for blackcat.js",
+  "description": "Một thư viện bao bọc mạnh mẽ cho discord.js, hỗ trợ cho framework blackcat.js.",
   "author": "Nguyen Vinh",
   "license": "ISC",
   "type": "module",
   "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.cjs"
-      }
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
     }
   },
+  "files": ["dist"],
   "scripts": {
     "build": "tsup",
     "docs": "typedoc",
     "build:all": "node --run build && node --run docs",
-    "dev": "npx tsx test/index.ts"
+    "dev": "tsx test/index.ts"
   },
-  "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VinhBot/blackcat.js.git",
+    "directory": "packages/blackcat.js-discord"
+  },
+  "bugs": {
+    "url": "https://github.com/VinhBot/blackcat.js/issues"
+  },
+  "homepage": "https://blackcatjs-discord-docs.vercel.app/",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "discord",
+    "discord.js",
+    "discordjs",
+    "discord framework",
+    "blackcat.js",
+    "blackcat.js-discord",
+    "discord bot framework"
+  ],
+  "dependencies": {
+    "discord.js": "^14.25.1"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "tsup": "^8.5.1",
     "typedoc": "^0.28.17",
     "typedoc-rhineai-theme": "^1.2.0",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "discord.js": "^14.25.1"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "keywords": [
-    "discord.js",
-    "discordjs",
-    "blackcat.js",
-    "discord-commando",
-    "discord",
-    "blackcat.js",
-    "blackcat.js-discord",
-    "blackcat.js-database"
-  ]
+  }
 }
