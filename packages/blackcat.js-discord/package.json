@@ -1,16 +1,16 @@
 {
   "name": "blackcat.js-discord",
   "version": "1.0.6",
-  "description": "Một thư viện bao bọc mạnh mẽ cho discord.js, hỗ trợ cho framework blackcat.js.",
+  "description": "Một lớp bao bọc mạnh mẽ cho discord.js được thiết kế bởi framework blackcat.js.",
   "author": "Nguyen Vinh",
   "license": "ISC",
   "type": "module",
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     }
@@ -37,14 +37,15 @@
   "engines": {
     "node": ">=18"
   },
+  "sideEffects": false,
   "keywords": [
     "discord",
     "discord.js",
     "discordjs",
+    "discord bot",
     "discord framework",
     "blackcat.js",
-    "blackcat.js-discord",
-    "discord bot framework"
+    "blackcat.js-discord"
   ],
   "dependencies": {
     "discord.js": "^14.25.1"
