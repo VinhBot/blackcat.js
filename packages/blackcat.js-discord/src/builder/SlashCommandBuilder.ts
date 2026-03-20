@@ -17,8 +17,8 @@ import type {
     InteractionReplyOptions,
     CommandInteractionOptionResolver,
     SlashCommandSubcommandGroupBuilder,
-    SlashCommandSubcommandBuilder,
 } from "discord.js";
+
 import type { Client, CooldownConfig } from "..";
 import { cooldownManager } from "..";
 /**
@@ -46,6 +46,9 @@ type SlashOptionGetReturnMap = {
     getMentionable: ReturnType<Resolver["getMentionable"]>;
     getAttachment: ReturnType<Resolver["getAttachment"]>;
 };
+/**
+ * @hidden
+ */
 type BaseOption<TMethod extends keyof SlashOptionGetReturnMap> = {
     /**
      * Method của CommandInteractionOptionResolver dùng để lấy dữ liệu
@@ -60,6 +63,9 @@ type BaseOption<TMethod extends keyof SlashOptionGetReturnMap> = {
      */
     required: boolean;
 };
+/**
+ * @hidden
+ */
 type StringOption = BaseOption<"getString"> & {
     /**
      * Danh sách lựa chọn cố định
@@ -74,6 +80,9 @@ type StringOption = BaseOption<"getString"> & {
      */
     maxLength?: number;
 };
+/**
+ * @hidden
+ */
 type IntegerOption = BaseOption<"getInteger"> & {
     /**
      * Danh sách lựa chọn số nguyên
@@ -88,6 +97,9 @@ type IntegerOption = BaseOption<"getInteger"> & {
      */
     max?: number;
 };
+/**
+ * @hidden
+ */
 type NumberOption = BaseOption<"getNumber"> & {
     /**
      * Danh sách lựa chọn số
@@ -102,17 +114,38 @@ type NumberOption = BaseOption<"getNumber"> & {
      */
     max?: number;
 };
+/**
+ * @hidden
+ */
 type ChannelOption = BaseOption<"getChannel"> & {
     /**
      * Giới hạn loại channel có thể chọn
      */
     channelTypes?: Array<keyof typeof ChannelType>;
 };
+/**
+ * @hidden
+ */
 type BooleanOption = BaseOption<"getBoolean">;
+/**
+ * @hidden
+ */
 type UserOption = BaseOption<"getUser">;
+/**
+ * @hidden
+ */
 type MemberOption = BaseOption<"getMember">;
+/**
+ * @hidden
+ */
 type RoleOption = BaseOption<"getRole">;
+/**
+ * @hidden
+ */
 type MentionableOption = BaseOption<"getMentionable">;
+/**
+ * @hidden
+ */
 type AttachmentOption = BaseOption<"getAttachment">;
 /**
  * Factory tạo option cho Slash Command.
@@ -172,7 +205,7 @@ type InferOptions<T extends Record<string, any>> = {
  *
  * @template TOptions danh sách option của subcommand
  */
-interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> {
+export interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | undefined = undefined> {
     /**
      * Mô tả subcommand
      */
@@ -193,7 +226,7 @@ interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | undefin
 /**
  * Interface builder cho nhóm subcommand.
  */
-interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCommandBuilder<any>>> {
+export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCommandBuilder<any>>> {
     /**
      * Mô tả group
      */
@@ -210,6 +243,7 @@ interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCommandBui
 
 /**
  * Config khởi tạo Subcommand Builder
+ * @hidden
  */
 interface SlashSubCommandBuilderConfig<TOptions> {
     description: string;
@@ -217,6 +251,7 @@ interface SlashSubCommandBuilderConfig<TOptions> {
 }
 /**
  * Config khởi tạo Subcommand Group Builder
+ * @hidden
  */
 interface SlashSubCommandGroupBuilderConfig<TSubs> {
     description: string;
@@ -226,7 +261,7 @@ interface SlashSubCommandGroupBuilderConfig<TSubs> {
 /**
  * Cấu hình permission cho slash command
  */
-interface SlashPermissionConfig {
+export interface SlashPermissionConfig {
     /**
      * Danh sách quyền cần thiết
      */
@@ -244,10 +279,12 @@ interface SlashPermissionConfig {
 
 /**
  * Infer root options của command
+ * @hidden
  */
 type RootOptions<TOptions> = TOptions extends Record<string, unknown> ? InferOptions<TOptions> : Record<string, never>;
 /**
  * Kiểu options được truyền vào hàm execute
+ * @hidden
  *
  * Bao gồm:
  * - root options
@@ -259,10 +296,12 @@ type ExecuteOptions<TOptions, TSubs, TGroups> = RootOptions<TOptions> & {
 /**
  * InteractionOptions được expose cho execute
  * Loại bỏ các method không cần thiết.
+ * @hidden
  */
 type InteractionOptions = Omit<CommandInteractionOptionResolver, "getMessage" | "getFocused">;
 /**
  * Infer kiểu dữ liệu options của một subcommand.
+ * @hidden
  *
  * Nếu subcommand có options → suy luận kiểu từ InferOptions  
  * Nếu không có → trả về object rỗng.
@@ -272,6 +311,7 @@ type InteractionOptions = Omit<CommandInteractionOptionResolver, "getMessage" | 
 type InferSub<T> = T extends ISlashSubCommandBuilder<infer O> ? O extends Record<string, any> ? InferOptions<O> : {} : never;
 /**
  * Union type cho các subcommand trực tiếp (không thuộc group).
+ * @hidden
  *
  * Ví dụ:
  * ```ts
@@ -309,6 +349,7 @@ type DirectSubUnion<TSubs> = {
 
 /**
  * Union type cho subcommand nằm trong group.
+ * @hidden
  *
  * Ví dụ:
  * ```ts
@@ -346,6 +387,7 @@ type GroupSubUnion<TGroups> = {
 }[keyof TGroups];
 /**
  * Map handler cho từng loại Slash option.
+ * @hidden
  *
  * Mỗi option type sẽ có:
  * - parse(): đọc dữ liệu từ InteractionOptions

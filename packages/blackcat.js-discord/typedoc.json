@@ -7,5 +7,11 @@
   "includeVersion": true,
   "disableSources": true,
   "readme": "README.md",
-  "name": "blackcat.js-discord"
+  "name": "blackcat.js-discord",
+  "externalSymbolLinkMappings": {
+    "discord.js": {
+      "Client": "https://discord.js.org/docs/packages/discord.js/stable/Client",
+      "User": "https://discord.js.org/docs/packages/discord.js/stable/User"
+    }
+  }
 }
