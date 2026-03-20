@@ -1204,6 +1204,50 @@ export class PaginationBuilder<T> {
         }
     }
     /**
+     * Xử lý lỗi phát sinh trong quá trình thực thi
+     * 
+     * @param error - Đối tượng lỗi nhận được (`unknown`)
+     * 
+     * @returns Giá trị trả về từ `options.onError` nếu được cung cấp, ngược lại sẽ trả về `undefined`
+     * 
+     * @remarks
+     * Method này đóng vai trò là wrapper để gọi callback `onError`
+     * được truyền vào thông qua `options`.
+     * 
+     * Nếu `onError` không được định nghĩa, method sẽ không thực hiện
+     * bất kỳ xử lý nào và trả về `undefined`.
+     * 
+     * Method không tự xử lý hoặc log lỗi — toàn bộ logic xử lý
+     * phụ thuộc vào implementation của `options.onError`.
+     * 
+     * Dùng khi:
+     * - Chuẩn hoá cách gọi error handler trong class
+     * - Tách biệt logic xử lý lỗi ra khỏi luồng chính
+     * - Cho phép inject custom error handler từ bên ngoài
+     * 
+     * ⚠️ Không có cơ chế fallback nếu `onError` không tồn tại.
+     * Cần đảm bảo xử lý lỗi ở nơi gọi nếu cần thiết.
+     * 
+     * @example
+     * await pagination.onError(new Error("Something went wrong"));
+     * 
+     * @example
+     * const pagination = new PaginationBuilder({
+     *   onError: (err) => console.error(err),
+     * });
+     * 
+     * await pagination.onError(new Error("Fail"));
+     * 
+     * @example
+     * // Không có onError → không có gì xảy ra
+     * await pagination.onError("Unknown error");
+     * 
+     * @see options.onError
+     */
+    public async onError(error: unknown) {
+        return this.options.onError?.(error);
+    }
+    /**
      * Kiểm tra trạng thái hoạt động của pagination
      * 
      * @returns boolean `true` nếu pagination đang chạy, ngược lại `false`
