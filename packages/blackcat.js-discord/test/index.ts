@@ -2,7 +2,7 @@ import { GatewayIntentBits } from "discord.js";
 import { Client } from "blackcat.js-discord";
 
 const config = {
-    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.GPO6MK.M0vxzkmPsaQibXb2D4kGFIumSiFEPIcC3js9U0",
+    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
 };
 
 const client = new Client({

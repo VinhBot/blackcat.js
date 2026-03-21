@@ -11,31 +11,6 @@ import {
 } from "..";
 
 /**
- * Context được truyền vào khi build components (buttons, select menu)
- * dùng để điều hướng pagination.
- */
-type PaginationBuildComponentsContext<T> = {
-    /** 
-     * Trang hiện tại (bắt đầu từ 1) 
-     */
-    page: number;
-    /** 
-     * Tổng số trang 
-     */
-    totalPages: number;
-    /** 
-     * Dữ liệu của trang hiện tại 
-     */
-    data: T;
-    /** 
-     * Instance của PaginationBuilder
-     */
-    pagination: PaginationBuilder<T>;
-
-    components: ComponentBuilder<AnyComponent>;
-};
-
-/**
  * Context dùng trong renderPage
  */
 type PaginationRenderContext<T> = {
@@ -306,7 +281,70 @@ export type PaginationOptions<T> = {
      *   }
      * });
      */
-    buildComponents?: (ctx: PaginationBuildComponentsContext<T>) => ComponentBuilder<AnyComponent> | Promise<ComponentBuilder<AnyComponent>>;
+    buildComponents?: (ctx: {
+        /**
+         * Trang hiện tại (bắt đầu từ 1).
+         *
+         * @remarks
+         * Dùng để:
+         * - Disable/enable nút phân trang (prev/next)
+         * - Hiển thị trạng thái hiện tại
+         *
+         * @example
+         * disabled: page <= 1
+         */
+        page: number;
+        /**
+         * Tổng số trang có sẵn.
+         *
+         * @remarks
+         * Dùng để:
+         * - Giới hạn pagination
+         * - Kiểm tra trang cuối
+         *
+         * @example
+         * disabled: page >= totalPages
+         */
+        totalPages: number;
+        /**
+         * Dữ liệu của trang hiện tại.
+         *
+         * @remarks
+         * Đây là kết quả từ {@link PaginationBuilder.getPageData}.
+         * Có thể là array, object, hoặc bất kỳ kiểu dữ liệu generic `T`.
+         *
+         * @example
+         * // Nếu T là array
+         * data.forEach(item => ...)
+         */
+        data: T;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Cho phép truy cập:
+         * - `pagination.state` (state tuỳ chỉnh)
+         * - Các method như `reload`, `refreshComponents`, ...
+         *
+         * ⚠️ Tránh gọi `reload()` bên trong `buildComponents` để không gây loop không mong muốn.
+         */
+        pagination: PaginationBuilder<T>;
+        /**
+         * Builder dùng để tạo và chỉnh sửa components.
+         *
+         * @remarks
+         * Đây là object mutable:
+         * - Có thể thêm button, select menu, ...
+         * - Sau khi chỉnh sửa, cần return lại để áp dụng
+         *
+         * @example
+         * components.addButton([
+         *   { customId: "next", label: "Next", style: "Primary" }
+         * ]);
+         * return components;
+         */
+        components: ComponentBuilder<AnyComponent>;
+    }) => ComponentBuilder<AnyComponent> | Promise<ComponentBuilder<AnyComponent>>;
     /**
      * Xử lý interaction custom (ngoài navigation mặc định)
      * 
@@ -325,23 +363,92 @@ export type PaginationOptions<T> = {
      */
     onComponent?: (ctx: PaginationComponentContext<T>) => Promise<any> | any;
     /**
-     * Callback khi trang thay đổi
-     * 
-     * 
-     * Dùng để:
-     * - Log
-     * - Analytics
-     * - Trigger side effects
-     * 
+     * Callback được gọi mỗi khi page thay đổi.
+     *
+     * @remarks
+     * Hook này chạy **sau khi page đã được cập nhật**,
+     * thường được dùng để:
+     * - Log / analytics
+     * - Sync state bên ngoài
+     * - Trigger side-effects
+     *
+     * ⚠️ Lưu ý:
+     * - Không nên mutate lại `pagination.page` trong hook này
+     * - Tránh gọi lại action đổi page → có thể gây loop
+     *
+     * @param ctx - {@link OnPageChangeContext}
+     *
+     * @returns Có thể trả về Promise hoặc giá trị bất kỳ (không được sử dụng nội bộ)
+     *
      * @example
      * onPageChange: ({ oldPage, newPage }) => {
-     *   console.log(`Từ ${oldPage} -> ${newPage}`);
+     *   console.log(`Page: ${oldPage} -> ${newPage}`);
      * }
+     *
+     * @example
+     * // Tracking user interaction
+     * onPageChange: async ({ interaction, newPage }) => {
+     *   await logToDatabase({
+     *     userId: interaction.user.id,
+     *     page: newPage
+     *   });
+     * }
+     *
+     * @example
+     * // Sync state ngoài
+     * onPageChange: ({ pagination, newPage }) => {
+     *   pagination.state.lastVisitedPage = newPage;
+     * }
+     *
+     * @see PaginationBuilder
      */
     onPageChange?: (ctx: {
+        /**
+         * Trang trước đó.
+         *
+         * @remarks
+         * Giá trị page trước khi pagination được cập nhật.
+         *
+         * @example
+         * if (oldPage === 1) console.log("Rời trang đầu");
+         */
         oldPage: number;
+        /**
+         * Trang mới sau khi thay đổi.
+         *
+         * @remarks
+         * Giá trị page sau khi user tương tác (button/select menu).
+         *
+         * @example
+         * if (newPage === totalPages) console.log("Đến trang cuối");
+         */
         newPage: number;
+        /**
+         * Interaction đã trigger việc đổi trang.
+         *
+         * @remarks
+         * Có thể là:
+         * - ButtonInteraction (prev/next)
+         * - StringSelectMenuInteraction (jump page)
+         *
+         * Dùng để:
+         * - Reply / defer
+         * - Lấy user info
+         *
+         * @example
+         * await interaction.deferUpdate();
+         */
         interaction: ButtonInteraction | StringSelectMenuInteraction;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Có thể dùng để:
+         * - Truy cập state (`pagination.state`)
+         * - Gọi các method như `reload`, `refreshComponents`
+         *
+         * ⚠️ Tránh gọi lại logic đổi page bên trong hook này để không gây loop ngoài ý muốn.
+         */
         pagination: PaginationBuilder<T>;
     }) => Promise<any> | any;
     /**
@@ -394,87 +501,279 @@ export type PaginationOptions<T> = {
         menu?: boolean;
     };
     /**
-     * Cấu hình select menu
-     * 
-     * 
-     * Tuỳ chỉnh dropdown chọn trang
-     * 
+     * Cấu hình select menu (dropdown) cho pagination.
+     *
+     * @remarks
+     * Cho phép người dùng chọn trực tiếp trang thông qua dropdown.
+     * Nếu không cấu hình hoặc `enabled = false`, select menu sẽ không được render.
+     *
      * @example
      * selectMenu: {
      *   enabled: true,
      *   placeholder: "Chọn trang",
-     *   pageLabel: (page) => `Trang ${page + 1}`
+     *   pageLabel: (page) => `Trang ${page}`
      * }
      */
     selectMenu?: {
+        /**
+         * Bật/tắt select menu.
+         *
+         * @defaultValue false
+         *
+         * @remarks
+         * Khi bật:
+         * - Hiển thị dropdown chứa danh sách các trang
+         * - Cho phép user nhảy đến trang bất kỳ
+         */
         enabled?: boolean;
+        /**
+         * Nội dung placeholder của select menu.
+         *
+         * @defaultValue "Select a page"
+         *
+         * @remarks
+         * Text hiển thị khi chưa có option nào được chọn.
+         *
+         * @example
+         * placeholder: "Chọn trang..."
+         */
         placeholder?: string;
+        /**
+         * Hàm dùng để format label cho từng option (trang).
+         *
+         * @param page - Số trang (bắt đầu từ 1)
+         *
+         * @returns Chuỗi label hiển thị trong dropdown
+         *
+         * @remarks
+         * Dùng để tuỳ chỉnh cách hiển thị trang.
+         *
+         * @example
+         * pageLabel: (page) => `Trang ${page}`
+         *
+         * @example
+         * // Hiển thị dạng fancy
+         * pageLabel: (page) => `📄 Page ${page}`
+         */
         pageLabel?: (page: number) => string;
     };
     /**
-     * Callback khi pagination bắt đầu
-     * 
+     * Callback được gọi khi pagination bắt đầu.
+     *
+     * @remarks
+     * Hook này chạy **sau khi message đã được gửi**
+     * và pagination đã được khởi tạo hoàn chỉnh.
+     *
+     * Thường dùng để:
+     * - Log / debug
+     * - Lưu reference message
+     * - Trigger side-effects ban đầu
+     *
+     * ⚠️ Lưu ý:
+     * - Không nên edit message ngay trong hook này nếu không cần thiết
+     * - Tránh gọi `reload()` liên tục → có thể gây spam API
+     *
+     * @returns Có thể trả về Promise hoặc giá trị bất kỳ (không được sử dụng nội bộ)
+     *
      * @example
      * onStart: ({ message }) => {
      *   console.log("Started:", message.id);
      * }
+     *
+     * @example
+     * // Lưu message để dùng sau
+     * onStart: ({ message, pagination }) => {
+     *   pagination.state.messageId = message.id;
+     * }
+     *
+     * @example
+     * // Logging async
+     * onStart: async ({ message }) => {
+     *   await logToDatabase({ messageId: message.id });
+     * }
+     *
+     * @see PaginationBuilder
      */
     onStart?: (ctx: {
+        /**
+         * Message đã được gửi và gắn với pagination.
+         *
+         * @remarks
+         * Đây là message chính mà pagination sẽ thao tác (`edit`, update components, ...).
+         *
+         * @example
+         * console.log(message.id);
+         */
         message: Message;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Cho phép truy cập:
+         * - `pagination.state`
+         * - Các method như `reload`, `refreshComponents`
+         */
         pagination: PaginationBuilder<T>;
     }) => any;
     /**
-     * Callback khi pagination dừng
-     * 
+     * Callback được gọi khi pagination dừng.
+     *
+     * @remarks
+     * Hook này chạy khi collector bị stop (thủ công hoặc do timeout).
+     *
+     * Thường dùng để:
+     * - Cleanup (disable buttons, xoá state, ...)
+     * - Log / debug
+     *
+     * ⚠️ Lưu ý:
+     * - Hook này luôn chạy, kể cả khi timeout
+     * - Nếu cần phân biệt timeout, dùng {@link onTimeout}
+     *
      * @example
-     * onStop: () => {
-     *   console.log("Stopped");
+     * onStop: ({ message }) => {
+     *   console.log("Stopped:", message.id);
      * }
+     *
+     * @example
+     * // Disable toàn bộ button khi stop
+     * onStop: async ({ pagination }) => {
+     *    await pagination.stop();
+     * }
+     *
+     * @see onTimeout
      */
     onStop?: (ctx: {
+        /**
+         * Message đã được gửi và gắn với pagination.
+         *
+         * @remarks
+         * Đây là message chính mà pagination sẽ thao tác (`edit`, update components, ...).
+         *
+         * @example
+         * console.log(message.id);
+         */
         message: Message;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Cho phép truy cập:
+         * - `pagination.state`
+         * - Các method như `reload`, `refreshComponents`
+         */
         pagination: PaginationBuilder<T>;
     }) => any;
     /**
-     * Callback khi hết thời gian (timeout)
-     * 
+     * Callback được gọi khi pagination hết thời gian (timeout).
+     *
+     * @remarks
+     * Hook này chạy khi collector tự động stop do vượt quá `timeout`.
+     *
+     * Thường dùng để:
+     * - Thông báo timeout
+     * - Disable UI
+     * - Cleanup tài nguyên
+     *
+     * ⚠️ Lưu ý:
+     * - Hook này chỉ chạy khi timeout (không chạy khi stop thủ công)
+     * - Sau đó {@link onStop} vẫn sẽ được gọi
+     *
      * @example
      * onTimeout: () => {
      *   console.log("Timeout");
      * }
+     *
+     * @example
+     * // Disable UI khi timeout
+     * onTimeout: async ({ pagination }) => {
+     *    await pagination.stop();
+     * }
+     *
+     * @see onStop
      */
     onTimeout?: (ctx: {
+        /**
+         * Message đã được gửi và gắn với pagination.
+         *
+         * @remarks
+         * Đây là message chính mà pagination sẽ thao tác (`edit`, update components, ...).
+         *
+         * @example
+         * console.log(message.id);
+         */
         message: Message;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Cho phép truy cập:
+         * - `pagination.state`
+         * - Các method như `reload`, `refreshComponents`
+         */
         pagination: PaginationBuilder<T>;
     }) => any;
     /**
-     * Xử lý lỗi toàn cục
-     * 
-     * @param error Lỗi phát sinh
-     * 
-     * 
+     * Callback xử lý lỗi toàn cục.
+     *
+     * @remarks
+     * Được gọi khi có lỗi xảy ra trong lifecycle của pagination.
+     *
      * Dùng để:
      * - Log lỗi
-     * - Tránh crash
-     * 
+     * - Tránh crash ứng dụng
+     * - Gửi thông báo cho developer / user
+     *
+     * ⚠️ Nếu không cung cấp hook này, lỗi có thể bị throw ra ngoài.
+     *
      * @example
-     * onError: (err) => {
-     *   console.error(err);
+     * onError: ({ error }) => {
+     *   console.error(error);
      * }
-     */
-    onError?: (error: unknown) => any;
-    /**
-     * Thời gian timeout (giây)
-     * 
-     * @default 120
-     * 
-     * 
-     * Sau thời gian này:
-     * - Collector sẽ stop
-     * - Trigger onTimeout
-     * 
+     *
      * @example
-     * timeout: 60
+     * // Logging nâng cao
+     * onError: async ({ error }) => {
+     *   await logToService(error);
+     * }
+     *
+     * @see PaginationBuilder
+     */
+    onError?: (ctx: {
+        /**
+         * Lỗi phát sinh trong quá trình hoạt động của pagination.
+         *
+         * @remarks
+         * Có thể đến từ:
+         * - `getPageData`
+         * - `renderPage`
+         * - `buildComponents`
+         * - Discord API (`message.edit`, interaction, ...)
+         * - cũng có thể từ pagination.onError("error") mà bạn dùng.
+         */
+        error: unknown;
+        /**
+         * Instance hiện tại của {@link PaginationBuilder}.
+         *
+         * @remarks
+         * Cho phép truy cập:
+         * - `pagination.state`
+         * - Các method như `reload`, `refreshComponents`
+         */
+        pagination: PaginationBuilder<T>;
+    }) => any;
+    /**
+     * Thời gian timeout của pagination (tính bằng giây).
+     *
+     * @defaultValue 120
+     *
+     * @remarks
+     * Sau khoảng thời gian này:
+     * - Collector sẽ tự động stop
+     * - Trigger {@link onTimeout}
+     * - Sau đó trigger {@link onStop}
+     *
+     * @example
+     * timeout: 60 // 1 phút
      */
     timeout?: number;
 };
@@ -741,7 +1040,7 @@ export class PaginationBuilder<T> {
             next: true,
             last: true,
             jump: true,
-            menu: true,
+            menu: false,
             ...navigation
         };
 
@@ -848,7 +1147,7 @@ export class PaginationBuilder<T> {
                             if (Number.isNaN(page) || page < 0) return;
                             await this.goto(page);
                         } catch (error) {
-                            this.options.onError?.(error);
+                            this.onError(error);
                         }
                         return;
                     }
@@ -868,9 +1167,9 @@ export class PaginationBuilder<T> {
                         page: this.page,
                         totalPages: this.totalPages,
                         data: data
-                    } as PaginationComponentContext<T>);
+                    });
                 } catch (error) {
-                    this.options.onError?.(error);
+                    this.onError(error);
                 }
             },
             onEnd: (ctx) => {
@@ -994,70 +1293,6 @@ export class PaginationBuilder<T> {
         } else {
             await this.message.edit({ ...content, components });
         }
-    }
-    /**
-     * Cập nhật lại toàn bộ components (buttons, select menu) của message hiện tại
-     * mà không thay đổi nội dung (content/embed)
-     * 
-     * @returns Promise<void>
-     * 
-     * @remarks
-     * Đây là method dùng để **refresh UI** mà không re-render nội dung trang.
-     * 
-     * Nó sẽ:
-     * - Lấy lại data của trang hiện tại
-     * - Build lại components (buttons, select menu)
-     * - Gọi `message.edit()` chỉ với phần `components`
-     * 
-     * 
-     * Dùng khi:
-     * - Trạng thái button thay đổi (disable/enable)
-     * - Custom component cần update (label, style,...)
-     * - State nội bộ (`pagination.state`) ảnh hưởng đến UI
-     * 
-     * ⚠️ Không gọi `renderPage`, nên:
-     * - Content sẽ giữ nguyên
-     * - Chỉ thay đổi phần interactive components
-     * 
-     * @example
-     * // Refresh lại button sau khi thay đổi state
-     * pagination.state.isLocked = true;
-     * await pagination.refreshComponents();
-     * 
-     * @example
-     * // Update label button động
-     * buildComponents: ({ components, pagination }) => {
-     *   components.addButton([
-     *      {
-     *         customId: "toggle",
-     *         label: pagination.state.enabled ? "ON" : "OFF",
-     *         style: "Primary"
-     *       }
-     *   ]);
-     * }
-     * 
-     * // Sau khi toggle state
-     * pagination.state.enabled = !pagination.state.enabled;
-     * await pagination.refreshComponents();
-     * 
-     * @example
-     * // Disable toàn bộ button theo điều kiện
-     * if (someCondition) {
-     *   pagination.state.disabled = true;
-     *   await pagination.refreshComponents();
-     * }
-     * 
-     * @throws {Error}
-     * Có thể throw nếu:
-     * - `getPageData` thất bại
-     * - `buildComponents` lỗi
-     * - Discord API `message.edit` thất bại
-     */
-    public async refreshComponents() {
-        const data = await this.getPageData(this.page);
-        await this.message.edit({
-            components: await this.buildComponents(data),
-        });
     }
     /**
      * Cập nhật lại toàn bộ danh sách pages (dữ liệu tĩnh) và render lại pagination
@@ -1200,7 +1435,7 @@ export class PaginationBuilder<T> {
                 pagination: this,
             });
         } catch (error) {
-            this.options.onError?.(error);
+            this.onError(error);
         }
     }
     /**
@@ -1245,7 +1480,10 @@ export class PaginationBuilder<T> {
      * @see options.onError
      */
     public async onError(error: unknown) {
-        return this.options.onError?.(error);
+        return this.options.onError?.({
+            error: error,
+            pagination: this
+        });
     }
     /**
      * Kiểm tra trạng thái hoạt động của pagination
@@ -1599,66 +1837,189 @@ export class PaginationBuilder<T> {
         };
     }
     /**
-     * Render lại toàn bộ message (content + components) của trang hiện tại
+     * Cập nhật một phần message (content và/hoặc components)
+     * 
+     * @param options - Cấu hình phần cần update
+     * @param options.content - Cập nhật nội dung (`renderPage`)
+     * @param options.components - Cập nhật components (`buildComponents`)
      * 
      * @returns Promise<void>
      * 
      * @remarks
-     * Đây là method dùng để "re-render" pagination mà không thay đổi page.
+     * Method này cho phép update riêng lẻ hoặc đồng thời:
+     * - Nội dung message (content)
+     * - Components (buttons, select menu,...)
      * 
-     * Nó sẽ:
-     * - Lấy lại data của trang hiện tại
-     * - Gọi `renderPage` để tạo content mới
-     * - Build lại components
-     * - Edit message
+     * Flow thực thi:
+     * 1. Nếu không có gì cần update → return sớm
+     * 2. Lấy data hiện tại qua `getPageData`
+     * 3. Thực thi song song:
+     *    - `renderPage` (nếu cần content)
+     *    - `buildComponents` (nếu cần components)
+     * 4. Merge payload hợp lệ
+     * 5. Gọi `message.edit` để apply thay đổi
      * 
+     * Khi update content:
+     * - Field `components` từ `renderPage` sẽ bị loại bỏ
+     * - Tránh conflict với `components` được build riêng
      * 
      * Dùng khi:
-     * - Data thay đổi nhưng vẫn ở cùng page
-     * - Cần cập nhật UI + nội dung
-     * - Sau khi gọi `clearCache`
+     * - Chỉ cần update UI một phần (tối ưu hiệu năng)
+     * - Tách biệt logic render content và components
+     * - Tránh re-render toàn bộ message không cần thiết
      * 
-     * ⚠️ Khác với `refreshComponents()`:
-     * - `reload()` → update cả content + components
-     * - `refreshComponents()` → chỉ update components
-     * 
-     * @example
-     * // Reload sau khi clear cache
-     * pagination.clearCache();
-     * await pagination.reload();
+     * ⚠️ Lưu ý:
+     * - Nếu cả hai option đều `false` hoặc không truyền → không làm gì
+     * - `renderPage` và `buildComponents` phải trả về dữ liệu hợp lệ
+     * - `message` phải còn tồn tại và editable
      * 
      * @example
-     * // Update data động
-     * pagination.state.keyword = "discord";
-     * await pagination.reload();
+     * // Chỉ update nội dung
+     * await pagination.reloadPartial({ content: true });
      * 
      * @example
-     * // Refresh nội dung sau khi backend thay đổi
-     * await updateDatabase();
-     * await pagination.reload();
+     * // Chỉ update components
+     * await pagination.reloadPartial({ components: true });
      * 
-     * @throws {Error}
-     * Có thể throw nếu:
-     * - `getPageData` thất bại
-     * - `renderPage` lỗi
-     * - Discord API `message.edit` thất bại
+     * @example
+     * // Update cả hai (chạy song song)
+     * await pagination.reloadPartial({ content: true, components: true });
      * 
-     * @see PaginationBuilder.refreshComponents
-     * @see PaginationBuilder.getPageData
+     * @see PaginationBuilder.reloadContent
+     * @see PaginationBuilder.buildComponents
      */
-    public async reload() {
+    public async reloadPartial(options: { content?: boolean; components?: boolean }) {
+        if (!options.content && !options.components) return;
         const data = await this.getPageData(this.page);
-
-        const content = await this.options.renderPage({
+        const payload: Record<string, unknown> = {};
+        const contentPromise = options.content ? this.options.renderPage({
             page: this.page,
             totalPages: this.totalPages,
             data: data,
             pagination: this,
-        });
-
-        await this.message.edit({
-            ...content,
-            components: await this.buildComponents(data),
-        });
+        }) : null;
+        const componentsPromise = options.components ? this.buildComponents(data) : null;
+        const [contentResult, componentsResult] = await Promise.all([
+            contentPromise,
+            componentsPromise,
+        ]);
+        if (contentResult) {
+            const { components: _ignored, ...safeContent } = contentResult;
+            Object.assign(payload, safeContent);
+        }
+        if (componentsResult) {
+            payload.components = componentsResult;
+        }
+        if (!Object.keys(payload).length) return;
+        await this.message.edit(payload);
+    }
+    /**
+     * Re-render toàn bộ message (content + components) của trang hiện tại.
+     *
+     * @remarks
+     * Wrapper của {@link reloadPartial} với `{ content: true, components: true }`.
+     *
+     * Method này sẽ:
+     * - Lấy lại data của page hiện tại
+     * - Render lại nội dung (`renderPage`)
+     * - Build lại components
+     * - Update message thông qua `message.edit`
+     *
+     * Không thay đổi page hay trạng thái pagination.
+     *
+     * @example
+     * // Reload sau khi clear cache
+     * pagination.clearCache();
+     * await pagination.reload();
+     *
+     * @example
+     * // Data thay đổi nhưng vẫn ở cùng page
+     * await updateDatabase();
+     * await pagination.reload();
+     *
+     * @throws {Error} Khi:
+     * - `getPageData` thất bại
+     * - `renderPage` lỗi
+     * - `buildComponents` lỗi
+     * - `message.edit` thất bại
+     *
+     * @see reloadPartial
+     * @see refreshComponents
+     * @see reloadContent
+     */
+    public async reload() {
+        return this.reloadPartial({ content: true, components: true });
+    }
+    /**
+     * Chỉ cập nhật lại components (buttons, select menu) của message hiện tại.
+     *
+     * @remarks
+     * Wrapper của {@link reloadPartial} với `{ components: true }`.
+     *
+     * Method này:
+     * - Lấy lại data của page hiện tại
+     * - Build lại components
+     * - Gọi `message.edit` chỉ với `components`
+     *
+     * Không gọi `renderPage`, nên:
+     * - Content / embed giữ nguyên
+     * - Chỉ thay đổi UI tương tác
+     *
+     * Phù hợp khi:
+     * - Enable/disable button
+     * - Thay đổi label / style
+     * - State nội bộ ảnh hưởng UI
+     *
+     * @example
+     * pagination.state.enabled = !pagination.state.enabled;
+     * await pagination.refreshComponents();
+     *
+     * @throws {Error} Khi:
+     * - `getPageData` thất bại
+     * - `buildComponents` lỗi
+     * - `message.edit` thất bại
+     *
+     * @see reloadPartial
+     * @see reload
+     */
+    public async refreshComponents() {
+        return this.reloadPartial({ components: true });
+    }
+    /**
+     * Re-render lại nội dung (content / embed) của message hiện tại.
+     *
+     * @remarks
+     * Wrapper của {@link reloadPartial} với `{ content: true }`.
+     *
+     * Method này:
+     * - Lấy lại data của page hiện tại
+     * - Render lại nội dung qua `renderPage`
+     * - Update message (không bao gồm components)
+     *
+     * Không thay đổi:
+     * - Page
+     * - Components hiện tại
+     *
+     * Phù hợp khi:
+     * - Data thay đổi
+     * - Cần cập nhật nội dung nhưng giữ nguyên UI
+     *
+     * @example
+     * await pagination.reloadContent();
+     *
+     * @example
+     * pagination.page = 1;
+     * await pagination.reloadContent();
+     *
+     * @throws {Error} Khi:
+     * - `getPageData` thất bại
+     * - `renderPage` lỗi
+     * - `message.edit` thất bại
+     *
+     * @see reloadPartial
+     * @see reload
+     */
+    public async reloadContent() {
+        return this.reloadPartial({ content: true });
     }
 }

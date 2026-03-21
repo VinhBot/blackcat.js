@@ -242,14 +242,6 @@ export interface ISlashSubCommandGroup<TSubs extends Record<string, ISlashSubCom
 }
 
 /**
- * Config khởi tạo Subcommand Builder
- * @hidden
- */
-interface SlashSubCommandBuilderConfig<TOptions> {
-    description: string;
-    options?: (option: OptionFactory) => TOptions;
-}
-/**
  * Config khởi tạo Subcommand Group Builder
  * @hidden
  */
@@ -570,7 +562,10 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
      *
      * @param config cấu hình subcommand
      */
-    constructor(config: SlashSubCommandBuilderConfig<TOptions>) {
+    constructor(config: {
+        description: string;
+        options?: (option: OptionFactory) => TOptions;
+    }) {
         this.description = config.description;
         this.defs = config.options?.(slashOption);
     }
