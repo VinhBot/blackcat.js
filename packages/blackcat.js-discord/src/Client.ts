@@ -1,5 +1,5 @@
-import type { ClientOptions as DiscordClientOptions, Events } from "discord.js";
-import { Client as DiscordClient, Collection } from "discord.js";
+import type { ClientOptions as DiscordClientOptions } from "discord.js";
+import { Client as DiscordClient, Collection, Partials, GatewayIntentBits } from "discord.js";
 
 import type { CommandBuilder, SlashCommandBuilder } from "./builder";
 import { CommandManager, EventManager, SlashCommandManager } from "./manager";
@@ -21,7 +21,40 @@ export type Config = {
 /**
  * Options khởi tạo {@link Client}.
  */
-export interface ClientOptions extends DiscordClientOptions {
+export interface ClientOptions {
+    /**
+     * Tùy chọn cấu hình nâng cao cho Discord.js Client.
+     *
+     * @remarks
+     * Thuộc tính này cho phép bạn truyền các options trực tiếp tới
+     * {@link DiscordClient} của discord.js khi khởi tạo client.
+     *
+     * Sử dụng khi bạn muốn:
+     * - Thay đổi intents mặc định
+     * - Cấu hình presence, partials
+     * - Điều chỉnh các option nâng cao khác của DiscordClient
+     *
+     * ---
+     *
+     * ### Lưu ý:
+     * - Nếu không cung cấp, client sẽ sử dụng mặc định của blackcat.js-discord
+     * - Các thay đổi tại đây ảnh hưởng trực tiếp tới behavior của DiscordClient
+     *
+     * ---
+     *
+     * @example
+     * ```ts
+     * const client = new Client({
+     *   discordClientOptions: {
+     *     intents: ["Guilds", "GuildMessages", "MessageContent"],
+     *     partials: ["CHANNEL"]
+     *   }
+     * });
+     * ```
+     *
+     * @see {@link https://discord.js.org/#/docs/discord.js/main/class/Client Discord.js Client}
+     */
+    discordClientOptions?: DiscordClientOptions;
     /**
      * Cấu hình tổng thể của bot
      * 
@@ -343,7 +376,7 @@ export interface ClientOptions extends DiscordClientOptions {
  * await client.start();
  * ```
  */
-export class Client extends DiscordClient<boolean> {
+export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready> {
     /**
      * Cấu hình bot.
      * 
@@ -353,7 +386,7 @@ export class Client extends DiscordClient<boolean> {
      * 
      * @defaultValue undefined
      */
-    public config?: Config;
+    public config: Config;
     /**
      * Danh sách message commands.
      * 
@@ -444,8 +477,15 @@ export class Client extends DiscordClient<boolean> {
      * Không thực hiện load hoặc login.
      */
     constructor(options: ClientOptions) {
-        super(options);
-        this.config = options.config;
+        super(options.discordClientOptions ?? {
+            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+            partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
+            allowedMentions: {
+                parse: ["users", "roles"],
+                repliedUser: false
+            },
+        });
+        this.config = options.config ?? { botToken: "" } as Config;
         // Collection
         this.commands = new Collection<string, CommandBuilder>();
         this.aliases = new Collection<string, string>();
@@ -521,7 +561,7 @@ export class Client extends DiscordClient<boolean> {
      * ```
      */
     public setToken(token: string): string {
-        this.token = token;
+        this.config.botToken = token;
         return token;
     }
     /**
@@ -553,21 +593,16 @@ export class Client extends DiscordClient<boolean> {
         if (this.eventManager) {
             this.eventManager.load(this);
         }
-
         if (this.commandManager) {
             this.commandManager.loadAll(this);
         }
-
         if (this.slashCommandManager) {
             this.slashCommandManager.loadAll(this);
         }
-
-        const config = this.token || this.config?.botToken;
-
+        const config = this.config.botToken;
         if (!config) {
             throw new Error("Bot token chưa được thiết lập.");
         }
-
         return this.login(config);
     }
 }

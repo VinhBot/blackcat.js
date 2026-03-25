@@ -1,12 +1,19 @@
 import { Client, CommandManager, EventManager, SlashCommandManager } from "blackcat.js-discord";
-import { GatewayIntentBits } from "discord.js";
+import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
     botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
 };
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+    discordClientOptions: {
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+        partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
+        allowedMentions: {
+            parse: ["users", "roles"],
+            repliedUser: false
+        },
+    },
     config: config,
     eventManager: new EventManager({
         directory: "./events",
@@ -30,7 +37,7 @@ const client = new Client({
     }),
     slashCommandManager: new SlashCommandManager({
         directory: "./slashCommands",
-        guildID: "1055150050357022840",
+        guildID: ["1055150050357022840", "1330081862609272905"],
         reset: {
             guild: true
         },

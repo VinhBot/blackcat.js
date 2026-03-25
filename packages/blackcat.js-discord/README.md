@@ -14,7 +14,7 @@
 
 ## ✨ Tính năng nổi bật
 
-- ⚡ Cấu trúc `CommandBuilder, SlashCommandBuilder, SlashCommandBuilderWithSubs` rõ ràng, dễ quản lý
+- ⚡ Cấu trúc `CommandBuilder, SlashCommandBuilder` rõ ràng, dễ quản lý
 - 🔒 Hệ thống **permission** linh hoạt
 - ⏱️ Cooldown theo `user`, `guild`, `global`
 - 🧠 Hỗ trợ `roleWeights` giảm thời gian cooldown
@@ -63,14 +63,21 @@ discord_bot
 # 🧩 Client
 ```ts
 import { Client, CommandManager, EventManager, SlashCommandManager } from "blackcat.js-discord";
-import { GatewayIntentBits } from "discord.js";
+import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
     botToken: "Bot token",
 };
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+    discordClientOptions: {
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
+        partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
+        allowedMentions: {
+            parse: ["users", "roles"],
+            repliedUser: false
+        },
+    },
     config: config,
     eventManager: new EventManager({
         directory: "./events",

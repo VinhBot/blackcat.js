@@ -1,7 +1,7 @@
 import { Events, REST, Routes } from "discord.js";
 import path from "path";
 import url from "url";
-import fs from "fs"; 
+import fs from "fs";
 
 import { Client, SlashCommandBuilder } from "..";
 
@@ -18,7 +18,7 @@ export interface SlashCommandManagerOptions {
      * 
      * Nếu không cung cấp, commands sẽ được đăng ký global.
      */
-    guildID?: string;
+    guildID?: string | string[];
     /**
      * Cấu hình reset commands trước khi đăng ký.
      */
@@ -69,7 +69,7 @@ export class SlashCommandManager {
     /**
      * Guild ID để đăng ký commands.
      */
-    private readonly guildID?: string;
+    private readonly guildID?: string[] | string;
     /**
      * Cấu hình reset commands trước khi đăng ký.
      */
@@ -186,22 +186,37 @@ export class SlashCommandManager {
      */
     private async _registerCommands(client: Client): Promise<void> {
         client.once(Events.ClientReady, async () => {
-            const rest = new REST({ version: "10" }).setToken(client.token! || client.config?.botToken as string);
-            const slashCmds = client.slashCommands.map((c) => c.build().toJSON());
             if (!client.user) return;
-
-            if (this.reset?.global) {
-                await client.application!.commands.set([]);
+            const rest = new REST({ version: "10" }).setToken(client.token ?? client.config.botToken ?? "");
+            const slashCmds = client.slashCommands.map((c) => c.build().toJSON());
+            const resetGlobal = async () => {
+                if (this.reset?.global) {
+                    await client.application!.commands.set([]);
+                }
+            };
+            const resetGuild = async (guildId: string) => {
+                if (this.reset?.guild) {
+                    const guild = client.guilds.cache.get(guildId);
+                    await guild?.commands.set([]);
+                }
+            };
+            // Reset global commands
+            await resetGlobal();
+            // Handle guild commands
+            if (this.guildID) {
+                const guildIDs = Array.isArray(this.guildID) ? this.guildID : [this.guildID];
+                for (const id of guildIDs) {
+                    await resetGuild(id);
+                    await rest.put(Routes.applicationGuildCommands(client.user.id, id), {
+                        body: slashCmds
+                    });
+                }
+            } else {
+                // Nếu không có guildID, đăng toàn cục
+                await rest.put(Routes.applicationCommands(client.user.id), {
+                    body: slashCmds
+                });
             }
-
-            if (this.reset?.guild && this.guildID) {
-                const guild = client.guilds.cache.get(this.guildID);
-                await guild?.commands.set([]);
-            }
-
-            await rest.put(this.guildID ? Routes.applicationGuildCommands(client.user.id, this.guildID) : Routes.applicationCommands(client.user.id), {
-                body: slashCmds
-            });
         });
     }
     /**
