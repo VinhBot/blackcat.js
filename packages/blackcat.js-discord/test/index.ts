@@ -1,5 +1,5 @@
+import { Client, CommandManager, EventManager, SlashCommandManager } from "blackcat.js-discord";
 import { GatewayIntentBits } from "discord.js";
-import { Client } from "blackcat.js-discord";
 
 const config = {
     botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
@@ -8,7 +8,7 @@ const config = {
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
     config: config,
-    registerEvents: {
+    eventManager: new EventManager({
         directory: "./events",
         scopes: ["client"],
         onLoad: (event) => {
@@ -17,8 +17,8 @@ const client = new Client({
         onError: (event) => {
             console.error(`${event.file}:`, event.error);
         }
-    },
-    registerCommands: {
+    }),
+    commandManager: new CommandManager({
         directory: "./commands",
         prefix: "!",
         onLoad: (command) => {
@@ -27,8 +27,8 @@ const client = new Client({
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
         }
-    },
-    registerSlashCommands: {
+    }),
+    slashCommandManager: new SlashCommandManager({
         directory: "./slashCommands",
         guildID: "1055150050357022840",
         reset: {
@@ -40,7 +40,7 @@ const client = new Client({
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
         }
-    }
+    })
 });
 
 client.start();

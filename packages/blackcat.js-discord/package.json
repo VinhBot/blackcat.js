@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-discord",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Một lớp bao bọc mạnh mẽ cho discord.js được thiết kế bởi framework blackcat.js.",
   "author": "Nguyen Vinh",
   "license": "MIT",
@@ -21,8 +21,7 @@
   "scripts": {
     "build": "tsup",
     "docs": "typedoc",
-    "build:all": "node --run build && node --run docs",
-    "dev": "tsx test/index.ts"
+    "build:all": "node --run build && node --run docs"
   },
   "repository": {
     "type": "git",

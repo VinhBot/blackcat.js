@@ -1,13 +1,9 @@
-import { Collection } from "discord.js";
+import { Collection, Message } from "discord.js";
 import path from "path";
 import url from "url";
 import fs from "fs";
 
-import {
-    Client,
-    CommandBuilder,
-    CommandBuilderOptions
-} from "..";
+import { Client, CommandBuilder } from "..";
 
 /**
  * Cấu hình cho {@link CommandManager}.
@@ -57,25 +53,9 @@ export interface CommandManagerOptions {
  * - Xử lý messageCreate để thực thi command
  */
 export class CommandManager {
-    /**
-     * Instance client của bot.
-     */
-    private readonly client: Client;
-    /**
-     * Thư mục chứa command files.
-     */
     private readonly directory: string | undefined;
-    /**
-     * Prefix dùng để gọi command.
-     */
     private readonly prefix: string | string[] | undefined;
-    /**
-     * Callback khi command được load.
-     */
     private readonly onLoad?: CommandManagerOptions["onLoad"];
-    /**
-     * Callback khi xảy ra lỗi khi load command.
-     */
     private readonly onError?: CommandManagerOptions["onError"];
     /**
      * Khởi tạo CommandManager.
@@ -83,21 +63,19 @@ export class CommandManager {
      * @param client - Instance bot client
      * @param options - Cấu hình manager
      */
-    constructor(client: Client, options?: CommandManagerOptions) {
-        this.client = client;
+    constructor(options?: CommandManagerOptions) {
         this.directory = options?.directory;
         this.prefix = options?.prefix;
         this.onLoad = options?.onLoad;
         this.onError = options?.onError;
-        this._attachMessageListener();
     }
     /**
      * Load toàn bộ message commands từ thư mục đã cấu hình.
      */
-    public async loadAll(): Promise<void> {
+    public async loadAll(client: Client): Promise<void> {
         if (!this.directory) return;
-        await this._readDirectory(path.resolve(this.directory));
-
+        this._attachMessageListener(client);
+        await this._readDirectory(client, path.resolve(this.directory));
     }
     /**
      * Đọc đệ quy các file command trong thư mục.
@@ -105,20 +83,20 @@ export class CommandManager {
      *
      * @param dir - Thư mục cần đọc
      */
-    private async _readDirectory(dir: string): Promise<void> {
+    private async _readDirectory(client: Client, dir: string): Promise<void> {
         const entries = await fs.promises.readdir(dir, {
             withFileTypes: true
         });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
             if (entry.isDirectory()) {
-                await this._readDirectory(fullPath);
+                await this._readDirectory(client, fullPath);
                 continue;
             }
             if (!entry.name.endsWith(".js") && !entry.name.endsWith(".ts")) {
                 continue;
             }
-            await this._loadFile(fullPath);
+            await this._loadFile(client, fullPath);
         }
     }
     /**
@@ -127,7 +105,7 @@ export class CommandManager {
      *
      * @param filePath - Đường dẫn file command
      */
-    private async _loadFile(filePath: string): Promise<void> {
+    private async _loadFile(client: Client, filePath: string): Promise<void> {
         try {
             const imported = await import(url.pathToFileURL(filePath).href);
             const command: CommandBuilder = imported.default ?? imported;
@@ -137,7 +115,7 @@ export class CommandManager {
             if (typeof command.execute !== "function") {
                 throw new Error("thiếu execute function");
             }
-            const { commands, aliases, categories } = this.client;
+            const { commands, aliases, categories } = client;
             if (commands.has(command.commandName)) {
                 throw new Error(`Lệnh bị trùng lặp: ${command.commandName}`);
             }
@@ -176,18 +154,18 @@ export class CommandManager {
      * - resolve command
      * - thực thi command
      */
-    private _attachMessageListener(): void {
-        this.client.on("messageCreate", async (message) => {
+    private _attachMessageListener(client: Client): void {
+        client.on("messageCreate", async (message) => {
             if (!message.guild || message.author.bot) return;
             const usedPrefix = this._getPrefix(message.content);
             if (!usedPrefix) return;
             const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);
             const commandName = args.shift()?.toLowerCase();
             if (!commandName) return;
-            const command = this.resolve(commandName);
+            const command = this.resolve(client, commandName);
             if (!command) return;
             try {
-                await (command as any).execute(this.client, message, args);
+                await command.execute(client, message as Message<true>, args);
             } catch (error) {
                 console.error(error);
             }
@@ -219,8 +197,8 @@ export class CommandManager {
      * @param name - Tên command hoặc alias
      * @returns Command tương ứng hoặc `null`
      */
-    private resolve(name: string): CommandBuilderOptions | null {
-        const { commands, aliases } = this.client;
+    private resolve(client: Client, name: string): CommandBuilder | null {
+        const { commands, aliases } = client;
         const direct = commands.get(name);
         if (direct) return direct;
         const alias = aliases.get(name);
@@ -237,11 +215,11 @@ export class CommandManager {
      * 3. Xóa categories
      * 4. Load lại từ filesystem
      */
-    public async reloadAll(): Promise<void> {
-        const { commands, aliases, categories } = this.client;
+    public async reloadAll(client: Client): Promise<void> {
+        const { commands, aliases, categories } = client;
         commands.clear();
         aliases.clear();
         categories.clear();
-        await this.loadAll();
+        await this.loadAll(client);
     }
 }

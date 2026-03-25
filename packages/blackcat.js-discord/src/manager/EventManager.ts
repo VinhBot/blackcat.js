@@ -59,10 +59,6 @@ export interface EventManagerOptions {
  */
 export class EventManager {
     /**
-     * Instance client của bot.
-     */
-    public readonly client: Client;
-    /**
      * Options cấu hình cho EventManager.
      */
     public readonly options: EventManagerOptions;
@@ -72,8 +68,7 @@ export class EventManager {
      * @param client - Instance bot client
      * @param options - Cấu hình manager
      */
-    constructor(client: Client, options: EventManagerOptions) {
-        this.client = client;
+    constructor(options: EventManagerOptions) {
         this.options = options;
     }
     /**
@@ -88,7 +83,7 @@ export class EventManager {
      *
      * @returns Promise hoàn thành khi load xong
      */
-    public async load(): Promise<void> {
+    public async load(client: Client): Promise<void> {
         const options = this.options;
         if(!options?.directory || !options?.scopes) return;
         if (!Array.isArray(options.scopes)) {
@@ -124,9 +119,9 @@ export class EventManager {
                         options.onError?.({ error: new Error("Mô-đun sự kiện không hợp lệ"), file, scope });
                     }
                     if (event.once) {
-                        this.client.once(event.eventName, (...args: any[]) => event.execute(this.client, ...args as any));
+                        client.once(event.eventName, (...args: any[]) => event.execute(client, ...args as any));
                     } else {
-                        this.client.on(event.eventName, (...args: any[]) => event.execute(this.client, ...args as any));
+                        client.on(event.eventName, (...args: any[]) => event.execute(client, ...args as any));
                     }
                     options.onLoad?.({ eventName: event.eventName, file, scope });
                 } catch (error) {

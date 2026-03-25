@@ -62,25 +62,27 @@ discord_bot
 ---
 # 🧩 Client
 ```ts
+import { Client, CommandManager, EventManager, SlashCommandManager } from "blackcat.js-discord";
 import { GatewayIntentBits } from "discord.js";
-import { Client } from "blackcat.js-discord";
+
+const config = {
+    botToken: "Bot token",
+};
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
-    config: {
-        botToken: "string",
-    },
-    registerEvents: {
+    config: config,
+    eventManager: new EventManager({
         directory: "./events",
-        scopes: ["client"],
+        scopes: ["client", "Guild"], // hoặc tên folder event bất kì.
         onLoad: (event) => {
             console.log(`${event.file} - ok`);
         },
         onError: (event) => {
             console.error(`${event.file}:`, event.error);
         }
-    },
-    registerCommands: {
+    }),
+    commandManager: new CommandManager({
         directory: "./commands",
         prefix: "!",
         onLoad: (command) => {
@@ -89,17 +91,20 @@ const client = new Client({
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
         }
-    },
-    registerSlashCommands: {
+    }),
+    slashCommandManager: new SlashCommandManager({
         directory: "./slashCommands",
-        guildID: "id guild", // có thể bỏ qua nếu muốn sử dụng cho all guild
+        guildID: "guild id", // có thể bỏ qua để áp dụng cho tất cả các guild mà bot tham gia.
+        reset: {
+            guild: true // reset lại command
+        },
         onLoad: (command) => {
             console.log(`slashCommands: ${command.commandName} - ok`);
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
         }
-    }
+    })
 });
 
 client.start();

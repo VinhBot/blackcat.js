@@ -1,4 +1,3 @@
-export * from "./CreateMessageComponentCollector.functions.ts";
 export * from "./parseTime.functions.ts";
 export * from "./findUser.functions.ts";
 export * from "./findChannel.functions.ts";
