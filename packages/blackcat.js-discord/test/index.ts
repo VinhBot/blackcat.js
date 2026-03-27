@@ -46,8 +46,8 @@ const client = new Client({
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
-        }
-    })
+        },
+    }),
 });
 
 client.start();

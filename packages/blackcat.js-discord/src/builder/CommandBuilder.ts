@@ -18,24 +18,7 @@ export interface CommandContext {
     /**
      * Thông tin bot client.
      */
-    bot: ClientUser & {
-        /**
-         * Avatar URL của bot.
-         */
-        avatarURL: string | null;
-        /**
-         * Display avatar URL của bot.
-         */
-        displayAvatarURL: string;
-        /**
-         * ID của bot.
-         */
-        id: string;
-        /**
-         * Username của bot.
-         */
-        username: string;
-    };
+    bot: ClientUser;
 }
 
 /**
@@ -86,7 +69,7 @@ export interface CommandBuilderOptions {
     /**
      * Cấu hình cooldown.
      */
-    cooldown?: CooldownConfig;
+    cooldown?: CooldownConfig<"message">;
     /**
      * Permission yêu cầu của user.
      */
@@ -160,7 +143,7 @@ export class CommandBuilder {
     /**
      * Cấu hình cooldown.
      */
-    public cooldown?: CooldownConfig;
+    public cooldown?: CooldownConfig<"message">;
     /**
      * Cấu hình permission user.
      */
@@ -182,23 +165,15 @@ export class CommandBuilder {
      */
     constructor(options?: CommandBuilderOptions) {
         if (options) {
-            this.setOptions(options);
+            if (options.commandName) this.commandName = options.commandName;
+            if (options.aliases) this.aliases = options.aliases;
+            if (options.description) this.description = options.description;
+            if (options.category) this.category = options.category;
+            if (options.cooldown) this.cooldown = options.cooldown;
+            if (options.userPermission) this.userPermission = options.userPermission;
+            if (options.usage) this.usage = options.usage;
+            if (options.execute) this.handler = options.execute;
         }
-    }
-    /**
-     * Áp dụng options vào command.
-     *
-     * @private
-     */
-    private setOptions(options: CommandBuilderOptions) {
-        if (options.commandName) this.commandName = options.commandName;
-        if (options.aliases) this.aliases = options.aliases;
-        if (options.description) this.description = options.description;
-        if (options.category) this.category = options.category;
-        if (options.cooldown) this.cooldown = options.cooldown;
-        if (options.userPermission) this.userPermission = options.userPermission;
-        if (options.usage) this.usage = options.usage;
-        if (options.execute) this.handler = options.execute;
     }
     /**
      * Đặt tên command.
@@ -238,7 +213,7 @@ export class CommandBuilder {
     /**
      * Đặt cooldown cho command.
      */
-    public setCooldown(cooldown: CooldownConfig) {
+    public setCooldown(cooldown: CooldownConfig<"message">) {
         this.cooldown = cooldown;
         return this;
     }
@@ -257,23 +232,6 @@ export class CommandBuilder {
         return this;
     }
     /**
-     * Tạo command context.
-     *
-     * @private
-     */
-    private getContext(client: Client, message: Message): CommandContext {
-        return {
-            commandName: this.commandName,
-            user: message.member as GuildMember & { user: User },
-            bot: Object.assign(client.user as ClientUser, {
-                avatarURL: client.user?.avatarURL(),
-                displayAvatarURL: client.user?.displayAvatarURL(),
-                id: client.user?.id,
-                username: client.user?.username
-            })
-        };
-    }
-    /**
      * Kiểm tra permission của user.
      *
      * @private
@@ -282,9 +240,11 @@ export class CommandBuilder {
         if (!this.userPermission) return;
         const hasPermission = message.member?.permissions.has(this.userPermission.permission || ["SendMessages"]);
         if (hasPermission) return;
-        const ctx = this.getContext(client, message);
-        const response = this.userPermission.message?.(ctx) ?? `Này <@${message.member?.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`;
-        return message.reply(response);
+        return message.reply(this.userPermission.message?.({
+            commandName: this.commandName,
+            user: message.member as GuildMember & { user: User },
+            bot: client.user as ClientUser,
+        }) ?? `Này <@${message.member?.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`);
     }
     /**
      * Kiểm tra cooldown command.
@@ -293,22 +253,13 @@ export class CommandBuilder {
      */
     private checkCooldown(message: Message) {
         if (!this.cooldown) return;
-
-        const commandData = {
-            commandName: this.commandName,
-            cooldown: this.cooldown
-        } as any;
-
-        const cooldownMessage = cooldownManager.check(commandData, {
+        const cooldownMessage = cooldownManager.check(this, {
             type: "message",
             userId: message.author.id,
             guildId: message.guildId,
             member: message.member
         });
-
-        if (cooldownMessage) {
-            return message.reply(cooldownMessage);
-        }
+        if (cooldownMessage) return message.reply(cooldownMessage);
     }
     /**
      * Thực thi command.

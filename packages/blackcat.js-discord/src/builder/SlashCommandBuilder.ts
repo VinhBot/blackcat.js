@@ -268,7 +268,6 @@ export interface SlashPermissionConfig {
     }) => InteractionReplyOptions;
 }
 
-
 /**
  * Infer root options của command
  * @hidden
@@ -464,7 +463,7 @@ export interface SlashCommandBuilderOptions<
      * Giúp giới hạn tần suất sử dụng command
      * để tránh spam.
      */
-    cooldown?: CooldownConfig;
+    cooldown?: CooldownConfig<"interaction">;
     /**
      * Danh sách subcommand trực tiếp.
      *
@@ -957,7 +956,7 @@ export class SlashCommandBuilder<
     /**
      * Cấu hình cooldown để tránh spam command.
      */
-    public cooldown?: CooldownConfig;
+    public cooldown?: CooldownConfig<"interaction">;
     /**
      * Định nghĩa root options của command.
      */
@@ -1087,27 +1086,20 @@ export class SlashCommandBuilder<
      * @param config cấu hình khởi tạo command
      */
     constructor(config?: SlashCommandBuilderOptions<TOptions, TSubs, TGroups>) {
-        if (config) this.applyConfig(config);
-    }
-    /**
-     * Áp dụng config object vào builder.
-     * @hidden
-     *
-     * Function này được gọi bởi constructor để setup command.
-     */
-    private applyConfig(config: SlashCommandBuilderOptions<TOptions, TSubs, TGroups>) {
-        this.commandName = config.commandName;
-        this.description = config.description;
-        this.userPermission = config.userPermission;
-        this.cooldown = config.cooldown;
-        if (config.subcommands) {
-            this.subsCommands = config.subcommands as TSubs;
+        if (config) {
+            this.commandName = config.commandName;
+            this.description = config.description;
+            this.userPermission = config.userPermission;
+            this.cooldown = config.cooldown;
+            if (config.subcommands) {
+                this.subsCommands = config.subcommands as TSubs;
+            }
+            if (config.groups) {
+                this.groups = config.groups as TGroups;
+            }
+            this.handler = config.execute;
+            this.defs = config.options?.(slashOption);
         }
-        if (config.groups) {
-            this.groups = config.groups as TGroups;
-        }
-        this.handler = config.execute;
-        this.defs = config.options?.(slashOption);
     }
     /**
      * Lấy options đã được build.
@@ -1150,7 +1142,7 @@ export class SlashCommandBuilder<
      *   scope: "user"
      * })
      */
-    public setCooldown(cooldown: CooldownConfig) {
+    public setCooldown(cooldown: CooldownConfig<"interaction">) {
         this.cooldown = cooldown;
         return this;
     }
@@ -1270,23 +1262,15 @@ export class SlashCommandBuilder<
             }
         }
         if (this.cooldown) {
-            const commands = {
-                commandName: this.commandName,
-                cooldown: this.cooldown,
-            } as SlashCommandBuilder<any, any, any>;
-            const cooldownMessage = cooldownManager.check(commands, {
+            const cooldownMessage = cooldownManager.check(this, {
                 type: "interaction",
                 userId: interaction.user.id,
                 guildId: interaction.guildId,
                 member: interaction.member as GuildMember,
             });
-            if (cooldownMessage) return await interaction.reply({
-                content: cooldownMessage,
-                flags: MessageFlags.Ephemeral
-            });
+            if (cooldownMessage) return await interaction.reply(cooldownMessage);
         }
         const rootOptions = this.defs ? this.parseOptions(interaction, this.defs) : {};
-
         const groupName = interaction.options.getSubcommandGroup(false);
         const subCommandName = interaction.options.getSubcommand(false);
         if (groupName && subCommandName) {

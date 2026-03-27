@@ -1233,28 +1233,26 @@ export class PaginationBuilder<T> {
      */
     private async createCollector() {
         const collector = this.message.createMessageComponentCollector({
-            time: parseTime(this.options.timeout ?? "120s"),
+            time: this.options.timeout ? parseTime(this.options.timeout) : undefined,
+            filter: (interaction) => this.options.interactionFilter ? this.options.interactionFilter(interaction as any) : true,
         });
-
         collector.on("collect", async (interaction) => {
-            const customId = interaction.customId;
             try {
                 if (this.options.interactionFilter && !this.options.interactionFilter(interaction as any)) return;
-                if (customId === "pagination:jump") {
+                if (interaction.customId === "pagination:jump") {
                     const modal = new ModalBuilder({
                         customId: "pagination:jumpModal",
                         title: "Nhảy đến trang",
                     });
-                    modal.addLabelComponents(
-                        new LabelBuilder()
-                            .setLabel("Nhập số trang")
-                            .setDescription("Nhập số trang bạn muốn chuyển đến")
-                            .setTextInputComponent(new TextInputBuilder({ customId: "page", style: TextInputStyle.Short, required: true }))
-                    );
+                    modal.addLabelComponents(new LabelBuilder().setLabel("Nhập số trang").setDescription("Nhập số trang bạn muốn chuyển đến").setTextInputComponent(new TextInputBuilder({
+                        customId: "page",
+                        style: TextInputStyle.Short,
+                        required: true
+                    })));
                     await interaction.showModal(modal);
                     try {
                         const submit = await interaction.awaitModalSubmit({
-                            time: parseTime("60s"),
+                            time: this.options.timeout ? parseTime(this.options.timeout) : parseTime("240s"),
                             filter: (i) => i.user.id === interaction.user.id,
                         });
                         await submit.deferUpdate();
@@ -1267,12 +1265,12 @@ export class PaginationBuilder<T> {
                     return;
                 }
                 if (interaction.isButton()) {
-                    if (customId === "pagination:first") return this.first(interaction);
-                    if (customId === "pagination:prev") return this.prev(interaction);
-                    if (customId === "pagination:next") return this.next(interaction);
-                    if (customId === "pagination:last") return this.last(interaction);
+                    if (interaction.customId === "pagination:first") return this.first(interaction);
+                    if (interaction.customId === "pagination:prev") return this.prev(interaction);
+                    if (interaction.customId === "pagination:next") return this.next(interaction);
+                    if (interaction.customId === "pagination:last") return this.last(interaction);
                 } else if (interaction.isStringSelectMenu()) {
-                    if (customId === "pagination:select") return this.goto(Number(interaction.values[0]), interaction);
+                    if (interaction.customId === "pagination:select") return this.goto(Number(interaction.values[0]), interaction);
                 }
                 // custom 
                 const data = await this.getPageData(this.page);

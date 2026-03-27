@@ -85,14 +85,12 @@ export class EventManager {
      */
     public async load(client: Client): Promise<void> {
         const options = this.options;
-        if(!options?.directory || !options?.scopes) return;
-        if (!Array.isArray(options.scopes)) {
-            options.onError?.({
-                error: "[EventManager] 'scopes' phải là một array",
-                file: "không xác định",
-                scope: "không xác định"
-            });
-        }
+        if (!options?.directory || !options?.scopes) return;
+        if (!Array.isArray(options.scopes)) return options.onError?.({
+            error: "[EventManager] 'scopes' phải là một array",
+            file: "không xác định",
+            scope: "không xác định"
+        });
         if (options.scopes.length === 0) return;
         const entries = await fs.promises.readdir(options.directory, {
             withFileTypes: true

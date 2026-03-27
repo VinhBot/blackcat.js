@@ -1,5 +1,10 @@
-import { Collection, GuildMember, PermissionsBitField } from "discord.js";
+import { Collection, GuildMember, InteractionReplyOptions, MessagePayload, MessageReplyOptions, PermissionsBitField } from "discord.js";
 import type { CommandBuilder, SlashCommandBuilder } from "..";
+
+/**
+ * @hidden
+ */
+type CooldownMessageReturn<T> = T extends "interaction" ? string | InteractionReplyOptions : string | MessagePayload | MessageReplyOptions;
 /**
  * PermissionLevel
  *
@@ -61,7 +66,7 @@ export type CooldownScope =
  *    permissionBypass: PermissionLevel.ADMIN
  *  }
  */
-export interface CooldownConfig {
+export interface CooldownConfig<T extends "message" | "interaction" = "message"> {
     /**
      * Thời gian cooldown gốc (seconds)
      *
@@ -122,7 +127,7 @@ export interface CooldownConfig {
      *  message: (ms, ctx, name) =>
      *    `Command ${name} còn ${Math.ceil(ms/1000)}s`
      */
-    message?: (ms: number, ctx: CooldownCommandContext, commandName: string) => string;
+    message?: (ms: number, ctx: CooldownCommandContext, commandName: string) => CooldownMessageReturn<T>;
 }
 
 /**
@@ -271,7 +276,9 @@ export class CooldownManager {
      * - Nếu đang cooldown -> trả về message string
      * - Nếu không -> set cooldown mới và trả về null
      */
-    public check(command: CommandBuilder | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | null {
+    public check(command: SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): InteractionReplyOptions | null;
+    public check(command: CommandBuilder, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null; 
+    public check(command: CommandBuilder | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
         // Bypass nếu có quyền phù hợp

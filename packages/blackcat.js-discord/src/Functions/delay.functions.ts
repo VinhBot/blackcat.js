@@ -1,3 +1,5 @@
+import { parseTime } from ".";
+
 /**
  * Tạm dừng thực thi trong một khoảng thời gian xác định.
  *
@@ -6,7 +8,9 @@
  *
  * @example
  * await delay(2); // chờ 2 giây
+ * // hoặc
+ * await delay("2s"); // chờ 2 giây
  */
 export const delay = (seconds: number): Promise<void> => {
-    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    return new Promise((resolve) => setTimeout(resolve, parseTime(seconds)));
 };

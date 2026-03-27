@@ -67,9 +67,7 @@ export const findChannel = async (client: Client, guild: Guild, query: string): 
         try {
             const fetched = await client.channels.fetch(channelId);
             if (fetched) return fetched;
-        } catch {
-            // Ignore fetch errors
-        }
+        } catch {}
     }
     const lowerQuery = query.toLowerCase();
     // 4. Exact name match

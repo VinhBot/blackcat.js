@@ -8,11 +8,13 @@ const pingCommand = new CommandBuilder()
     .setCooldown({
         duration: 5,
         scope: ["role"],
-        roleWeights: {
-            // "id Role": 0.7,
-        },
-        permissionBypass: PermissionLevel.ADMIN,
-        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
+        // roleWeights: {
+        //     // "id Role": 0.7,
+        // },
+        // permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx, commandName) => ({
+            content: `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
+        }),
     })
     .setUserPermission({
         permission: ["SendMessages"],
