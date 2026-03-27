@@ -1,56 +1,152 @@
 import { ExtractObjectKeys, ExtractObjectValues, ExtractObjectEntries } from "../types";
 
 /**
- * Utility class for working with objects.
+ * Utility class hỗ trợ làm việc với object theo hướng type-safe.
  *
- * Provides **static** methods for retrieving keys and values of an object with addition of types.
+ * @remarks
+ * Class này cung cấp các phương thức static tương tự `Object.keys`,
+ * `Object.values`, `Object.entries` nhưng có typing chính xác hơn
+ * nhờ sử dụng các utility types:
+ * - {@link ExtractObjectKeys}
+ * - {@link ExtractObjectValues}
+ * - {@link ExtractObjectEntries}
  *
- * This class enhances type safety by providing better typings for object keys and values.
+ * ---
+ *
+ * ### Lợi ích:
+ * - Giữ nguyên type của key/value khi thao tác object
+ * - Tránh bị widen type thành `string[]` hoặc `any[]`
+ * - Tăng khả năng infer type trong TypeScript
+ *
+ * ---
+ *
+ * @example
+ * ```ts
+ * const obj = { a: 1, b: 2 };
+ *
+ * const keys = TypedObject.keys(obj);
+ * // type: ("a" | "b")[]
+ * ```
+ *
+ * @example
+ * ```ts
+ * const values = TypedObject.values(obj);
+ * // type: number[]
+ * ```
+ *
+ * @example
+ * ```ts
+ * const entries = TypedObject.entries(obj);
+ * // type: ["a" | "b", number][]
+ * ```
  */
 export class TypedObject {
     /**
-     * Returns the names of the enumerable string properties and methods of an object.
+     * Lấy danh sách key của object với type chính xác.
      *
-     * Type parameters:
+     * @typeParam TObject - Kiểu object đầu vào
      *
-     * - `TObject` (`Record<string, any>`) - The object to get the object keys types from.
+     * @param obj - Object cần lấy key
+     * @returns Mảng các key của object (`ExtractObjectKeys<TObject>[]`)
      *
-     * @param {TObject} obj Object to get the keys from.
+     * @remarks
+     * Khác với `Object.keys`:
+     * - `Object.keys(obj)` → `string[]`
+     * - `TypedObject.keys(obj)` → union key chính xác
      *
-     * @returns {Array<ExtractObjectKeys<TObject>>}
-     * Array of names of the enumerable string properties and methods of the specified object.
+     * ---
+     *
+     * ### Lưu ý:
+     * - Nếu `obj` là `null` hoặc `undefined`, sẽ fallback thành `{}` → trả về `[]`
+     *
+     * ---
+     *
+     * @example
+     * ```ts
+     * const obj = { a: 1, b: 2 };
+     *
+     * const keys = TypedObject.keys(obj);
+     * // ("a" | "b")[]
+     * ```
+     *
+     * @see Object.keys
      */
     public static keys<TObject extends Record<string, any>>(obj: TObject): ExtractObjectKeys<TObject>[] {
         return Object.keys(obj || {});
     }
+
     /**
-     * Returns an array of values of the enumerable properties of an object.
+     * Lấy danh sách value của object với type chính xác.
      *
-     * Type parameters:
+     * @typeParam TObject - Kiểu object đầu vào
      *
-     * - `TObject` (`Record<string, any>`) - The object to get the object values types from.
+     * @param obj - Object cần lấy value
+     * @returns Mảng các value của object (`ExtractObjectValues<TObject>[]`)
      *
-     * @param {TObject} obj Object to get the values from.
+     * @remarks
+     * Khác với `Object.values`:
+     * - `Object.values(obj)` → `any[]`
+     * - `TypedObject.values(obj)` → union value chính xác
      *
-     * @returns {Array<ExtractObjectValues<TObject>>}
-     * Array of values of the enumerable properties of the specified object.
+     * ---
+     *
+     * ### Lưu ý:
+     * - Nếu `obj` là `null` hoặc `undefined`, sẽ fallback thành `{}` → trả về `[]`
+     *
+     * ---
+     *
+     * @example
+     * ```ts
+     * const obj = { a: 1, b: 2 };
+     *
+     * const values = TypedObject.values(obj);
+     * // number[]
+     * ```
+     *
+     * @see Object.values
      */
     public static values<TObject extends Record<string, any>>(obj: TObject): ExtractObjectValues<TObject>[] {
         return Object.values(obj || {});
     }
+
     /**
-     * Returns an array of entries (key-value pairs) of the enumerable properties of an object.
+     * Lấy danh sách entry (key-value) của object với type chính xác.
      *
-     * Type parameters:
+     * @typeParam TObject - Kiểu object đầu vào
      *
-     * - `TObject` (`Record<string, any>`) - The object to get the object entries types (key-value pairs types) from.
+     * @param obj - Object cần lấy entries
+     * @returns Mảng các cặp `[key, value]` (`ExtractObjectEntries<TObject>[]`)
      *
-     * @param {TObject} obj Object to get the entries from.
+     * @remarks
+     * Khác với `Object.entries`:
+     * - `Object.entries(obj)` → `[string, any][]`
+     * - `TypedObject.entries(obj)` → typed tuple chính xác
      *
-     * @returns {ExtractObjectEntries<TObject>[]}
-     * Array of entries (key-value pairs) of the enumerable properties of the specified object.
+     * ---
+     *
+     * ### Lưu ý:
+     * - Nếu `obj` là `null` hoặc `undefined`, sẽ fallback thành `{}` → trả về `[]`
+     *
+     * ---
+     *
+     * @example
+     * ```ts
+     * const obj = { a: 1, b: 2 };
+     *
+     * const entries = TypedObject.entries(obj);
+     * // ["a" | "b", number][]
+     * ```
+     *
+     * @example
+     * ```ts
+     * for (const [key, value] of TypedObject.entries(obj)) {
+     *   // key & value được infer đúng type
+     * }
+     * ```
+     *
+     * @see Object.entries
      */
     public static entries<TObject extends Record<string, any>>(obj: TObject): ExtractObjectEntries<TObject>[] {
-        return Object.entries(obj || {})
+        return Object.entries(obj || {});
     }
 }

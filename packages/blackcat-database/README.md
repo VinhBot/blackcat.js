@@ -349,10 +349,20 @@ import { Database, MongoDriver } from "blackcat.js-database";
 
 const database = new Database({ 
     driver: new MongoDriver({
-        mongourl: "mongodb://localhost:27017", 
-        databaseName: "mydb",  
-        collectionName: "store" 
-    })
+        mongourl: "mongourl",
+        databaseName: "BlackCat-Club",
+        collectionName: "database-test",
+        onLoad: ({ db, collection, databaseName }) => {
+            console.log(`✅ Đã kết nối với cơ sở dữ liệu: ${databaseName}`);
+            console.log(`📦 Bộ sưu tập: ${collection.collectionName}`);
+            // Ví dụ advanced:
+            // db.command({ ping: 1 })
+        },
+        onError: ({ error, databaseName }) => {
+            console.error(`❌ Không thể kết nối với cơ sở dữ liệu: ${databaseName}`);
+            console.error(error);
+        }
+    }),
 });
 ```
 ---

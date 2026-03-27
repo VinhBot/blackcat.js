@@ -1026,10 +1026,10 @@ export class PaginationBuilder<T> {
     public async start(source: Message | ChatInputCommandInteraction) {
         const data = await this.getPageData(this.page);
         const content = await this.options.renderPage({
-            page: this.page,
             totalPages: this.totalPages,
+            pagination: this,
+            page: this.page,
             data: data,
-            pagination: this
         });
         const components = await this.buildComponents(data);
         if (source instanceof Message) {
@@ -1044,10 +1044,6 @@ export class PaginationBuilder<T> {
             pagination: this,
             data: data,
         });
-        return {
-            ...content,
-            components: components
-        }
     }
     /**
      * Lấy dữ liệu của một trang cụ thể
