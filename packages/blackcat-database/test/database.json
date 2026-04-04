@@ -1,25 +1,26 @@
 {
 	"999999999999999": {
-		"member": {
-			"user": {
-				"name": "blackcat.js",
-				"age": 24,
-				"test": [
-					"test1",
-					"test2",
-					"test3"
-				],
-				"database": [
-					{
-						"username": "vinh",
-						"guild": "1234566666666"
-					},
-					{
-						"username": "zzzz",
-						"guild": "1234566655656566666"
-					}
-				]
-			}
+		"111111111111111": {
+			"name": "Nguyễn Vinh",
+			"age": 28,
+			"test": [
+				"Jerry",
+				"22222222222"
+			],
+			"database": [
+				{
+					"username": "vinh",
+					"guild": "1234566666666"
+				},
+				{
+					"username": "zzzz",
+					"guild": "1234566655656566666"
+				},
+				{
+					"guild": "zzzzzzzzz",
+					"username": "bob"
+				}
+			]
 		}
 	}
 }

@@ -112,7 +112,32 @@ export interface DatabaseConfiguration {
  */
 export type Maybe<T> = Exclude<T | null, undefined>;
 /**
- * 
+ * Utility type dùng để trích xuất kiểu phần tử bên trong một mảng.
+ * @hidden
+ *
+ * Nếu `T` là một mảng (`U[]`) thì kiểu trả về sẽ là `U` (kiểu phần tử).
+ * Nếu `T` không phải là mảng thì kiểu trả về chính là `T`.
+ *
+ * Thường được sử dụng trong các generic type để làm việc
+ * với kiểu dữ liệu của phần tử trong mảng một cách an toàn.
+ *
+ * @typeParam T - Kiểu dữ liệu đầu vào, có thể là mảng hoặc bất kỳ kiểu nào.
+ *
+ * @example
+ * type A = ArrayElement<string[]>;
+ * // Kết quả: string
+ *
+ * @example
+ * type B = ArrayElement<number[]>;
+ * // Kết quả: number
+ *
+ * @example
+ * type C = ArrayElement<string>;
+ * // Kết quả: string
+ *
+ * @example
+ * type D = ArrayElement<(number | string)[]>;
+ * // Kết quả: number | string
  */
 export type ArrayElement<T> = T extends (infer U)[] ? U : T;
 /**
@@ -427,26 +452,6 @@ export type IsAny<T> = 0 extends (1 & T) ? true : false;
  */
 export type AutocompletableString<S extends string> = S | (string & {});
 /**
- * Trích xuất **key đầu tiên** từ một object path dạng chuỗi.
- * @hidden
- *
- * Ví dụ với path `"member.user.id"` thì key đầu tiên sẽ là `"member"`.
- *
- * Type này thường được dùng để xác định **object cấp cao nhất**
- * khi làm việc với các path dạng `dot notation`.
- *
- * @typeParam TKey - Object path cần trích xuất key đầu tiên.
- *
- * @example
- * type A = FirstObjectKey<"user.profile.name">;
- * // Kết quả: "user"
- *
- * @example
- * type B = FirstObjectKey<"settings">;
- * // Kết quả: "settings"
- */
-export type FirstObjectKey<TKey extends ObjectPath<string, any>> = TKey extends `${infer Key}.${infer _Rest}` ? Key : TKey extends string ? TKey : never;
-/**
  * Đại diện cho **đường dẫn (path)** tới một thuộc tính trong object,
  * hỗ trợ truy cập các property lồng nhau bằng `dot notation`.
  * @hidden
@@ -517,15 +522,19 @@ export type ObjectPath<T, TKey extends keyof T = keyof T> = IsAny<T> extends tru
  * type C = ObjectValue<User, "profile">;
  * // Kết quả: { name: string; age: number }
  */
+
 export type ObjectValue<T, P extends ObjectPath<T> | AutocompletableString<ObjectPath<T>>> =
-    T extends AutocompletableString<P> | string | number | boolean | symbol
-    ? T
+    T extends | string | number | boolean | bigint | symbol | null | undefined | Date | Function ? T
+    // Nếu T là array → unwrap rồi xử lý tiếp
+    : T extends (infer U)[]
+    ? ObjectValue<U, P>[]
+    // Nếu có dạng a.b.c
     : P extends `${infer Key}.${infer Rest}`
     ? Key extends keyof T
-    ? Rest extends ObjectPath<T[Key]>
     ? ObjectValue<T[Key], Rest>
-    : null
     : never
+    // Nếu là key cuối
     : P extends keyof T
     ? T[P]
-    : T;
+
+    : never;

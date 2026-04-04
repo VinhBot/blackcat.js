@@ -52,5 +52,5 @@
 		"forceConsistentCasingInFileNames": true 		/* Disallow inconsistently-cased references to the same file. */
 	},
 	"exclude": ["node_modules", ".build"], 				/* Specifies a list of files to be excluded from compilation. The 'exclude' property only affects the files included via the 'include' property and not the 'files' property. */
-	"include": ["src"]
+	"include": ["src", "test/giveaways"]
 }

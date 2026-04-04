@@ -3,20 +3,18 @@ import { defineConfig } from "tsup";
 export default defineConfig({
     entry: ["src/index.ts"],
     format: ["esm", "cjs"],
-    target: "es2021", 
-    outDir: "dist",
+    target: "node18",
     platform: "node",
-    skipNodeModulesBundle: true,
+    outDir: "dist",
+    dts: true,
+    sourcemap: true,
     clean: true,
-    minify: false,
+    skipNodeModulesBundle: true,
     splitting: false,
     keepNames: true,
-    dts: true, 
-    sourcemap: true, 
-    treeshake: false, 
-    terserOptions: {
-        mangle: false, 
-        keep_classnames: true,
-        keep_fnames: true, 
+    outExtension({ format }) {
+        return {
+            js: format === "esm" ? ".mjs" : ".cjs"
+        };
     }
 });

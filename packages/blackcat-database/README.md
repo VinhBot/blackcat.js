@@ -331,6 +331,8 @@ const db = new Database({
 
 # JSON Driver (ví dụ)
 
+Driver lưu dữ liệu trong file json.
+
 ```ts
 import { Database, JSONDriver } from "blackcat.js-database";
 
@@ -343,6 +345,8 @@ const database = new Database({
 ---
 
 # Mongo Driver (ví dụ)
+
+Driver lưu dữ liệu trong mongoose.
 
 ```ts
 import { Database, MongoDriver } from "blackcat.js-database";
@@ -369,6 +373,8 @@ const database = new Database({
 
 # SQLite Driver (ví dụ)
 
+Driver lưu dữ liệu trong SQLite.
+
 ```ts
 import { Database, SQLiteDriver } from "blackcat.js-database";
 
@@ -380,7 +386,6 @@ const database = new Database({
 });
 ```
 ---
-
 
 
 # Tạo Custom Driver

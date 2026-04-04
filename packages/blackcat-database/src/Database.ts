@@ -1,6 +1,6 @@
-import { DatabaseConfiguration, AutocompletableString, FirstObjectKey, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver, ArrayElement } from "./types";
+import { DatabaseConfiguration, AutocompletableString, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver, ArrayElement } from "./types";
 import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
-
+export { DatabaseDriver } from "./types";
 /**
  * Class Database cung cấp API thao tác dữ liệu dạng key-path
  * trên nhiều loại storage khác nhau thông qua `DatabaseDriver`.
@@ -81,8 +81,8 @@ export class Database<V = any> {
      * console.log(data.users);
      * ```
      */
-    public async all<T extends Record<string, any> = Record<string, any>>(): Promise<T> {
-        return await this.driver.all<T>();
+    public async all(): Promise<V> {
+        return await this.driver.all();
     }
     /**
      * Lấy giá trị từ database theo key-path.
@@ -112,9 +112,8 @@ export class Database<V = any> {
      * const all = await db.get();
      * ```
      */
-    public async get<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>> | V> {
+    public async get<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>>> {
         const data = await this.all();
-        if (key === undefined) return data as V;
         if (typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
         }
@@ -163,7 +162,7 @@ export class Database<V = any> {
      * });
      * ```
      */
-    public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>> | V> {
+    public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>>> {
         const data = await this.get(key as any);
         if (!query) return data;
         if (!Array.isArray(data)) return null as Maybe<ObjectValue<V, P>>;
@@ -203,7 +202,7 @@ export class Database<V = any> {
      * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần gán giá trị.
      * @param {ObjectValue<V, P>} value Giá trị mới.
      *
-     * @returns {Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>>} Giá trị vừa được set hoặc object root nếu value là object.
+     * @returns {void} Giá trị vừa được set hoặc object root nếu value là object.
      *
      * @example
      * ```ts
@@ -215,7 +214,7 @@ export class Database<V = any> {
      * await db.set("config.prefix", "!");
      * ```
      */
-    public async set<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>> {
+    public async set<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<void> {
         const allDatabase = await this.all();
         if (!key) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
@@ -224,7 +223,7 @@ export class Database<V = any> {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
         }
         const keys = key.split(".");
-        let currentObj = allDatabase;
+        let currentObj = allDatabase as any;
 
         for (let i = 0; i < keys.length; i++) {
             if (keys.length - 1 === i) {
@@ -237,7 +236,6 @@ export class Database<V = any> {
             };
         };
         await this.driver.set(allDatabase);
-        return typeof value == "object" && value !== null ? await this.get(keys[0]) as any : value as any;
     }
     /**
      * Xóa một key khỏi database.
@@ -398,7 +396,7 @@ export class Database<V = any> {
      * - `REQUIRED_PARAMETER_MISSING` nếu key không được cung cấp
      * - `INVALID_TYPE` nếu key không phải string
      */
-    public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, FirstObjectKey<P>>, V>> {
+    public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, P>>> {
         if (!key) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
         }
@@ -457,7 +455,8 @@ export class Database<V = any> {
         if (!isNumber(numberToAdd)) {
             throw new BlackCatError("INVALID_TYPE", "numberToAdd", "number", typeOf(numberToAdd));
         }
-        return await this.set(key, targetNumber + numberToAdd) as Promise<number>;
+        await this.set(key, targetNumber + numberToAdd);
+        return targetNumber + numberToAdd;
     }
     /**
      * Trừ giá trị khỏi một key dạng number.
@@ -488,7 +487,8 @@ export class Database<V = any> {
         if (!isNumber(numberToSubtract)) {
             throw new BlackCatError("INVALID_TYPE", "numberToSubtract", "number", typeOf(numberToSubtract));
         }
-        return await this.set(key, targetNumber - numberToSubtract as any) as Promise<number>;
+        await this.set(key, targetNumber - numberToSubtract as any);
+        return targetNumber - numberToSubtract;
     }
     /**
      * Thêm một hoặc nhiều phần tử vào cuối array tại key-path.
@@ -521,9 +521,9 @@ export class Database<V = any> {
         if (!values.length) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
         }
-        const root = await this.all();
+        const root = await this.all() as any;
         const pathParts = key.split(".");
-        let target = root;
+        let target = root as any;
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
             if (!(part in target)) {
@@ -570,7 +570,7 @@ export class Database<V = any> {
         if (value === undefined) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "value");
         };
-        const root = await this.all();
+        const root = await this.all() as any;
         const pathParts = key.split(".");
         let target: any = root;
         for (let i = 0; i < pathParts.length; i++) {
@@ -700,7 +700,8 @@ export class Database<V = any> {
      * const userKeys = await db.keys("user");
      */
     public async keys<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectPath<P>[]> {
-        if (!key) return TypedObject.keys(await this.all()) as ObjectPath<P>[];
+        const all = await this.all() as any;
+        if (!key) return TypedObject.keys(all) as ObjectPath<P>[];
         const data = await this.get(key) as Record<string, any>;
         return TypedObject.keys(data).filter((key) => data[key] !== undefined && data[key] !== null) as any
     }
@@ -734,7 +735,8 @@ export class Database<V = any> {
      * const userValues = await db.values("users");
      */
     public async values<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectValue<V, P>[]> {
-        if (!key) return TypedObject.values(await this.all());
+        const all = await this.all() as any;
+        if (!key) return TypedObject.values(all);
         const data = await this.get(key) as Record<string, any>;
         return TypedObject.values(data) as ObjectValue<V, P>[];
     }
