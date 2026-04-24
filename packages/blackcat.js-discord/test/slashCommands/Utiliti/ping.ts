@@ -6,8 +6,8 @@ const ping = new SlashCommandBuilder({
     cooldown: {
         duration: 5,
         scope: "role",
-        message: (ms, ctx, commandName) => ({
-            content: `này <@${ctx.member?.id}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`
+        message: (ms, ctx) => ({
+            content: `này <@${ctx.member?.id}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`
         }),
     },
     userPermission: {

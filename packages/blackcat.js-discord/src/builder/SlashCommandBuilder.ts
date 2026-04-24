@@ -11,16 +11,14 @@ import type {
     SlashCommandMentionableOption,
     SlashCommandAttachmentOption,
     GuildMember,
-    User,
-    PermissionResolvable,
-    ClientUser,
-    InteractionReplyOptions,
     CommandInteractionOptionResolver,
     SlashCommandSubcommandGroupBuilder,
+    User,
+    InteractionReplyOptions,
 } from "discord.js";
 
-import type { Client, CooldownConfig } from "..";
-import { cooldownManager } from "..";
+import type { Client, CooldownConfig, PermissionConfig } from "..";
+import { cooldownManager, PermissionManager } from "..";
 /**
  * Alias rút gọn cho CommandInteractionOptionResolver của discord.js
  * Dùng để lấy giá trị option từ Slash Command Interaction.
@@ -251,24 +249,6 @@ interface SlashSubCommandGroupBuilderConfig<TSubs> {
 }
 
 /**
- * Cấu hình permission cho slash command
- */
-export interface SlashPermissionConfig {
-    /**
-     * Danh sách quyền cần thiết
-     */
-    permission: PermissionResolvable[];
-    /**
-     * Hàm trả về message khi không đủ quyền
-     */
-    message?: (ctx: {
-        commandName: string;
-        user: User;
-        bot: ClientUser;
-    }) => InteractionReplyOptions;
-}
-
-/**
  * Infer root options của command
  * @hidden
  */
@@ -438,12 +418,6 @@ export interface SlashCommandBuilderOptions<
 > {
     /**
      * Tên slash command.
-     *
-     * Ví dụ:
-     * ```
-     * /ping
-     * /moderation
-     * ```
      */
     commandName: string;
     /**
@@ -456,7 +430,7 @@ export interface SlashCommandBuilderOptions<
      * Nếu người dùng không đủ quyền,
      * message callback sẽ được gọi để trả về phản hồi.
      */
-    userPermission?: SlashPermissionConfig;
+    permission?: PermissionConfig<"interaction">;
     /**
      * Cấu hình cooldown cho command.
      *
@@ -466,22 +440,10 @@ export interface SlashCommandBuilderOptions<
     cooldown?: CooldownConfig<"interaction">;
     /**
      * Danh sách subcommand trực tiếp.
-     *
-     * Ví dụ:
-     * ```
-     * /music play
-     * /music stop
-     * ```
      */
     subcommands?: TSubs;
     /**
      * Danh sách subcommand group.
-     *
-     * Ví dụ:
-     * ```
-     * /admin user ban
-     * /admin user kick
-     * ```
      */
     groups?: TGroups;
     /**
@@ -628,13 +590,6 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
         const result: any = {};
         for (const key in this.defs) {
             const def = this.defs[key];
-            /**
-             * Gọi resolver method tương ứng
-             * Ví dụ:
-             * getString
-             * getUser
-             * getChannel
-             */
             result[key] = (interaction.options as any)[def.method](key, !!def.required);
         }
         return result;
@@ -722,9 +677,6 @@ export class SlashSubCommandGroupBuilder<TSubs extends Record<string, ISlashSubC
     public build(name: string, builder: DiscordSlashCommandBuilder) {
         builder.addSubcommandGroup((group: SlashCommandSubcommandGroupBuilder) => {
             group.setName(name).setDescription(this.description);
-            /**
-             * Build từng subcommand trong group
-             */
             for (const [key, sub] of Object.entries(this.subcommands)) {
                 sub.build(key, group);
             }
@@ -939,10 +891,6 @@ export class SlashCommandBuilder<
 > {
     /**
      * Tên slash command.
-     *
-     * Ví dụ:
-     * `/ping`
-     * `/admin`
      */
     public commandName!: string;
     /**
@@ -952,7 +900,7 @@ export class SlashCommandBuilder<
     /**
      * Cấu hình quyền người dùng cần có để sử dụng command.
      */
-    public userPermission?: SlashPermissionConfig;
+    public permission?: PermissionConfig<"interaction">;
     /**
      * Cấu hình cooldown để tránh spam command.
      */
@@ -1025,7 +973,6 @@ export class SlashCommandBuilder<
                 return opt;
             }),
         },
-
         getBoolean: {
             parse: (opts: InteractionOptions, key: string, req: boolean) => opts.getBoolean(key, req),
             build: (builder: DiscordSlashCommandBuilder, name: string, def: BooleanOption) => builder.addBooleanOption((opt: SlashCommandBooleanOption) => {
@@ -1089,7 +1036,7 @@ export class SlashCommandBuilder<
         if (config) {
             this.commandName = config.commandName;
             this.description = config.description;
-            this.userPermission = config.userPermission;
+            this.permission = config.permission;
             this.cooldown = config.cooldown;
             if (config.subcommands) {
                 this.subsCommands = config.subcommands as TSubs;
@@ -1151,8 +1098,8 @@ export class SlashCommandBuilder<
      *
      * @param permission permission config
      */
-    public setUserPermissions(permission: SlashPermissionConfig) {
-        this.userPermission = permission;
+    public setUserPermissions(permission: PermissionConfig<"interaction">) {
+        this.permission = permission;
         return this;
     }
     /**
@@ -1251,25 +1198,13 @@ export class SlashCommandBuilder<
         if (!this.handler) {
             throw new Error(`SlashCommand ${this.commandName} bị thiếu execute handler`);
         }
-        if (this.userPermission) {
-            if (!interaction.memberPermissions?.has(this.userPermission.permission || ["SendMessages"])) {
-                const response = this.userPermission.message?.({
-                    commandName: this.commandName,
-                    user: interaction.user,
-                    bot: client.user!,
-                });
-                return interaction.reply(response ?? { content: `Này <@${interaction.user.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`, flags: MessageFlags.Ephemeral });
-            }
-        }
-        if (this.cooldown) {
-            const cooldownMessage = cooldownManager.check(this, {
-                type: "interaction",
-                userId: interaction.user.id,
-                guildId: interaction.guildId,
-                member: interaction.member as GuildMember,
-            });
-            if (cooldownMessage) return await interaction.reply(cooldownMessage);
-        }
+        // Kiểm tra permission.
+        const permission = await this.checkPermission(interaction);
+        if (permission) return permission;
+        // Kiểm tra cooldown.
+        const cooldown = this.checkCooldown(interaction);
+        if (cooldown) return cooldown;
+        // 
         const rootOptions = this.defs ? this.parseOptions(interaction, this.defs) : {};
         const groupName = interaction.options.getSubcommandGroup(false);
         const subCommandName = interaction.options.getSubcommand(false);
@@ -1303,6 +1238,40 @@ export class SlashCommandBuilder<
             ...rootOptions,
             payload: null
         } as any);
+    }
+    /**
+     * Kiểm tra permission của user.
+     *
+     * @private
+     */
+    private checkPermission(interaction: ChatInputCommandInteraction) {
+        if (!this.permission) return;
+        const permission = new PermissionManager<"interaction">(this.permission);
+        const result = permission.check({
+            commandName: this.commandName,
+            userID: interaction.member?.user.id!,
+            guildID: interaction.guild?.id,
+            member: interaction.member as GuildMember,
+            user: interaction.member?.user as User,
+            bot: interaction.client.user!,
+        });
+        if (!result.success) return interaction.reply(result.message);
+    }
+    /**
+     * Kiểm tra cooldown command.
+     *
+     * @private
+     */
+    private async checkCooldown(interaction: ChatInputCommandInteraction) {
+        if (!this.cooldown) return;
+        const cooldownMessage = cooldownManager.check(this, {
+            type: "interaction",
+            userId: interaction.user.id,
+            guildId: interaction.guildId,
+            member: interaction.member as GuildMember,
+            commandName: this.commandName,
+        });
+        if (cooldownMessage) return await interaction.reply(cooldownMessage);
     }
     /**
      * Parse interaction options thành object typed theo định nghĩa option.

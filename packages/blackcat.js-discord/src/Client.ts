@@ -13,6 +13,10 @@ export type Config = {
      */
     botToken: string;
     /**
+     * id của chủ bot
+     */
+    ownerID: string[];
+    /**
      * Các cấu hình bổ sung tùy ý của người dùng.
      */
     [key: string]: unknown;

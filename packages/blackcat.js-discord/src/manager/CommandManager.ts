@@ -156,7 +156,7 @@ export class CommandManager {
      */
     private _attachMessageListener(client: Client): void {
         client.on("messageCreate", async (message) => {
-            if (!message.guild || message.author.bot) return;
+            if (message.author.bot) return;
             const usedPrefix = this._getPrefix(message.content);
             if (!usedPrefix) return;
             const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);

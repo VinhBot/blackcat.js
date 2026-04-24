@@ -1,48 +1,6 @@
-import type { Message, GuildMember, User, ClientUser, PermissionResolvable, MessagePayload, MessageReplyOptions } from "discord.js";
-import { cooldownManager, type Client, type CooldownConfig } from "..";
-
-/**
- * Context được truyền vào khi tạo message phản hồi permission.
- *
- * @public
- */
-export interface CommandContext {
-    /**
-     * Tên command đang thực thi.
-     */
-    commandName: string;
-    /**
-     * GuildMember của user gọi command.
-     */
-    user: GuildMember & { user: User };
-    /**
-     * Thông tin bot client.
-     */
-    bot: ClientUser;
-}
-
-/**
- * Cấu hình permission cho command.
- *
- * @public
- */
-export interface CommandPermissionConfig {
-    /**
-     * Danh sách permission cần thiết để sử dụng command.
-     *
-     * @example
-     * ```ts
-     * permission: ["ManageMessages"]
-     * ```
-     */
-    permission: PermissionResolvable[];
-    /**
-     * Message trả về khi user không đủ quyền.
-     *
-     * @param ctx - Command execution context
-     */
-    message?: (ctx: CommandContext) => string | MessagePayload | MessageReplyOptions;
-}
+import type { Message } from "discord.js";
+import { cooldownManager, PermissionConfig, PermissionManager } from "..";
+import type { Client, CooldownConfig } from "..";
 
 /**
  * Options khởi tạo cho {@link CommandBuilder}.
@@ -71,9 +29,9 @@ export interface CommandBuilderOptions {
      */
     cooldown?: CooldownConfig<"message">;
     /**
-     * Permission yêu cầu của user.
+     * Permission.
      */
-    userPermission?: CommandPermissionConfig;
+    permission?: PermissionConfig<"message">;
     /**
      * Hướng dẫn sử dụng command.
      */
@@ -145,9 +103,9 @@ export class CommandBuilder {
      */
     public cooldown?: CooldownConfig<"message">;
     /**
-     * Cấu hình permission user.
+     * Cấu hình permission.
      */
-    public userPermission?: CommandPermissionConfig;
+    public permission?: PermissionConfig<"message">;
     /**
      * Hướng dẫn sử dụng command.
      */
@@ -170,7 +128,7 @@ export class CommandBuilder {
             if (options.description) this.description = options.description;
             if (options.category) this.category = options.category;
             if (options.cooldown) this.cooldown = options.cooldown;
-            if (options.userPermission) this.userPermission = options.userPermission;
+            if (options.permission) this.permission = options.permission;
             if (options.usage) this.usage = options.usage;
             if (options.execute) this.handler = options.execute;
         }
@@ -220,8 +178,8 @@ export class CommandBuilder {
     /**
      * Đặt permission config cho command.
      */
-    public setUserPermission(config: CommandPermissionConfig) {
-        this.userPermission = config;
+    public setUserPermission(config: PermissionConfig<"message">) {
+        this.permission = config;
         return this;
     }
     /**
@@ -236,15 +194,18 @@ export class CommandBuilder {
      *
      * @private
      */
-    private checkPermission(client: Client, message: Message) {
-        if (!this.userPermission) return;
-        const hasPermission = message.member?.permissions.has(this.userPermission.permission || ["SendMessages"]);
-        if (hasPermission) return;
-        return message.reply(this.userPermission.message?.({
+    private checkPermission(message: Message) {
+        if (!this.permission) return;
+        const permission = new PermissionManager(this.permission);
+        const result = permission.check({
             commandName: this.commandName,
-            user: message.member as GuildMember & { user: User },
-            bot: client.user as ClientUser,
-        }) ?? `Này <@${message.member?.id}> bạn không đủ quyền hạn để sử dụng lệnh này.`);
+            userID: message.author.id,
+            guildID: message.guild?.id,
+            member: message.member ?? undefined,
+            user: message.author,
+            bot: message.client.user!,
+        });
+        if (!result.success) return message.reply(result.message);
     }
     /**
      * Kiểm tra cooldown command.
@@ -257,7 +218,8 @@ export class CommandBuilder {
             type: "message",
             userId: message.author.id,
             guildId: message.guildId,
-            member: message.member
+            member: message.member,
+            commandName: this.commandName,
         });
         if (cooldownMessage) return message.reply(cooldownMessage);
     }
@@ -276,7 +238,7 @@ export class CommandBuilder {
      */
     public execute(client: Client, message: Message<true>, args: string[]) {
         // Kiểm tra permission
-        const permission = this.checkPermission(client, message);
+        const permission = this.checkPermission(message);
         if (permission) return permission;
         // Kiểm tra cooldown
         const cooldown = this.checkCooldown(message);

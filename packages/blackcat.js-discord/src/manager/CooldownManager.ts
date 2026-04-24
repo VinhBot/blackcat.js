@@ -1,6 +1,6 @@
 import { Collection, GuildMember, InteractionReplyOptions, MessagePayload, MessageReplyOptions, PermissionsBitField } from "discord.js";
 import type { CommandBuilder, SlashCommandBuilder } from "..";
-
+import { parseTime } from "..";
 /**
  * @hidden
  */
@@ -50,8 +50,7 @@ export enum PermissionLevel {
 export type CooldownScope =
     | "user"        // Cooldown theo từng user
     | "role"        // Cooldown theo role cao nhất
-    | "guild"       // Cooldown toàn server
-    | "user+role";  // Cooldown theo user + role cao nhất (combined key)
+    | "guild";       // Cooldown toàn server
 
 /**
  * CooldownConfig
@@ -71,9 +70,9 @@ export interface CooldownConfig<T extends "message" | "interaction" = "message">
      * Thời gian cooldown gốc (seconds)
      *
      * Ví dụ:
-     *  5 = 5 giây
+     *  5 hoặc "5" hoặc "5s" = 5 giây
      */
-    duration: number;
+    duration: number | string;
     /**
      * Phạm vi áp dụng cooldown
      *
@@ -98,8 +97,17 @@ export interface CooldownConfig<T extends "message" | "interaction" = "message">
      *
      * Nếu user có nhiều role được cấu hình:
      *  → Lấy weight nhỏ nhất (cooldown ngắn nhất)
+     * ```ts
+     * roleWeights: (guildID, memberID) => {
+     *      console.log("guildID", guildID);
+     *      console.log("memberID", memberID);
+     *      return {
+     *          memberID: 0.1, // giảm 10%
+     *      };
+     * },
+     * ```
      */
-    roleWeights?: Record<string, number>;
+    roleWeights?: (guildID: string, memberID: string) => Record<string, number>;
     /**
      * permissionBypass
      *
@@ -107,9 +115,9 @@ export interface CooldownConfig<T extends "message" | "interaction" = "message">
      * → bỏ qua hoàn toàn cooldown
      *
      * Ví dụ:
-     *  permissionBypass: PermissionLevel.ADMIN
+     *  permissionBypass: PermissionLevel.ADMIN hoặc [PermissionLevel.ADMIN, ....]
      */
-    permissionBypass?: PermissionLevel;
+    permissionBypass?: PermissionLevel | PermissionLevel[];
     /**
      * message
      *
@@ -124,10 +132,11 @@ export interface CooldownConfig<T extends "message" | "interaction" = "message">
      *  string hiển thị cho user
      *
      * Ví dụ:
-     *  message: (ms, ctx, name) =>
-     *    `Command ${name} còn ${Math.ceil(ms/1000)}s`
+     * ```ts
+     * message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.` 
+     * ```
      */
-    message?: (ms: number, ctx: CooldownCommandContext, commandName: string) => CooldownMessageReturn<T>;
+    message?: (ms: number, ctx: CooldownCommandContext) => CooldownMessageReturn<T>;
 }
 
 /**
@@ -161,6 +170,10 @@ export type CooldownCommandContext = | {
      *  - kiểm tra permission
      */
     member: GuildMember | null;
+    /**
+     * Tên lệnh đang sử dụng
+     */
+    commandName: string;
 } | {
     /**
      * Context từ message command (prefix)
@@ -178,6 +191,10 @@ export type CooldownCommandContext = | {
      * Member tương ứng
      */
     member: GuildMember | null;
+    /**
+     * Tên lệnh đang sử dụng
+     */
+    commandName: string;
 };
 /**
  * CooldownManager
@@ -211,7 +228,7 @@ export class CooldownManager {
      */
     private getHighestRole(member: GuildMember | null) {
         if (!member) return null;
-        return member.roles.cache.filter((r) => r.id !== member.guild.id).sort((a, b) => b.position - a.position).first() ?? null;
+        return member.roles.cache.filter((role) => role.id !== member.guild.id).sort((a, b) => b.position - a.position).first() ?? null;
     }
     /**
      * Tính duration thực tế dựa trên roleWeights
@@ -238,11 +255,16 @@ export class CooldownManager {
      *
      * Nếu member có quyền Administrator -> bỏ qua cooldown
      */
-    private hasBypass(member: GuildMember | null, level?: PermissionLevel) {
+    private hasBypass(member: GuildMember | null, level?: PermissionLevel | PermissionLevel[]): boolean {
         if (!member || level === undefined) return false;
-        const permission = CooldownManager.permissionMap[level];
-        if (!permission) return false;
-        return member.permissions.has(permission);
+        const levels = Array.isArray(level) ? level : [level];
+        for (const lvl of levels) {
+            const permission = CooldownManager.permissionMap[lvl];
+            if (permission && member.permissions.has(permission)) {
+                return true; // ✅ Chỉ cần 1 quyền hợp lệ
+            }
+        }
+        return false;
     }
     /**
      * Build key dựa trên scope
@@ -258,14 +280,9 @@ export class CooldownManager {
      */
     private buildKey(commandName: string, scope: CooldownScope, ctx: CooldownCommandContext, highestRoleId?: string | null): string {
         switch (scope) {
-            case "user":
-                return `${commandName}:user:${ctx.userId}`;
-            case "role":
-                return `${commandName}:role:${highestRoleId}`;
-            case "guild":
-                return `${commandName}:guild:${ctx.guildId}`;
-            case "user+role":
-                return `${commandName}:user+role:${ctx.userId}:${highestRoleId}`;
+            case "user": return `${commandName}:user:${ctx.userId}`;
+            case "role": return `${commandName}:role:${highestRoleId}`;
+            case "guild": return `${commandName}:guild:${ctx.guildId}`;
             default:
                 throw new Error(`Unknown scope: ${scope}`);
         }
@@ -277,7 +294,7 @@ export class CooldownManager {
      * - Nếu không -> set cooldown mới và trả về null
      */
     public check(command: SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): InteractionReplyOptions | null;
-    public check(command: CommandBuilder, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null; 
+    public check(command: CommandBuilder, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null;
     public check(command: CommandBuilder | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
@@ -289,7 +306,7 @@ export class CooldownManager {
         const highestRole = this.getHighestRole(ctx.member);
         const highestRoleId = highestRole?.id ?? null;
         for (const sc of scopes) {
-            if ((sc === "role" || sc === "user+role") && !highestRoleId) continue;
+            if ((sc === "role") && !highestRoleId) continue;
             if (sc === "guild" && !ctx.guildId) continue;
             const key = this.buildKey(command.commandName, sc, ctx, highestRoleId);
             if (this.cooldowns.has(key)) {
@@ -297,14 +314,14 @@ export class CooldownManager {
                 if (now < expiresAt) {
                     const remaining = expiresAt - now;
                     const ms = Math.ceil(remaining / 1000);
-                    return message ? message(ms, ctx, command.commandName) : `Wait ${Math.ceil(remaining / 1000)}s.`;
+                    return message ? message(ms, ctx) : `chờ ${Math.ceil(remaining / 1000)} giây để tiếp tục.`;
                 }
             }
         }
         // Tính duration thực tế (weighted)
-        const finalDuration = this.getWeightedDuration(Math.floor(duration * 1000), ctx.member, roleWeights);
+        const finalDuration = this.getWeightedDuration(parseTime(duration), ctx.member, roleWeights?.(ctx?.guildId!, ctx.userId));
         for (const sc of scopes) {
-            if ((sc === "role" || sc === "user+role") && !highestRoleId) continue;
+            if ((sc === "role") && !highestRoleId) continue;
             if (sc === "guild" && !ctx.guildId) continue;
             const key = this.buildKey(command.commandName, sc, ctx, highestRoleId);
             this.cooldowns.set(key, now + finalDuration);

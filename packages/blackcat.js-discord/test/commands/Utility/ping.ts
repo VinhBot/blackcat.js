@@ -1,4 +1,4 @@
-import { CommandBuilder, PaginationBuilder, PermissionLevel } from "../../../src";
+import { CommandBuilder, PaginationBuilder, PermissionLevel } from "blackcat.js-discord";
 
 let number = 0;
 let numbers = 0;
@@ -12,8 +12,8 @@ const pingCommand = new CommandBuilder()
         //     // "id Role": 0.7,
         // },
         // permissionBypass: PermissionLevel.ADMIN,
-        message: (ms, ctx, commandName) => ({
-            content: `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`,
+        message: (ms, ctx) => ({
+            content: `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
         }),
     })
     .setUserPermission({
