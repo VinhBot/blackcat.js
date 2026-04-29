@@ -10,9 +10,6 @@ const ping = new SlashCommandBuilder({
             content: `này <@${ctx.member?.id}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`
         }),
     },
-    userPermission: {
-        permission: ["SendMessages"],
-    },
     options: (o) => ({
         string: o.string({ description: "string description", required: false }),
     }),

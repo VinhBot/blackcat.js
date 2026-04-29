@@ -11,11 +11,11 @@ export type Config = {
     /**
      * Token đăng nhập bot Discord.
      */
-    botToken: string;
+    botToken?: string;
     /**
      * id của chủ bot
      */
-    ownerID: string[];
+    ownerID?: string | string[];
     /**
      * Các cấu hình bổ sung tùy ý của người dùng.
      */
@@ -489,7 +489,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
                 repliedUser: false
             },
         });
-        this.config = options.config ?? { botToken: "" } as Config;
+        this.config = options.config ?? { } as Config;
         // Collection
         this.commands = new Collection<string, CommandBuilder>();
         this.aliases = new Collection<string, string>();

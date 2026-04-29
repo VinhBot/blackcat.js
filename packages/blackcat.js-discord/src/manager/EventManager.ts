@@ -117,9 +117,9 @@ export class EventManager {
                         options.onError?.({ error: new Error("Mô-đun sự kiện không hợp lệ"), file, scope });
                     }
                     if (event.once) {
-                        client.once(event.eventName, (...args: any[]) => event.execute(client, ...args as any));
+                        client.once(event.eventName, (...args: any) => event.execute(client, ...args));
                     } else {
-                        client.on(event.eventName, (...args: any[]) => event.execute(client, ...args as any));
+                        client.on(event.eventName, (...args: any) => event.execute(client, ...args));
                     }
                     options.onLoad?.({ eventName: event.eventName, file, scope });
                 } catch (error) {

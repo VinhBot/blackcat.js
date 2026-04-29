@@ -5,8 +5,10 @@ import type {
     PermissionResolvable,
     MessagePayload,
     MessageReplyOptions,
-    InteractionReplyOptions
+    InteractionReplyOptions,
 } from "discord.js";
+
+import type { Client } from "..";
 
 /**
  * Context được truyền vào khi kiểm tra hoặc xử lý quyền (permission).
@@ -51,7 +53,7 @@ export interface PermissionContext {
 /**
  * @private
  */
-type PermissionFailReason = | "USER_BLOCKED" | "DM_NOT_ALLOWED" | "GUILD_NOT_ALLOWED" | "MISSING_ROLE" | "MISSING_USER_PERMISSIONS" | "MISSING_BOT_PERMISSIONS";
+type PermissionFailReason = | "ONLY_OWNER" | "USER_BLOCKED" | "DM_NOT_ALLOWED" | "GUILD_NOT_ALLOWED" | "MISSING_ROLE" | "MISSING_USER_PERMISSIONS" | "MISSING_BOT_PERMISSIONS";
 /**
  * @private
  */
@@ -101,6 +103,14 @@ export interface PermissionConfig<T extends "message" | "interaction" = "message
      * @default true
      */
     allowGuild?: boolean;
+    /**
+     * Xác định liệu chức năng/hành động này có chỉ dành cho owner hay không.
+     *
+     * - `true`: Chỉ owner mới được phép sử dụng.
+     * - `false`: Người dùng khác vẫn có thể sử dụng (tùy thuộc vào các quyền khác nếu có).
+     * @default false
+     */
+    onlyOwner?: boolean;
     /**
      * Hàm tạo nội dung phản hồi khi không đủ quyền.
      *
@@ -173,7 +183,8 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
             blockedUserIds: config.blockedUserIds ?? [],
             allowDM: config.allowDM ?? false,
             allowGuild: config.allowGuild ?? true,
-            message: config.message ?? ((ctx) => this.defaultMessage(ctx) as PermissionMessageReturn<T>)
+            onlyOwner: config.onlyOwner ?? false,
+            message: config.message ?? ((ctx) => this.defaultMessage(ctx) as PermissionMessageReturn<T>),
         };
     }
     /**
@@ -190,12 +201,27 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      * @param ctx - Context thực thi command
      * @returns Kết quả kiểm tra permission
      */
-    public check(ctx: PermissionContext): PermissionResult<T> {
+    public async check(client: Client, ctx: PermissionContext): Promise<PermissionResult<T>> {
         const isDM = !ctx.guildID;
 
-        if (this.config.blockedUserIds.includes(ctx.userID)) {
-            return this.fail("USER_BLOCKED", ctx);
+        if (this.config.onlyOwner) {
+            if (!ctx.userID) return this.fail("ONLY_OWNER", ctx);
+            let ownerIDs: string[] = [];
+            if (client.config.ownerID) {
+                ownerIDs = Array.isArray(client.config.ownerID) ? client.config.ownerID : [client.config.ownerID];
+            } else {
+                const app = await client.application?.fetch();
+                if (!app?.owner) return this.fail("ONLY_OWNER", ctx);
+                if ("members" in app.owner) {
+                    ownerIDs = app.owner.members.map((m) => m.id);
+                } else {
+                    ownerIDs = [app.owner.id];
+                }
+            }
+            if (!ownerIDs.includes(ctx.userID)) return this.fail("ONLY_OWNER", ctx);
         }
+
+        if (this.config.blockedUserIds.includes(ctx.userID)) return this.fail("USER_BLOCKED", ctx);
 
         if (isDM && !this.config.allowDM) {
             return this.fail("DM_NOT_ALLOWED", ctx);
@@ -215,13 +241,9 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
             if (!hasRole) return this.fail("MISSING_ROLE", ctx);
         }
 
-        const missingUserPermissions = this.getMissingUserPermissions(ctx);
-        if (missingUserPermissions.length) {
-            return this.fail("MISSING_USER_PERMISSIONS", ctx);
-        }
-        if (this.config.botPermissions && !isDM) {
-            const missingBotPermissions = this.getMissingBotPermissions(ctx);
-            if (missingBotPermissions.length) return this.fail("MISSING_BOT_PERMISSIONS", ctx);
+        if (this.getMissingUserPermissions(ctx).length) return this.fail("MISSING_USER_PERMISSIONS", ctx);
+        if (this.config.botPermissions && !isDM && this.getMissingBotPermissions(ctx).length) {
+            return this.fail("MISSING_BOT_PERMISSIONS", ctx);
         }
         return { success: true } as PermissionResult<T>;;
     }
@@ -253,7 +275,7 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      * @param reason - Lý do thất bại
      * @param ctx - Context hiện tại
      * @returns PermissionResult với success = false
-     */    
+     */
     private fail(reason: PermissionFailReason, ctx: PermissionContext): PermissionResult<T> {
         return {
             success: false,
@@ -271,14 +293,22 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      * @returns Nội dung string
      */
     private defaultMessage(ctx: PermissionContext): string {
-        switch (ctx.reason) {
-            case "USER_BLOCKED": return `⛔ <@${ctx.userID}> bạn đã bị chặn sử dụng bot.`;
-            case "DM_NOT_ALLOWED": return `❌ Lệnh **${ctx.commandName}** không thể dùng trong DM.`;
-            case "MISSING_ROLE": return `❌ Bạn không có role phù hợp để dùng lệnh **${ctx.commandName}**.`;
-            case "GUILD_NOT_ALLOWED": return `❌ Lệnh **${ctx.commandName}** không thể dùng trong server.`;
-            case "MISSING_USER_PERMISSIONS": return `❌ Bạn không đủ quyền để dùng lệnh **${ctx.commandName}**.`;
-            case "MISSING_BOT_PERMISSIONS": return `❌ Bot không đủ quyền để thực hiện lệnh **${ctx.commandName}**.`;
-            default: return `❌ Không thể thực hiện lệnh.`;
+        if (ctx.reason === "ONLY_OWNER") {
+            return `❌ Lệnh này chỉ dành cho chủ sở hữu bot.`;
+        } else if (ctx.reason === "USER_BLOCKED") {
+            return `⛔ <@${ctx.userID}> bạn đã bị chặn sử dụng bot.`;
+        } else if (ctx.reason === "DM_NOT_ALLOWED") {
+            return `❌ Lệnh **${ctx.commandName}** không thể dùng trong DM.`;
+        } else if (ctx.reason === "MISSING_ROLE") {
+            return `❌ Bạn không có role phù hợp để dùng lệnh **${ctx.commandName}**.`;
+        } else if (ctx.reason === "GUILD_NOT_ALLOWED") {
+            return `❌ Lệnh **${ctx.commandName}** không thể dùng trong server.`;
+        } else if (ctx.reason === "MISSING_USER_PERMISSIONS") {
+            return `❌ Bạn không đủ quyền để dùng lệnh **${ctx.commandName}**.`;
+        } else if (ctx.reason === "MISSING_BOT_PERMISSIONS") {
+            return `❌ Bot không đủ quyền để thực hiện lệnh **${ctx.commandName}**.`;
+        } else {
+            return `❌ Không thể thực hiện lệnh.`;
         }
     }
 }

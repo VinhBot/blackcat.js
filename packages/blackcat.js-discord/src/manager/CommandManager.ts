@@ -179,13 +179,14 @@ export class CommandManager {
      * @returns Prefix được sử dụng hoặc `null`
      */
     private _getPrefix(content: string): string | null {
-        if (Array.isArray(this.prefix)) {
-            for (const p of this.prefix) {
+        const prefix = this.prefix as string;
+        if (Array.isArray(prefix)) {
+            for (const p of prefix) {
                 if (content.startsWith(p)) return p;
             }
             return null;
         }
-        return content.startsWith(this.prefix as any) ? this.prefix as any : null;
+        return content.startsWith(prefix as string) ? prefix as string : null;
     }
     /**
      * Resolve command từ:
@@ -198,12 +199,11 @@ export class CommandManager {
      * @returns Command tương ứng hoặc `null`
      */
     private resolve(client: Client, name: string): CommandBuilder | null {
-        const { commands, aliases } = client;
-        const direct = commands.get(name);
+        const direct = client.commands.get(name);
         if (direct) return direct;
-        const alias = aliases.get(name);
+        const alias = client.aliases.get(name);
         if (!alias) return null;
-        return commands.get(alias) ?? null;
+        return client.commands.get(alias) ?? null;
     }
     /**
      * Reload toàn bộ commands.
@@ -216,10 +216,9 @@ export class CommandManager {
      * 4. Load lại từ filesystem
      */
     public async reloadAll(client: Client): Promise<void> {
-        const { commands, aliases, categories } = client;
-        commands.clear();
-        aliases.clear();
-        categories.clear();
+        client.commands.clear();
+        client.aliases.clear();
+        client.categories.clear();
         await this.loadAll(client);
     }
 }

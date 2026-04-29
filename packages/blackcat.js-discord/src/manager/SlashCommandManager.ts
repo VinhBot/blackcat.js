@@ -165,19 +165,30 @@ export class SlashCommandManager {
      */
     private _attachInteractionListener(client: Client): void {
         client.on("interactionCreate", async (interaction) => {
-            if (!interaction.isChatInputCommand()) return;
-            const command = client.slashCommands.get(interaction.commandName);
-            if (!command) return;
-            try {
-                await command.execute(client, interaction);
-            } catch (error) {
-                console.error(`Error executing ${interaction.commandName}:`, error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: "Có lỗi xảy ra khi thực thi lệnh.", ephemeral: true });
-                } else {
-                    await interaction.reply({ content: "Có lỗi xảy ra khi thực thi lệnh.", ephemeral: true });
+            // if (interaction.isAutocomplete()) {
+            //     const command = client.slashCommands.get(interaction.commandName);
+            //     if (!command || !command.autocompleteRun) return;
+            //     try {
+            //         await command.autocompleteRun(client, interaction);
+            //     } catch (error) {
+            //         console.error(`Autocomplete error ${interaction.commandName}:`, error);
+            //     }
+            //     return;
+            // }
+            if (interaction.isChatInputCommand()) {
+                const command = client.slashCommands.get(interaction.commandName);
+                if (!command) return;
+                try {
+                    await command.execute(client, interaction);
+                } catch (error) {
+                    console.error(`Error executing ${interaction.commandName}:`, error);
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: "Có lỗi xảy ra khi thực thi lệnh.", ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: "Có lỗi xảy ra khi thực thi lệnh.", ephemeral: true });
+                    }
                 }
-            }
+            };
         });
     }
     /**
@@ -188,25 +199,19 @@ export class SlashCommandManager {
         client.once(Events.ClientReady, async () => {
             if (!client.user) return;
             const rest = new REST({ version: "10" }).setToken(client.token ?? client.config.botToken ?? "");
-            const slashCmds = client.slashCommands.map((c) => c.build().toJSON());
-            const resetGlobal = async () => {
-                if (this.reset?.global) {
-                    await client.application!.commands.set([]);
-                }
-            };
-            const resetGuild = async (guildId: string) => {
-                if (this.reset?.guild) {
-                    const guild = client.guilds.cache.get(guildId);
-                    await guild?.commands.set([]);
-                }
-            };
+            const slashCmds = client.slashCommands.map((command) => command.build().toJSON());
             // Reset global commands
-            await resetGlobal();
+            if (this.reset?.global) {
+                await client.application!.commands.set([]);
+            }
             // Handle guild commands
             if (this.guildID) {
                 const guildIDs = Array.isArray(this.guildID) ? this.guildID : [this.guildID];
                 for (const id of guildIDs) {
-                    await resetGuild(id);
+                    if (this.reset?.guild) {
+                        const guild = client.guilds.cache.get(id);
+                        await guild?.commands.set([]);
+                    }
                     await rest.put(Routes.applicationGuildCommands(client.user.id, id), {
                         body: slashCmds
                     });

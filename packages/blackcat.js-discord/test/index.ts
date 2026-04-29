@@ -1,9 +1,5 @@
-import { Client, CommandManager, EventManager, SlashCommandManager } from "blackcat.js-discord";
+import { Client, CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
 import { GatewayIntentBits, Partials } from "discord.js";
-
-const config = {
-    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
-};
 
 const client = new Client({
     discordClientOptions: {
@@ -14,7 +10,9 @@ const client = new Client({
             repliedUser: false
         },
     },
-    config: config,
+    config: {
+        botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
+    },
     eventManager: new EventManager({
         directory: "./events",
         scopes: ["client"],

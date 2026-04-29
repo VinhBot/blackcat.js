@@ -1098,7 +1098,7 @@ export class SlashCommandBuilder<
      *
      * @param permission permission config
      */
-    public setUserPermissions(permission: PermissionConfig<"interaction">) {
+    public setPermissions(permission: PermissionConfig<"interaction">) {
         this.permission = permission;
         return this;
     }
@@ -1161,8 +1161,8 @@ export class SlashCommandBuilder<
      * })
      */
     public setExecute(handler: SlashCommandBuilderOptions<TOptions, TSubs, TGroups>["execute"]) {
-        this.handler = handler
-        return this
+        this.handler = handler;
+        return this;
     }
     /**
      * Thực thi slash command khi interaction được nhận.
@@ -1199,7 +1199,7 @@ export class SlashCommandBuilder<
             throw new Error(`SlashCommand ${this.commandName} bị thiếu execute handler`);
         }
         // Kiểm tra permission.
-        const permission = await this.checkPermission(interaction);
+        const permission = await this.checkPermission(client, interaction);
         if (permission) return permission;
         // Kiểm tra cooldown.
         const cooldown = this.checkCooldown(interaction);
@@ -1209,7 +1209,7 @@ export class SlashCommandBuilder<
         const groupName = interaction.options.getSubcommandGroup(false);
         const subCommandName = interaction.options.getSubcommand(false);
         if (groupName && subCommandName) {
-            const subBuilder = this.groups[groupName as keyof typeof this.groups].subcommands[subCommandName as any];
+            const subBuilder = this.groups[groupName as keyof typeof this.groups].subcommands[subCommandName];
             const parsed = subBuilder.parse(interaction);
             return this.handler(client, interaction, {
                 ...rootOptions,
@@ -1244,10 +1244,10 @@ export class SlashCommandBuilder<
      *
      * @private
      */
-    private checkPermission(interaction: ChatInputCommandInteraction) {
+    private async checkPermission(client: Client, interaction: ChatInputCommandInteraction) {
         if (!this.permission) return;
-        const permission = new PermissionManager<"interaction">(this.permission);
-        const result = permission.check({
+        const permission = new PermissionManager(this.permission);
+        const result = await permission.check(client, {
             commandName: this.commandName,
             userID: interaction.member?.user.id!,
             guildID: interaction.guild?.id,

@@ -147,16 +147,27 @@ const exampleCommand = new CommandBuilder({
     category: "string",
     usage: "string",
     cooldown: {
-        duration: 5,
-        scope: ["user"], // "user" | "guild" | "global"
-        roleWeights: {
-            "id role": 0.5, // giảm 50%
+        duration: "5s",
+        scope: ["role"],
+        roleWeights: (guildID, memberID) => {
+            console.log("guildID:", guildID);
+            console.log("memberID:", memberID);
+            return {
+                memberID: 0.1, // giảm 10%
+            };
         },
-        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`
+        permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
-    userPermission: {
-        permission: ["SendMessages"],
-        message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
+    permission: {
+        userPermissions: ["SendMessages"],
+        botPermissions: ["SendMessages"],
+        // allowedRoleIds: ["1100924393175142453"],
+        // allowedUserIds: ["1497199921814835311"],
+        // blockedUserIds: ["1497199921814835311"],
+        // allowDM: false,
+        // allowGuild: true,
+        // onlyOwner: true,
     },
     execute: async (client, message, args) => {
         // logic code.
@@ -177,16 +188,27 @@ const exampleCommand = new SlashCommandBuilder({
     commandName: "string",
     description: "string",
     cooldown: {
-        duration: 5,
-        scope: ["user"], // "user" | "guild" | "global"
-        roleWeights: {
-            "id role": 0.5, // giảm 50%
+        duration: "5s",
+        scope: ["role"],
+        roleWeights: (guildID, memberID) => {
+            console.log("guildID:", guildID);
+            console.log("memberID:", memberID);
+            return {
+                memberID: 0.1, // giảm 10%
+            };
         },
-        message: (ms, ctx, commandName) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${commandName}.`
+        permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
-    userPermission: {
-        permission: ["SendMessages"],
-        message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
+    permission: {
+        userPermissions: ["SendMessages"],
+        botPermissions: ["SendMessages"],
+        // allowedRoleIds: ["1100924393175142453"],
+        // allowedUserIds: ["1497199921814835311"],
+        // blockedUserIds: ["1497199921814835311"],
+        // allowDM: false,
+        // allowGuild: true,
+        // onlyOwner: true,
     },
     options: (o) => ({ 
         string: o.string({ description: "string description", required: true | false }), //  // integer, number, boolean, user, member, role, channel, mentionable, attachment
@@ -204,11 +226,27 @@ const exampleCommand = new SlashCommandBuilder({
     commandName: "admin",
     description: "Admin commands",
     cooldown: {
-        duration: 5,
-        scope: "user"
+        duration: "5s",
+        scope: ["role"],
+        roleWeights: (guildID, memberID) => {
+            console.log("guildID:", guildID);
+            console.log("memberID:", memberID);
+            return {
+                memberID: 0.1, // giảm 10%
+            };
+        },
+        permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
-    userPermission: {
-        permission: ["SendMessages"],
+    permission: {
+        userPermissions: ["SendMessages"],
+        botPermissions: ["SendMessages"],
+        // allowedRoleIds: ["1100924393175142453"],
+        // allowedUserIds: ["1497199921814835311"],
+        // blockedUserIds: ["1497199921814835311"],
+        // allowDM: false,
+        // allowGuild: true,
+        // onlyOwner: true,
     },
     /* SUB COMMAND TRỰC TIẾP */
     subcommands: {
@@ -242,11 +280,27 @@ const exampleCommand = new SlashCommandBuilder({
     commandName: "admin",
     description: "Admin commands",
     cooldown: {
-        duration: 5,
-        scope: "user"
+        duration: "5s",
+        scope: ["role"],
+        roleWeights: (guildID, memberID) => {
+            console.log("guildID:", guildID);
+            console.log("memberID:", memberID);
+            return {
+                memberID: 0.1, // giảm 10%
+            };
+        },
+        permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
-    userPermission: {
-        permission: ["SendMessages"],
+    permission: {
+        userPermissions: ["SendMessages"],
+        botPermissions: ["SendMessages"],
+        // allowedRoleIds: ["1100924393175142453"],
+        // allowedUserIds: ["1497199921814835311"],
+        // blockedUserIds: ["1497199921814835311"],
+        // allowDM: false,
+        // allowGuild: true,
+        // onlyOwner: true,
     },
     /* GROUP */
     groups: {
@@ -256,27 +310,15 @@ const exampleCommand = new SlashCommandBuilder({
                 ban: new SlashSubCommandBuilder({
                     description: "Ban user",
                     options: (o) => ({
-                        user: o.user({
-                            description: "Target user",
-                            required: true,
-                        }),
-                        reason: o.string({
-                            description: "Reason",
-                            required: true,
-                        }),
+                        user: o.user({ description: "Target user", required: true }),
+                        reason: o.string({ description: "Reason", required: true }),
                     }),
                 }),
                 kick: new SlashSubCommandBuilder({
                     description: "Kick user",
                     options: (o) => ({
-                        user: o.user({
-                            description: "Target user",
-                            required: false,
-                        }),
-                        userid: o.number({
-                            description: "user id",
-                            required: false
-                        }),
+                        user: o.user({ description: "Target user", required: false }),
+                        userid: o.number({ description: "user id",  required: false }),
                     }),
                 }),
             },
@@ -304,11 +346,27 @@ const exampleCommand = new SlashCommandBuilder({
     commandName: "admin",
     description: "Admin commands",
     cooldown: {
-        duration: 5,
-        scope: "user"
+        duration: "5s",
+        scope: ["role"],
+        roleWeights: (guildID, memberID) => {
+            console.log("guildID:", guildID);
+            console.log("memberID:", memberID);
+            return {
+                memberID: 0.1, // giảm 10%
+            };
+        },
+        permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
+        message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
-    userPermission: {
-        permission: ["SendMessages"],
+    permission: {
+        userPermissions: ["SendMessages"],
+        botPermissions: ["SendMessages"],
+        // allowedRoleIds: ["1100924393175142453"],
+        // allowedUserIds: ["1497199921814835311"],
+        // blockedUserIds: ["1497199921814835311"],
+        // allowDM: false,
+        // allowGuild: true,
+        // onlyOwner: true,
     },
     /* SUB COMMAND TRỰC TIẾP */
     subcommands: {
@@ -394,7 +452,9 @@ const exampleCommand = new SlashCommandBuilder()
         duration: 5,
         scope: "user"
     })
-    .setUserPermissions({ permission: ["SendMessages"] })
+    .setPermissions({ 
+        serPermissions: ["SendMessages"] 
+    })
     .setGroups({
         user: new SlashSubCommandGroupBuilder({
             description: "User management",

@@ -1275,7 +1275,7 @@ export class PaginationBuilder<T> {
                     pagination: this,
                     page: this.page,
                     totalPages: this.totalPages,
-                    data: data
+                    data: data     
                 });
             } catch (error) {
                 this.onError(error);

@@ -178,7 +178,7 @@ export class CommandBuilder {
     /**
      * Đặt permission config cho command.
      */
-    public setUserPermission(config: PermissionConfig<"message">) {
+    public setPermission(config: PermissionConfig<"message">) {
         this.permission = config;
         return this;
     }
@@ -194,10 +194,10 @@ export class CommandBuilder {
      *
      * @private
      */
-    private checkPermission(message: Message) {
+    private async checkPermission(client: Client, message: Message) {
         if (!this.permission) return;
         const permission = new PermissionManager(this.permission);
-        const result = permission.check({
+        const result = await permission.check(client, {
             commandName: this.commandName,
             userID: message.author.id,
             guildID: message.guild?.id,
@@ -236,9 +236,9 @@ export class CommandBuilder {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    public execute(client: Client, message: Message<true>, args: string[]) {
+    public async execute(client: Client, message: Message<true>, args: string[]) {
         // Kiểm tra permission
-        const permission = this.checkPermission(message);
+        const permission = await this.checkPermission(client, message);
         if (permission) return permission;
         // Kiểm tra cooldown
         const cooldown = this.checkCooldown(message);

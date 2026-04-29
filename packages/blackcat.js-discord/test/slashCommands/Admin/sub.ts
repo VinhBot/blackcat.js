@@ -7,9 +7,6 @@ const exampleCommand = new SlashCommandBuilder({
         duration: 5,
         scope: "user"
     },
-    userPermission: {
-        permission: ["SendMessages"],
-    },
     /* SUB COMMAND TRỰC TIẾP */
     subcommands: {
         reload: new SlashSubCommandBuilder({
