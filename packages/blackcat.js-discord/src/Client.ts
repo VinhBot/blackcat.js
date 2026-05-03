@@ -493,7 +493,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
         // Collection
         this.commands = new Collection<string, CommandBuilder>();
         this.aliases = new Collection<string, string>();
-        this.slashCommands = new Collection<string, SlashCommandBuilder<any>>();
+        this.slashCommands = new Collection<string, SlashCommandBuilder>();
         this.categories = new Collection<string, Collection<string, CommandBuilder>>();
         // Manager
         this.eventManager = options.eventManager;

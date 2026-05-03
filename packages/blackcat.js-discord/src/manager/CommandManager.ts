@@ -5,6 +5,8 @@ import fs from "fs";
 
 import { Client, CommandBuilder } from "..";
 
+type Prefix = | string | string[] | ((guildID: string) => Promise<string | string[]> | string | string[]);
+
 /**
  * Cấu hình cho {@link CommandManager}.
  */
@@ -25,9 +27,15 @@ export interface CommandManagerOptions {
      * ```ts
      * prefix: "!"
      * prefix: ["!", "?"]
+     * // hoặc 
+     * prefix: async(guildID) => {
+     *      if(!guildID) return "!";
+     *      const guilds = await database.get(guildID);
+     *      return guilds.prefix;
+     * },
      * ```
      */
-    prefix: string | string[];
+    prefix: Prefix;
     /**
      * Callback được gọi khi command được load thành công.
      *
@@ -54,7 +62,7 @@ export interface CommandManagerOptions {
  */
 export class CommandManager {
     private readonly directory: string | undefined;
-    private readonly prefix: string | string[] | undefined;
+    private readonly prefix: Prefix | undefined;
     private readonly onLoad?: CommandManagerOptions["onLoad"];
     private readonly onError?: CommandManagerOptions["onError"];
     /**
@@ -157,7 +165,7 @@ export class CommandManager {
     private _attachMessageListener(client: Client): void {
         client.on("messageCreate", async (message) => {
             if (message.author.bot) return;
-            const usedPrefix = this._getPrefix(message.content);
+            const usedPrefix = await this._getPrefix(message.content, message.guildId!);
             if (!usedPrefix) return;
             const args = message.content.slice(usedPrefix.length).trim().split(/\s+/);
             const commandName = args.shift()?.toLowerCase();
@@ -178,15 +186,24 @@ export class CommandManager {
      * @param content - Nội dung message
      * @returns Prefix được sử dụng hoặc `null`
      */
-    private _getPrefix(content: string): string | null {
-        const prefix = this.prefix as string;
-        if (Array.isArray(prefix)) {
-            for (const p of prefix) {
+    private async _getPrefix(content: string, guildID?: string): Promise<string | null> {
+        const prefix = this.prefix as Prefix;
+        let resolved: string | string[];
+
+        if (typeof prefix === "function") {
+            resolved = await prefix(guildID!);
+        } else {
+            resolved = prefix;
+        }
+
+        if (Array.isArray(resolved)) {
+            for (const p of resolved) {
                 if (content.startsWith(p)) return p;
             }
             return null;
         }
-        return content.startsWith(prefix as string) ? prefix as string : null;
+        
+        return content.startsWith(resolved) ? resolved : null;
     }
     /**
      * Resolve command từ:

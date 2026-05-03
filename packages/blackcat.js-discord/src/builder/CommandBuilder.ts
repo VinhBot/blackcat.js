@@ -1,4 +1,4 @@
-import type { Message } from "discord.js";
+import type { Message, OmitPartialGroupDMChannel } from "discord.js";
 import { cooldownManager, PermissionConfig, PermissionManager } from "..";
 import type { Client, CooldownConfig } from "..";
 
@@ -43,7 +43,7 @@ export interface CommandBuilderOptions {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    execute?: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any;
+    execute?: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any;
 }
 
 /**
@@ -115,7 +115,7 @@ export class CommandBuilder {
      *
      * @private
      */
-    private handler!: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any;;
+    private handler!: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any;;
     /**
      * Tạo CommandBuilder mới.
      *
@@ -185,7 +185,7 @@ export class CommandBuilder {
     /**
      * Đặt command execution handler.
      */
-    public setExecute(handler: (client: Client, message: Message<true>, args: string[]) => Promise<any> | any) {
+    public setExecute(handler: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any) {
         this.handler = handler;
         return this;
     }
@@ -236,7 +236,7 @@ export class CommandBuilder {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    public async execute(client: Client, message: Message<true>, args: string[]) {
+    public async execute(client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) {
         // Kiểm tra permission
         const permission = await this.checkPermission(client, message);
         if (permission) return permission;

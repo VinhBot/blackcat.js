@@ -1,6 +1,12 @@
 import { Client, CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
 import { GatewayIntentBits, Partials } from "discord.js";
 
+const config = {
+   botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA", 
+   prefix: ["!", "."],
+   guildID: ["1055150050357022840", "1330081862609272905"],
+}
+
 const client = new Client({
     discordClientOptions: {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
@@ -10,9 +16,7 @@ const client = new Client({
             repliedUser: false
         },
     },
-    config: {
-        botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
-    },
+    config: config,
     eventManager: new EventManager({
         directory: "./events",
         scopes: ["client"],
@@ -25,7 +29,11 @@ const client = new Client({
     }),
     commandManager: new CommandManager({
         directory: "./commands",
-        prefix: "!",
+        prefix: config.prefix,
+        // prefix: async(guildID) => {
+        //     if(!guildID) return config.prefix;
+        //     return config.prefix;
+        // },
         onLoad: (command) => {
             console.log(`commands: ${command.commandName} - ok`);
         },
@@ -33,19 +41,19 @@ const client = new Client({
             console.error(`${command.file}:`, command.error);
         }
     }),
-    slashCommandManager: new SlashCommandManager({
-        directory: "./slashCommands",
-        guildID: ["1055150050357022840", "1330081862609272905"],
-        reset: {
-            guild: true
-        },
-        onLoad: (command) => {
-            console.log(`slashCommands: ${command.commandName} - ok`);
-        },
-        onError: (command) => {
-            console.error(`${command.file}:`, command.error);
-        },
-    }),
+    // slashCommandManager: new SlashCommandManager({
+    //     directory: "./slashCommands",
+    //     guildID: config.guildID,
+    //     reset: {
+    //         guild: true
+    //     },
+    //     onLoad: (command) => {
+    //         console.log(`slashCommands: ${command.commandName} - ok`);
+    //     },
+    //     onError: (command) => {
+    //         console.error(`${command.file}:`, command.error);
+    //     },
+    // }),
 });
 
 client.start();

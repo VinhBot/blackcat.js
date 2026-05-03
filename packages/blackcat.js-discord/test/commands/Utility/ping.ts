@@ -13,7 +13,7 @@ const pingCommand = new CommandBuilder()
             content: `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
         }),
     })
-    .setUserPermission({
+    .setPermission({
         userPermissions: ["SendMessages"],
         message: (ctx) => ({ content: `Bạn không đủ quyền để sử dụng lệnh ${ctx.commandName}` }),
     })

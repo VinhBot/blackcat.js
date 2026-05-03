@@ -67,6 +67,7 @@ import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
     botToken: "Bot token",
+    prefix: "!"
 };
 
 const client = new Client({
@@ -91,7 +92,7 @@ const client = new Client({
     }),
     commandManager: new CommandManager({
         directory: "./commands",
-        prefix: "!",
+        prefix: config.prefix,
         onLoad: (command) => {
             console.log(`commands: ${command.commandName} - ok`);
         },
