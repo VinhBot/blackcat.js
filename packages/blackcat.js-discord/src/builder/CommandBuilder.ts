@@ -7,7 +7,7 @@ import type { Client, CooldownConfig } from "..";
  *
  * @public
  */
-export interface CommandBuilderOptions {
+export interface CommandBuilderOptions<T extends boolean = boolean> {
     /**
      * Tên chính của command.
      */
@@ -43,7 +43,7 @@ export interface CommandBuilderOptions {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    execute?: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any;
+    execute?: (client: Client, message: OmitPartialGroupDMChannel<Message<T>>, args: string[]) => Promise<any> | any;
 }
 
 /**
@@ -81,7 +81,7 @@ export interface CommandBuilderOptions {
  * });
  * ```
  */
-export class CommandBuilder {
+export class CommandBuilder<InGuild extends boolean = boolean> {
     /**
      * Tên command chính.
      */
@@ -115,13 +115,13 @@ export class CommandBuilder {
      *
      * @private
      */
-    private handler!: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any;;
+    private handler!: (client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => Promise<any> | any;;
     /**
      * Tạo CommandBuilder mới.
      *
      * @param options - Command configuration
      */
-    constructor(options?: CommandBuilderOptions) {
+    constructor(options?: CommandBuilderOptions<InGuild>) {
         if (options) {
             if (options.commandName) this.commandName = options.commandName;
             if (options.aliases) this.aliases = options.aliases;
@@ -185,7 +185,7 @@ export class CommandBuilder {
     /**
      * Đặt command execution handler.
      */
-    public setExecute(handler: (client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) => Promise<any> | any) {
+    public setExecute(handler: (client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => Promise<any> | any) {
         this.handler = handler;
         return this;
     }
@@ -194,7 +194,7 @@ export class CommandBuilder {
      *
      * @private
      */
-    private async checkPermission(client: Client, message: Message) {
+    private async checkPermission(client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>) {
         if (!this.permission) return;
         const permission = new PermissionManager(this.permission);
         const result = await permission.check(client, {
@@ -205,23 +205,23 @@ export class CommandBuilder {
             user: message.author,
             bot: message.client.user!,
         });
-        if (!result.success) return message.reply(result.message);
+        return result;
     }
     /**
      * Kiểm tra cooldown command.
      *
      * @private
      */
-    private checkCooldown(message: Message) {
+    private checkCooldown(message: OmitPartialGroupDMChannel<Message<InGuild>>) {
         if (!this.cooldown) return;
-        const cooldownMessage = cooldownManager.check(this, {
+        const cooldown = cooldownManager.check(this, {
             type: "message",
             userId: message.author.id,
             guildId: message.guildId,
             member: message.member,
             commandName: this.commandName,
         });
-        if (cooldownMessage) return message.reply(cooldownMessage);
+        return cooldown;
     }
     /**
      * Thực thi command.
@@ -236,13 +236,13 @@ export class CommandBuilder {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    public async execute(client: Client, message: OmitPartialGroupDMChannel<Message<boolean>>, args: string[]) {
+    public async execute(client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) {
         // Kiểm tra permission
         const permission = await this.checkPermission(client, message);
-        if (permission) return permission;
+        if (!permission?.success) return message.reply(permission?.message!);
         // Kiểm tra cooldown
-        const cooldown = this.checkCooldown(message);
-        if (cooldown) return cooldown;
+        const cooldownMessage = this.checkCooldown(message);
+        if (cooldownMessage) return message.reply(cooldownMessage);
         // Thực thi command handler
         return this.handler(client, message, args);
     }

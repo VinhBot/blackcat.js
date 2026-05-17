@@ -165,16 +165,6 @@ export class SlashCommandManager {
      */
     private _attachInteractionListener(client: Client): void {
         client.on("interactionCreate", async (interaction) => {
-            // if (interaction.isAutocomplete()) {
-            //     const command = client.slashCommands.get(interaction.commandName);
-            //     if (!command || !command.autocompleteRun) return;
-            //     try {
-            //         await command.autocompleteRun(client, interaction);
-            //     } catch (error) {
-            //         console.error(`Autocomplete error ${interaction.commandName}:`, error);
-            //     }
-            //     return;
-            // }
             if (interaction.isChatInputCommand()) {
                 const command = client.slashCommands.get(interaction.commandName);
                 if (!command) return;

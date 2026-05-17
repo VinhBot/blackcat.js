@@ -1,4 +1,4 @@
-import { Client, Message, User } from "discord.js";
+import type { Client, Message, OmitPartialGroupDMChannel, User } from "discord.js";
 
 /**
  * Tìm và resolve một {@link User} từ nhiều dạng input khác nhau.
@@ -30,7 +30,7 @@ import { Client, Message, User } from "discord.js";
  * message.reply(`Đã tìm thấy user: ${user.tag}`);
  * ```
  */
-export const findUser = async(client: Client, message: Message<true>, input?: string): Promise<User | null> => {
+export const findUser = async<T extends boolean = boolean>(client: Client, message: OmitPartialGroupDMChannel<Message<T>>, input?: string): Promise<User | null> => {
     if (!input) return null;
     // 1. Kiểm tra mention
     const mention = message.mentions.users.first();

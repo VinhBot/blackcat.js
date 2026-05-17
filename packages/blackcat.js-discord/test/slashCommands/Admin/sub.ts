@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "blackcat.js-discord";
+import { SlashCommandBuilder, SlashSubCommandBuilder, SlashSubCommandGroupBuilder } from "../../../src";
 
 const exampleCommand = new SlashCommandBuilder({
     commandName: "admin",

@@ -261,7 +261,7 @@ export class CooldownManager {
         for (const lvl of levels) {
             const permission = CooldownManager.permissionMap[lvl];
             if (permission && member.permissions.has(permission)) {
-                return true; // ✅ Chỉ cần 1 quyền hợp lệ
+                return true; // Chỉ cần 1 quyền hợp lệ
             }
         }
         return false;
@@ -294,8 +294,8 @@ export class CooldownManager {
      * - Nếu không -> set cooldown mới và trả về null
      */
     public check(command: SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): InteractionReplyOptions | null;
-    public check(command: CommandBuilder, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null;
-    public check(command: CommandBuilder | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null {
+    public check<T extends boolean>(command: CommandBuilder<T>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null;
+    public check<T extends boolean>(command: CommandBuilder<T> | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
         // Bypass nếu có quyền phù hợp

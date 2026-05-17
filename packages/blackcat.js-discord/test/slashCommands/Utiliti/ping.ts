@@ -10,9 +10,14 @@ const ping = new SlashCommandBuilder({
             content: `này <@${ctx.member?.id}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`
         }),
     },
+    
     options: (o) => ({
-        string: o.string({ description: "string description", required: false }),
+        test: o.string({
+            description: "string description",
+            required: false,
+        }),
     }),
+
     execute: async (client, interaction, options) => {
         return interaction.reply({ content: `pong ${client.ws.ping}......` });
     }

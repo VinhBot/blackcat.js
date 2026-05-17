@@ -1,4 +1,5 @@
-import { CommandBuilder, PaginationBuilder, PermissionLevel } from "blackcat.js-discord";
+// import { CommandBuilder, PaginationBuilder, PermissionLevel } from "blackcat.js-discord";
+import { CommandBuilder, PaginationBuilder, PermissionLevel } from "../../../src";
 
 let number = 0;
 let numbers = 0;

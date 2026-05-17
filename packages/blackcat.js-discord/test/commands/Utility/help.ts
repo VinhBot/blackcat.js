@@ -1,6 +1,6 @@
 import { CommandBuilder, PermissionLevel } from "blackcat.js-discord";
 
-const help = new CommandBuilder({
+const help = new CommandBuilder<true>({
     commandName: "help",
     cooldown: {
         duration: "5s",
@@ -22,11 +22,10 @@ const help = new CommandBuilder({
         // allowedUserIds: ["1497199921814835311"],
         // blockedUserIds: ["1497199921814835311"],
         // allowDM: false,
-        // allowGuild: true,
+        allowGuild: true,
         // onlyOwner: true,
     },
-
-    execute(client, message, args) {
+    execute: (client, message, args) => {
         message.reply({
             content: "test"
         })
