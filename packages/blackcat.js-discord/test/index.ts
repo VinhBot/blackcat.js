@@ -1,13 +1,13 @@
-import { Client, CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
+import { Client,CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
 import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
-   botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA", 
-   prefix: ["!", "."],
-   guildID: ["1055150050357022840", "1330081862609272905"],
-}
+    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
+    prefix: "!",
+    guildID: ["1055150050357022840", "1330081862609272905"],
+};
 
-const client = new Client({
+const client = new Client<true>({
     discordClientOptions: {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
         partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
@@ -34,12 +34,13 @@ const client = new Client({
         //     if(!guildID) return config.prefix;
         //     return config.prefix;
         // },
+        mentionPrefixResponse: (prefix) => ({ content: `Prefix của tôi: ${prefix}` }),
         onLoad: (command) => {
             console.log(`commands: ${command.commandName} - ok`);
         },
         onError: (command) => {
             console.error(`${command.file}:`, command.error);
-        }
+        },
     }),
     // slashCommandManager: new SlashCommandManager({
     //     directory: "./slashCommands",

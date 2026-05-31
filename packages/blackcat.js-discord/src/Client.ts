@@ -7,7 +7,7 @@ import { CommandManager, EventManager, SlashCommandManager } from "./manager";
 /**
  * Cấu hình cơ bản của bot.
  */
-export type Config = {
+export type Config<T extends Record<string, unknown> = Record<string, unknown>> = {
     /**
      * Token đăng nhập bot Discord.
      */
@@ -16,11 +16,7 @@ export type Config = {
      * id của chủ bot
      */
     ownerID?: string | string[];
-    /**
-     * Các cấu hình bổ sung tùy ý của người dùng.
-     */
-    [key: string]: unknown;
-};
+} & T;
 
 /**
  * Options khởi tạo {@link Client}.
@@ -244,7 +240,7 @@ export interface ClientOptions {
      * 
      * @see CommandManager
      */
-    commandManager?: CommandManager;
+    commandManager: CommandManager;
     /**
      * Quản lý và tự động load các slash command (application commands)
      * 
@@ -421,7 +417,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * @remarks
      * Được sử dụng để map interaction với handler tương ứng.
      */
-    public readonly slashCommands: Collection<string, SlashCommandBuilder<any>>;
+    public readonly slashCommands: Collection<string, SlashCommandBuilder>;
     /**
      * Danh sách categories của command.
      *
@@ -454,7 +450,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * - Parse message theo prefix
      * - Thực thi command
      */
-    public readonly commandManager: CommandManager | undefined;
+    public readonly commandManager: CommandManager;
     /**
      * Manager quản lý slash commands.
      * 
@@ -489,15 +485,26 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
                 repliedUser: false
             },
         });
-        this.config = options.config ?? { } as Config;
+        this.config = options.config ?? {} as Config;
         // Collection
         this.commands = new Collection<string, CommandBuilder>();
         this.aliases = new Collection<string, string>();
         this.slashCommands = new Collection<string, SlashCommandBuilder>();
         this.categories = new Collection<string, Collection<string, CommandBuilder>>();
-        // Manager
+        // eventManager
+        if (options.eventManager) {
+            options.eventManager.setClient(this);
+        }
         this.eventManager = options.eventManager;
+        // commandManager
+        if (options.commandManager) {
+            options.commandManager.setClient(this);
+        }
         this.commandManager = options.commandManager;
+        // slashCommandManager
+        if (options.slashCommandManager) {
+            options.slashCommandManager.setClient(this);
+        }
         this.slashCommandManager = options.slashCommandManager;
     }
     /**
@@ -541,14 +548,48 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
     public setConfig(config: Partial<Config>, options?: { merge?: boolean }): Config {
         const shouldMerge = options?.merge ?? false;
         if (shouldMerge && this.config) {
-            this.config = {
-                ...this.config,
-                ...config
-            };
+            this.config = Object.assign(this.config, config);
         } else {
             this.config = config as Config;
         }
         return this.config;
+    }
+    /**
+     * Kiểm tra user có phải owner bot hay không.
+     * Hỗ trợ cả ownerID là string lẫn string[].
+     *
+     * @example
+     * if (client.isOwner(message.author.id)) { ... }
+     */
+    public isOwner(userID: string): boolean {
+        const ownerID = this.config.ownerID;
+        if (!ownerID) return false;
+        return Array.isArray(ownerID) ? ownerID.includes(userID) : ownerID === userID;
+    }
+    /**
+     * Trả về snapshot thống kê runtime của bot.
+     * Hữu ích cho dashboard, logging, hoặc status command.
+     *
+     * @example
+     * const stats = client.getStats();
+     * console.log(`Commands: ${stats.commandCount}`);
+     */
+    public getStats(): {
+        commandCount: number;
+        slashCommandCount: number;
+        aliasCount: number;
+        categoryCount: number;
+        guildCount: number;
+        uptime: number | null;
+    } {
+        return {
+            commandCount: this.commands.size,
+            slashCommandCount: this.slashCommands.size,
+            aliasCount: this.aliases.size,
+            categoryCount: this.categories.size,
+            guildCount: this.guilds.cache.size,
+            uptime: this.uptime,
+        };
     }
     /**
      * Thiết lập token cho bot.
@@ -593,20 +634,19 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * await client.start();
      * ```
      */
-    public start(): Promise<string> {
-        if (this.eventManager) {
-            this.eventManager.load(this);
-        }
-        if (this.commandManager) {
-            this.commandManager.loadAll(this);
-        }
+    public async start(): Promise<string> {
+        // Load event, command, slashCommand
+        await Promise.all([
+            this.eventManager?.load(),
+            this.commandManager?.loadAll(),
+        ]);
+        const token = this.config.botToken;
+        if (!token) throw new Error("Bot token chưa được thiết lập.");
+        const result = await this.login(token);
+        // SlashCommand
         if (this.slashCommandManager) {
-            this.slashCommandManager.loadAll(this);
+            await this.slashCommandManager.loadAll();
         }
-        const config = this.config.botToken;
-        if (!config) {
-            throw new Error("Bot token chưa được thiết lập.");
-        }
-        return this.login(config);
+        return result;
     }
 }

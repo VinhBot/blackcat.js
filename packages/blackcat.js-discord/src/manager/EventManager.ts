@@ -14,10 +14,8 @@ export interface EventManagerOptions {
      * Cấu trúc đề xuất:
      * ```
      * events/
-     *   client/
-     *     ready.ts
-     *   guild/
-     *     guildCreate.ts
+     *   client/ready.ts
+     *   guild/guildCreate.ts
      * ```
      */
     directory: string;
@@ -59,6 +57,10 @@ export interface EventManagerOptions {
  */
 export class EventManager {
     /**
+     * Discord Client.
+     */
+    public client!: Client;
+    /**
      * Options cấu hình cho EventManager.
      */
     public readonly options: EventManagerOptions;
@@ -72,6 +74,26 @@ export class EventManager {
         this.options = options;
     }
     /**
+     * Gán instance client cho manager.
+     *
+     * Method này thường được gọi bởi Client
+     * trong quá trình khởi tạo để inject client
+     * vào manager sau khi client đã được tạo.
+     *
+     * @param client Instance Discord client.
+     *
+     * @returns Chính instance hiện tại để hỗ trợ chaining.
+     *
+     * @example
+     * ```ts
+     * commandManager.setClient(client);
+     * ```
+     */
+    public setClient(client: Client): this {
+        this.client = client;
+        return this;
+    }
+    /**
      * Load toàn bộ events từ thư mục đã cấu hình.
      *
      * Quy trình:
@@ -83,11 +105,11 @@ export class EventManager {
      *
      * @returns Promise hoàn thành khi load xong
      */
-    public async load(client: Client): Promise<void> {
+    public async load(): Promise<void> {
         const options = this.options;
-        if (!options?.directory || !options?.scopes) return;
+        if (!options.directory || !options?.scopes) return;
         if (!Array.isArray(options.scopes)) return options.onError?.({
-            error: "[EventManager] 'scopes' phải là một array",
+            error: "[EventManager]: 'scopes' phải là một array",
             file: "không xác định",
             scope: "không xác định"
         });
@@ -112,18 +134,32 @@ export class EventManager {
             for (const file of files) {
                 if (!/\.(ts|js)$/.test(file)) continue;
                 try {
-                    const event: EventBuilderOptions = await import(url.pathToFileURL(path.join(scopePath, file)).href).then((d) => d.default);
-                    if (!event.eventName || typeof event.execute !== "function") {
-                        options.onError?.({ error: new Error("Mô-đun sự kiện không hợp lệ"), file, scope });
+                    const imported = await import(url.pathToFileURL(path.join(scopePath, file)).href);
+                    const rawExport: EventBuilderOptions[] = imported.default ?? imported;
+                    for (const event of (Array.isArray(rawExport) ? rawExport : [rawExport])) {
+                        if (!event || !event.eventName || typeof event.execute !== "function") {
+                            options.onError?.({
+                                error: new Error("[registerEvents]: module sự kiện không hợp lệ"),
+                                file: file,
+                                scope: scope,
+                            });
+                            continue;
+                        }
+
+                        if (event.once) {
+                            this.client.once(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                        } else {
+                            this.client.on(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                        }
+
+                        options.onLoad?.({
+                            eventName: event.eventName,
+                            file: file,
+                            scope: scope
+                        });
                     }
-                    if (event.once) {
-                        client.once(event.eventName, (...args: any) => event.execute(client, ...args));
-                    } else {
-                        client.on(event.eventName, (...args: any) => event.execute(client, ...args));
-                    }
-                    options.onLoad?.({ eventName: event.eventName, file, scope });
                 } catch (error) {
-                    options.onError?.({ error, file, scope });
+                    options.onError?.({ error: error, file: file, scope: scope });
                 }
             }
         }

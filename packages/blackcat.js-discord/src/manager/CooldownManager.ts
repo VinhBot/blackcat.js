@@ -1,5 +1,5 @@
 import { Collection, GuildMember, InteractionReplyOptions, MessagePayload, MessageReplyOptions, PermissionsBitField } from "discord.js";
-import type { CommandBuilder, SlashCommandBuilder } from "..";
+import type { Client, CommandBuilder, SlashCommandBuilder } from "..";
 import { parseTime } from "..";
 /**
  * @hidden
@@ -136,7 +136,7 @@ export interface CooldownConfig<T extends "message" | "interaction" = "message">
      * message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.` 
      * ```
      */
-    message?: (ms: number, ctx: CooldownCommandContext) => CooldownMessageReturn<T>;
+    message?: (ms: number, ctx: CooldownCommandContext) => CooldownMessageReturn<T> | Promise<CooldownMessageReturn<T>>;
 }
 
 /**
@@ -155,6 +155,10 @@ export type CooldownCommandContext = | {
      * Context từ slash command
      */
     type: "interaction";
+    /**
+     * Discord Client.
+     */
+    client: Client<boolean>;
     /**
      * ID của user thực thi command
      */
@@ -179,6 +183,10 @@ export type CooldownCommandContext = | {
      * Context từ message command (prefix)
      */
     type: "message";
+    /**
+     * Discord Client.
+     */
+    client: Client<boolean>;
     /**
      * ID của user gửi message
      */
@@ -293,9 +301,9 @@ export class CooldownManager {
      * - Nếu đang cooldown -> trả về message string
      * - Nếu không -> set cooldown mới và trả về null
      */
-    public check(command: SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): InteractionReplyOptions | null;
-    public check<T extends boolean>(command: CommandBuilder<T>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | null;
-    public check<T extends boolean>(command: CommandBuilder<T> | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null {
+    public async check(command: SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): Promise<InteractionReplyOptions | null>;
+    public async check<T extends boolean>(command: CommandBuilder<T>, ctx: CooldownCommandContext): Promise<string | MessagePayload | MessageReplyOptions | null>;
+    public async check<T extends boolean>(command: CommandBuilder<T> | SlashCommandBuilder<any, any, any>, ctx: CooldownCommandContext): Promise<string | MessagePayload | MessageReplyOptions | InteractionReplyOptions | null> {
         if (!command.cooldown) return null;
         const { duration, scope, roleWeights, permissionBypass, message } = command.cooldown;
         // Bypass nếu có quyền phù hợp
@@ -314,7 +322,7 @@ export class CooldownManager {
                 if (now < expiresAt) {
                     const remaining = expiresAt - now;
                     const ms = Math.ceil(remaining / 1000);
-                    return message ? message(ms, ctx) : `chờ ${Math.ceil(remaining / 1000)} giây để tiếp tục.`;
+                    return message ? await message(ms, ctx) : `chờ ${Math.ceil(remaining / 1000)} giây để tiếp tục.`;
                 }
             }
         }

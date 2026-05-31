@@ -1,17 +1,17 @@
-import { CommandBuilder, PermissionLevel } from "blackcat.js-discord";
+import { Client, CommandBuilder, PermissionLevel } from "blackcat.js-discord";
 
-const help = new CommandBuilder<true>({
+const helpCommand = new CommandBuilder<true>({
     commandName: "help",
     cooldown: {
         duration: "5s",
         scope: ["role"],
-        roleWeights: (guildID, memberID) => {
-            console.log("guildID:", guildID);
-            console.log("memberID:", memberID);
-            return {
-                memberID: 0.1, // giảm 10%
-            };
-        },
+        // roleWeights: (guildID, memberID) => {
+        //     console.log("guildID:", guildID);
+        //     console.log("memberID:", memberID);
+        //     return {
+        //         memberID: 0.1, // giảm 10%
+        //     };
+        // },
         permissionBypass: [PermissionLevel.ADMIN, PermissionLevel.MOD], // hoặc permissionBypass: PermissionLevel.ADMIN,
         message: (ms, ctx) => `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     },
@@ -23,13 +23,14 @@ const help = new CommandBuilder<true>({
         // blockedUserIds: ["1497199921814835311"],
         // allowDM: false,
         allowGuild: true,
-        // onlyOwner: true,
+        onlyOwner: true,
     },
     execute: (client, message, args) => {
-        message.reply({
-            content: "test"
-        })
+        for (const command of client.commandManager.getAllCommands()) {
+            console.log(command.commandName);
+        }
     },
 });
 
-export default help;
+
+export default helpCommand;

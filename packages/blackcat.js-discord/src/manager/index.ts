@@ -1,5 +1,6 @@
 export * from "./SlashCommandManager.ts";
 export * from "./PermissionManager.ts";
 export * from "./CooldownManager.ts";
+export * from "./LanguageManager.ts";
 export * from "./CommandManager.ts";
 export * from "./EventManager.ts";

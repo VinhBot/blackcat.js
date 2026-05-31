@@ -1,6 +1,6 @@
 import type { Message, OmitPartialGroupDMChannel } from "discord.js";
-import { cooldownManager, PermissionConfig, PermissionManager } from "..";
 import type { Client, CooldownConfig } from "..";
+import { PermissionConfig } from "..";
 
 /**
  * Options khởi tạo cho {@link CommandBuilder}.
@@ -43,7 +43,7 @@ export interface CommandBuilderOptions<T extends boolean = boolean> {
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    execute?: (client: Client, message: OmitPartialGroupDMChannel<Message<T>>, args: string[]) => Promise<any> | any;
+    execute?: (client: Client<true>, message: OmitPartialGroupDMChannel<Message<T>>, args: string[]) => Promise<any> | any;
 }
 
 /**
@@ -57,29 +57,6 @@ export interface CommandBuilderOptions<T extends boolean = boolean> {
  * - Command execution
  *
  * @public
- *
- * @example Basic usage
- *
- * ```ts
- * const pingCommand = new CommandBuilder()
- *   .setName("ping")
- *   .setDescription("Ping command")
- *   .setExecute((client, message, args) => {
- *       message.reply("Pong!");
- *   });
- * ```
- *
- * @example Using options
- *
- * ```ts
- * const pingCommand = new CommandBuilder({
- *   commandName: "ping",
- *   description: "Ping command",
- *   execute: (client, message, args) => {
- *       message.reply("Pong!");
- *   }
- * });
- * ```
  */
 export class CommandBuilder<InGuild extends boolean = boolean> {
     /**
@@ -115,13 +92,35 @@ export class CommandBuilder<InGuild extends boolean = boolean> {
      *
      * @private
      */
-    private handler!: (client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => Promise<any> | any;;
+    private handler!: (client: Client<true>, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => any | Promise<any>;
     /**
      * Tạo CommandBuilder mới.
      *
      * @param options - Command configuration
+     * @example Basic usage
+     *
+     * ```ts
+     * const pingCommand = new CommandBuilder()
+     *   .setName("ping")
+     *   .setDescription("Ping command")
+     *   .setExecute((client, message, args) => {
+     *       message.reply("Pong!");
+     *   });
+     * ```
+     *
+     * @example Using options
+     *
+     * ```ts
+     * const pingCommand = new CommandBuilder({
+     *   commandName: "ping",
+     *   description: "Ping command",
+     *   execute: (client, message, args) => {
+     *       message.reply("Pong!");
+     *   }
+     * });
+     * ```
      */
-    constructor(options?: CommandBuilderOptions<InGuild>) {
+    constructor(options: Partial<CommandBuilderOptions<InGuild>>) {
         if (options) {
             if (options.commandName) this.commandName = options.commandName;
             if (options.aliases) this.aliases = options.aliases;
@@ -185,64 +184,18 @@ export class CommandBuilder<InGuild extends boolean = boolean> {
     /**
      * Đặt command execution handler.
      */
-    public setExecute(handler: (client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => Promise<any> | any) {
+    public setExecute(handler: (client: Client<true>, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) => Promise<any> | any) {
         this.handler = handler;
         return this;
     }
     /**
-     * Kiểm tra permission của user.
-     *
-     * @private
-     */
-    private async checkPermission(client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>) {
-        if (!this.permission) return;
-        const permission = new PermissionManager(this.permission);
-        const result = await permission.check(client, {
-            commandName: this.commandName,
-            userID: message.author.id,
-            guildID: message.guild?.id,
-            member: message.member ?? undefined,
-            user: message.author,
-            bot: message.client.user!,
-        });
-        return result;
-    }
-    /**
-     * Kiểm tra cooldown command.
-     *
-     * @private
-     */
-    private checkCooldown(message: OmitPartialGroupDMChannel<Message<InGuild>>) {
-        if (!this.cooldown) return;
-        const cooldown = cooldownManager.check(this, {
-            type: "message",
-            userId: message.author.id,
-            guildId: message.guildId,
-            member: message.member,
-            commandName: this.commandName,
-        });
-        return cooldown;
-    }
-    /**
      * Thực thi command.
-     *
-     * Quy trình:
-     *
-     * 1. Kiểm tra permission
-     * 2. Kiểm tra cooldown
-     * 3. Thực thi command handler
      *
      * @param client - Discord client
      * @param message - Message trigger command
      * @param args - Command arguments
      */
-    public async execute(client: Client, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) {
-        // Kiểm tra permission
-        const permission = await this.checkPermission(client, message);
-        if (!permission?.success) return message.reply(permission?.message!);
-        // Kiểm tra cooldown
-        const cooldownMessage = this.checkCooldown(message);
-        if (cooldownMessage) return message.reply(cooldownMessage);
+    public async execute(client: Client<true>, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) {
         // Thực thi command handler
         return this.handler(client, message, args);
     }

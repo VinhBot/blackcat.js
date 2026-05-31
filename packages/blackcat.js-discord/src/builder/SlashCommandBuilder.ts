@@ -1,4 +1,4 @@
-import { SlashCommandBuilder as DiscordSlashCommandBuilder, ChannelType, MessageFlags } from "discord.js";
+import { SlashCommandBuilder as DiscordSlashCommandBuilder, ChannelType } from "discord.js";
 import type {
     ChatInputCommandInteraction,
     SlashCommandStringOption,
@@ -10,15 +10,11 @@ import type {
     SlashCommandNumberOption,
     SlashCommandMentionableOption,
     SlashCommandAttachmentOption,
-    GuildMember,
     CommandInteractionOptionResolver,
     SlashCommandSubcommandGroupBuilder,
-    User,
-    InteractionReplyOptions,
 } from "discord.js";
 
 import type { Client, CooldownConfig, PermissionConfig } from "..";
-import { cooldownManager, PermissionManager } from "..";
 /**
  * Alias rút gọn cho CommandInteractionOptionResolver của discord.js
  * Dùng để lấy giá trị option từ Slash Command Interaction.
@@ -1198,18 +1194,12 @@ export class SlashCommandBuilder<
         if (!this.handler) {
             throw new Error(`SlashCommand ${this.commandName} bị thiếu execute handler`);
         }
-        // Kiểm tra permission.
-        const permission = await this.checkPermission(client, interaction);
-        if (permission) return permission;
-        // Kiểm tra cooldown.
-        const cooldown = this.checkCooldown(interaction);
-        if (cooldown) return cooldown;
-        // 
         const rootOptions = this.defs ? this.parseOptions(interaction, this.defs) : {};
         const groupName = interaction.options.getSubcommandGroup(false);
         const subCommandName = interaction.options.getSubcommand(false);
         if (groupName && subCommandName) {
-            const subBuilder = this.groups[groupName as keyof typeof this.groups].subcommands[subCommandName];
+            const groups = this.groups[groupName]
+            const subBuilder = groups.subcommands[subCommandName];
             const parsed = subBuilder.parse(interaction);
             return this.handler(client, interaction, {
                 ...rootOptions,
@@ -1222,7 +1212,7 @@ export class SlashCommandBuilder<
             } as any);
         }
         if (subCommandName) {
-            const subBuilder = this.subsCommands[subCommandName as keyof typeof this.subsCommands];
+            const subBuilder = this.subsCommands[subCommandName];
             const parsed = subBuilder.parse(interaction);
             return this.handler(client, interaction, {
                 ...rootOptions,
@@ -1238,40 +1228,6 @@ export class SlashCommandBuilder<
             ...rootOptions,
             payload: null
         } as any);
-    }
-    /**
-     * Kiểm tra permission của user.
-     *
-     * @private
-     */
-    private async checkPermission(client: Client, interaction: ChatInputCommandInteraction) {
-        if (!this.permission) return;
-        const permission = new PermissionManager(this.permission);
-        const result = await permission.check(client, {
-            commandName: this.commandName,
-            userID: interaction.member?.user.id!,
-            guildID: interaction.guild?.id,
-            member: interaction.member as GuildMember,
-            user: interaction.member?.user as User,
-            bot: interaction.client.user!,
-        });
-        if (!result.success) return interaction.reply(result.message);
-    }
-    /**
-     * Kiểm tra cooldown command.
-     *
-     * @private
-     */
-    private async checkCooldown(interaction: ChatInputCommandInteraction) {
-        if (!this.cooldown) return;
-        const cooldownMessage = cooldownManager.check(this, {
-            type: "interaction",
-            userId: interaction.user.id,
-            guildId: interaction.guildId,
-            member: interaction.member as GuildMember,
-            commandName: this.commandName,
-        });
-        if (cooldownMessage) return await interaction.reply(cooldownMessage);
     }
     /**
      * Parse interaction options thành object typed theo định nghĩa option.

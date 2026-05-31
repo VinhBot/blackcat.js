@@ -83,7 +83,6 @@ export class JSONDriver implements DatabaseDriver {
     constructor(options: JSONDriverOptions) {
         this.filePath = options.filePath || "database.json";
         this.minifyJSON = options.minifyJSON || false;
-
     }
     /**
      * Đảm bảo file database tồn tại.

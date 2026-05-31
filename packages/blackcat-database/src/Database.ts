@@ -163,12 +163,10 @@ export class Database<V = any> {
      * ```
      */
     public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>>> {
-        const data = await this.get(key as any);
+        const data = await this.get(key);
         if (!query) return data;
         if (!Array.isArray(data)) return null as Maybe<ObjectValue<V, P>>;
-        const result = data.find((item) => {
-            return Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v);
-        });
+        const result = data.find((item) => Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v));
         return (result ?? null) as Maybe<ObjectValue<V, P>>;
     }
     /**
@@ -236,6 +234,42 @@ export class Database<V = any> {
             };
         };
         await this.driver.set(allDatabase);
+    }
+    /**
+     * Đảm bảo một key tồn tại với giá trị mặc định.
+     * Nếu key đã tồn tại → giữ nguyên và trả về giá trị hiện tại.
+     * Nếu chưa tồn tại → set giá trị default và trả về default đó.
+     *
+     * Khác với `set()` — không bao giờ ghi đè dữ liệu đã có.
+     *
+     * @template P Key path trong database.
+     *
+     * @param key Đường dẫn cần đảm bảo tồn tại.
+     * @param defaultValue Giá trị mặc định nếu key chưa có.
+     *
+     * @returns Giá trị tại key sau khi ensure (current hoặc default).
+     *
+     * @example
+     * // "config.maxRetries" chưa tồn tại → set về 3, trả về 3
+     * const retries = await db.ensure("config.maxRetries", 3);
+     *
+     * @example
+     * // "config.maxRetries" đã là 10 → không đổi, trả về 10
+     * const retries = await db.ensure("config.maxRetries", 3);
+     *
+     * @example
+     * // Dùng với object — đảm bảo cấu trúc user tồn tại
+     * const user = await db.ensure("users.123", {
+     *   balance: 0,
+     *   level: 1,
+     *   joinedAt: Date.now(),
+     * });
+     */
+    public async ensure<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, defaultValue: ObjectValue<V, P>): Promise<NonNullable<ObjectValue<V, P>>> {
+        const current = await this.get(key);
+        if (current !== null && current !== undefined) return current as NonNullable<ObjectValue<V, P>>;
+        await this.set(key, defaultValue);
+        return defaultValue as NonNullable<ObjectValue<V, P>>;
     }
     /**
      * Xóa một key khỏi database.
