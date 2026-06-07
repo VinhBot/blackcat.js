@@ -1,13 +1,4 @@
-import type {
-    User,
-    GuildMember,
-    ClientUser,
-    PermissionResolvable,
-    MessagePayload,
-    MessageReplyOptions,
-    InteractionReplyOptions,
-} from "discord.js";
-
+import type { User, GuildMember, ClientUser, PermissionResolvable, MessagePayload, MessageReplyOptions, InteractionReplyOptions } from "discord.js";
 import type { Client } from "..";
 
 /**
@@ -17,6 +8,10 @@ import type { Client } from "..";
  * @public
  */
 export interface PermissionContext {
+    /**
+     * Discord Client.
+     */
+    client: Client;
     /**
      * Tên của command đang được thực thi.
      */
@@ -203,22 +198,10 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      */
     public async check(client: Client, ctx: PermissionContext): Promise<PermissionResult<T>> {
         const isDM = !ctx.guildID;
-
         if (this.config.onlyOwner) {
             if (!ctx.userID) return this.fail("ONLY_OWNER", ctx);
-            let ownerIDs: string[] = [];
-            if (client.config.ownerID) {
-                ownerIDs = Array.isArray(client.config.ownerID) ? client.config.ownerID : [client.config.ownerID];
-            } else {
-                const app = await client.application?.fetch();
-                if (!app?.owner) return this.fail("ONLY_OWNER", ctx);
-                if ("members" in app.owner) {
-                    ownerIDs = app.owner.members.map((m) => m.id);
-                } else {
-                    ownerIDs = [app.owner.id];
-                }
-            }
-            if (!ownerIDs.includes(ctx.userID)) return this.fail("ONLY_OWNER", ctx);
+            const isOwner = await client.isOwner(ctx.userID);
+            if (!isOwner) return this.fail("ONLY_OWNER", ctx);
         }
 
         if (this.config.blockedUserIds.includes(ctx.userID)) return this.fail("USER_BLOCKED", ctx);
@@ -236,7 +219,7 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
         }
 
         if (!isDM && this.config.allowedRoleIds.length > 0 && ctx.member) {
-            const hasRole = ctx.member.roles.cache.some(role => this.config.allowedRoleIds.includes(role.id));
+            const hasRole = ctx.member.roles.cache.some((role) => this.config.allowedRoleIds.includes(role.id));
             if (hasRole) return { success: true } as PermissionResult<T>;;
             if (!hasRole) return this.fail("MISSING_ROLE", ctx);
         }

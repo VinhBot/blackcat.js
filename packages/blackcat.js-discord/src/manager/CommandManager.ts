@@ -959,6 +959,7 @@ export class CommandManager {
         if (!command.permission) return;
         const manager = new PermissionManager(command.permission);
         return manager.check(this.client, {
+            client: this.client,
             commandName: command.commandName,
             userID: message.author.id,
             guildID: message.guild?.id,

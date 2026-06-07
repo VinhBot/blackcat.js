@@ -561,10 +561,15 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * @example
      * if (client.isOwner(message.author.id)) { ... }
      */
-    public isOwner(userID: string): boolean {
+    public async isOwner(userID: string): Promise<boolean> {
         const ownerID = this.config.ownerID;
-        if (!ownerID) return false;
-        return Array.isArray(ownerID) ? ownerID.includes(userID) : ownerID === userID;
+        // Ưu tiên config
+        if (ownerID) return Array.isArray(ownerID) ? ownerID.includes(userID) : ownerID === userID;
+        // Fallback lấy từ application
+        const app = await this.application?.fetch();
+        if (!app?.owner) return false;
+        if ("members" in app.owner) return app.owner.members.some((m) => m.id === userID);
+        return app.owner.id === userID;
     }
     /**
      * Trả về snapshot thống kê runtime của bot.
@@ -575,11 +580,33 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * console.log(`Commands: ${stats.commandCount}`);
      */
     public getStats(): {
+        /**
+         * Số lượng prefix command.
+         */
         commandCount: number;
+        /**
+         * Số lượng slash command.
+         */
         slashCommandCount: number;
+        /**
+         * số lượng lệnh phụ.
+         */
         aliasCount: number;
+        /**
+         * số lượng category
+         */
         categoryCount: number;
+        /**
+         * số lượng guild.
+         */
         guildCount: number;
+        /**
+         * số lượng member.
+         */
+        memberCount: number;
+        /**
+         * thời gian bot online.
+         */
         uptime: number | null;
     } {
         return {
@@ -588,6 +615,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
             aliasCount: this.aliases.size,
             categoryCount: this.categories.size,
             guildCount: this.guilds.cache.size,
+            memberCount: this.guilds.cache.map((c) => c.memberCount).filter((v) => typeof v === "number").reduce((a, b) => a + b, 0),
             uptime: this.uptime,
         };
     }

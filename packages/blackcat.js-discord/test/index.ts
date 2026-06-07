@@ -1,4 +1,4 @@
-import { Client,CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
+import { Client, CommandBuilder, CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
 import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
@@ -35,26 +35,18 @@ const client = new Client<true>({
         //     return config.prefix;
         // },
         mentionPrefixResponse: (prefix) => ({ content: `Prefix của tôi: ${prefix}` }),
-        onLoad: (command) => {
-            console.log(`commands: ${command.commandName} - ok`);
-        },
-        onError: (command) => {
-            console.error(`${command.file}:`, command.error);
-        },
+        onLoad: (command) => console.log(`commands: ${command.commandName} - ok`),
+        onError: (command) => console.error(`${command.file}:`, command.error),
     }),
-    // slashCommandManager: new SlashCommandManager({
-    //     directory: "./slashCommands",
-    //     guildID: config.guildID,
-    //     reset: {
-    //         guild: true
-    //     },
-    //     onLoad: (command) => {
-    //         console.log(`slashCommands: ${command.commandName} - ok`);
-    //     },
-    //     onError: (command) => {
-    //         console.error(`${command.file}:`, command.error);
-    //     },
-    // }),
+    slashCommandManager: new SlashCommandManager({
+        directory: "./slashCommands",
+        guildID: config.guildID,
+        reset: {
+            guild: true
+        },
+        onLoad: (command) => console.log(`slashCommands: ${command.commandName} - ok`),
+        onError: (command) => console.error(`${command.file}:`, command.error),
+    }),
 });
 
 client.start();
