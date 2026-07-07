@@ -82,6 +82,21 @@ export interface DatabaseConfiguration {
      */
     driver: DatabaseDriver;
     /**
+     * Ký tự phân tách dùng để tách các phần của đường dẫn (key).
+     *
+     * @defaultValue "."
+     *
+     * @example
+     * ```ts
+     * // "user.profile.name"
+     * delimiter: "."
+     *
+     * // "user/profile/name"
+     * delimiter: "/"
+     * ```
+     */
+    delimiter?: string;
+    /**
      * Bật chế độ debug.
      *
      * Khi `true`, database có thể log thêm thông tin về

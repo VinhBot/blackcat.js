@@ -333,6 +333,37 @@ export interface ClientOptions {
     slashCommandManager?: SlashCommandManager;
 }
 
+interface Stats {
+    /**
+     * Số lượng prefix command.
+     */
+    commandCount: number;
+    /**
+     * Số lượng slash command.
+     */
+    slashCommandCount: number;
+    /**
+     * số lượng lệnh phụ.
+     */
+    aliasCount: number;
+    /**
+     * số lượng category
+     */
+    categoryCount: number;
+    /**
+     * số lượng guild.
+     */
+    guildCount: number;
+    /**
+     * số lượng member.
+     */
+    memberCount: number;
+    /**
+     * thời gian bot online.
+     */
+    uptime: number | null;
+}
+
 /**
  * Client mở rộng từ {@link DiscordClient}.
  *
@@ -579,36 +610,7 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * const stats = client.getStats();
      * console.log(`Commands: ${stats.commandCount}`);
      */
-    public getStats(): {
-        /**
-         * Số lượng prefix command.
-         */
-        commandCount: number;
-        /**
-         * Số lượng slash command.
-         */
-        slashCommandCount: number;
-        /**
-         * số lượng lệnh phụ.
-         */
-        aliasCount: number;
-        /**
-         * số lượng category
-         */
-        categoryCount: number;
-        /**
-         * số lượng guild.
-         */
-        guildCount: number;
-        /**
-         * số lượng member.
-         */
-        memberCount: number;
-        /**
-         * thời gian bot online.
-         */
-        uptime: number | null;
-    } {
+    public getStats(): Stats {
         return {
             commandCount: this.commands.size,
             slashCommandCount: this.slashCommands.size,

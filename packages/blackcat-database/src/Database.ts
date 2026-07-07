@@ -272,23 +272,33 @@ export class Database<V = any> {
         return defaultValue as NonNullable<ObjectValue<V, P>>;
     }
     /**
-     * Xóa một key khỏi database.
-     *
-     * Hỗ trợ nested path bằng dot notation.
+     * Xóa dữ liệu khỏi database.
+     * Hỗ trợ truy cập dữ liệu lồng nhau bằng dot notation.
+     * Nếu key không tồn tại hoặc đường dẫn không hợp lệ, hàm sẽ trả về `false`.
      *
      * @typeParam P - Path của object.
      *
-     * @param key - Đường dẫn key cần xóa.
+     * @param key - Đường dẫn dữ liệu cần xóa.
      *
      * @returns
-     * - `true` nếu xóa thành công
-     * - `false` nếu key không tồn tại
+     * - `true` nếu xóa thành công.
+     * - `false` nếu key không tồn tại hoặc đường dẫn không hợp lệ.
      *
      * @throws BlackCatError
-     * - INVALID_TYPE nếu key không phải string
+     * - INVALID_TYPE nếu `key` không phải là chuỗi.
      *
      * @example
+     * // Xóa một thuộc tính
      * await db.delete("user.name");
+     *
+     * @example
+     * // Xóa object lồng nhau
+     * await db.delete("users.0.profile");
+     *
+     * @example
+     * // Key không tồn tại
+     * const deleted = await db.delete("user.address");
+     * console.log(deleted); // false
      */
     public async delete<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<boolean> {
         if (typeof key !== "string") {
@@ -320,8 +330,8 @@ export class Database<V = any> {
      * await db.deleteAll();
      */
     public async deleteAll(): Promise<boolean> {
-        await this.driver.delete();
-        return true;
+        const result = await this.driver.delete();
+        return result;
     }
     /**
      * Xóa nhiều bản ghi trong một mảng dữ liệu dựa trên điều kiện truy vấn.
@@ -378,25 +388,57 @@ export class Database<V = any> {
         return originalLength - filtered.length;
     }
     /**
-     * Cập nhật dữ liệu trong database theo đường dẫn key.
+     * Cập nhật dữ liệu trong database theo đường dẫn (`key`).
      *
-     * Hàm này sẽ tìm đến vị trí của `key` trong database và gán `value` vào đó.
-     * Nếu `value` và giá trị hiện tại tại key đều là object thì sẽ thực hiện
-     * **shallow merge** thay vì ghi đè toàn bộ object.
+     * ## Chức năng
+     * - Cập nhật giá trị tại một key hoặc nested key trong database.
+     * - Tự động tạo object trung gian nếu đường dẫn chưa tồn tại.
+     * - Hỗ trợ gộp dữ liệu (merge) đối với object và mảng nhằm hạn chế ghi đè dữ liệu đã có.
      *
-     * Điều này giúp tránh việc làm mất các thuộc tính đã tồn tại.
+     * ## Mô tả hoạt động
+     * Hàm sẽ đọc toàn bộ dữ liệu database, tìm đến vị trí tương ứng với `key`
+     * và cập nhật giá trị mới theo các quy tắc sau:
      *
-     * @template P - Đường dẫn key hợp lệ trong object database.
+     * - **Đối với Array**
+     *   - Nếu cả giá trị hiện tại và giá trị mới đều là mảng thì sẽ **không ghi đè**.
+     *   - Các phần tử mới sẽ được thêm vào cuối mảng.
+     *   - Chỉ thêm những phần tử chưa tồn tại ví dụ dựa trên cặp thuộc tính:
+     *     - `username`
+     *     - `guild`
+     *   - Điều này giúp tránh lưu trùng dữ liệu thành viên giữa nhiều lần cập nhật.
      *
-     * @param key - Đường dẫn tới giá trị cần cập nhật.
-     * Hỗ trợ nested path dạng `"a.b.c"`.
+     * - **Đối với Object**
+     *   - Nếu cả hai đều là object sẽ thực hiện **shallow merge** (`...old, ...new`).
+     *   - Các thuộc tính mới sẽ ghi đè thuộc tính cùng tên.
+     *   - Những thuộc tính khác vẫn được giữ nguyên.
      *
-     * @param value - Giá trị mới sẽ được cập nhật tại key.
+     * - **Các kiểu dữ liệu khác**
+     *   - Giá trị mới sẽ ghi đè hoàn toàn giá trị cũ.
+     *
+     * Sau khi cập nhật xong, toàn bộ database sẽ được ghi lại thông qua driver.
+     *
+     * @template P
+     * Đường dẫn hợp lệ của object trong database.
+     *
+     * @param key
+     * Đường dẫn cần cập nhật.
+     *
+     * Hỗ trợ nested path:
+     * ```ts
+     * "guilds.123.settings.prefix"
+     * "users.456.profile.name"
+     * ```
+     *
+     * @param value
+     * Giá trị mới cần cập nhật.
      *
      * @returns
-     * Trả về giá trị cuối cùng sau khi cập nhật.
+     * Trả về giá trị cuối cùng sau khi được lưu vào database.
      *
-     * @example
+     * ## Cách sử dụng
+     *
+     * ### Ví dụ 1 - Cập nhật object
+     *
      * Database ban đầu:
      * ```json
      * {
@@ -408,10 +450,9 @@ export class Database<V = any> {
      * }
      * ```
      *
-     * Cập nhật:
      * ```ts
      * await db.update("123", {
-     *   history: [1,2,3]
+     *     history: [1, 2, 3]
      * });
      * ```
      *
@@ -421,14 +462,120 @@ export class Database<V = any> {
      *   "123": {
      *     "guildID": "123",
      *     "guildName": "BlackCat",
-     *     "history": [1,2,3]
+     *     "history": [1, 2, 3]
      *   }
      * }
      * ```
      *
+     * ---
+     *
+     * ### Ví dụ 2 - Cập nhật nested key
+     *
+     * ```ts
+     * await db.update("guilds.123.settings.prefix", "!");
+     * ```
+     *
+     * Nếu đường dẫn chưa tồn tại:
+     *
+     * ```json
+     * {}
+     * ```
+     *
+     * Sau khi cập nhật:
+     *
+     * ```json
+     * {
+     *   "guilds": {
+     *     "123": {
+     *       "settings": {
+     *         "prefix": "!"
+     *       }
+     *     }
+     *   }
+     * }
+     * ```
+     *
+     * ---
+     *
+     * ### Ví dụ 3 - Merge object
+     *
+     * Giá trị hiện tại:
+     *
+     * ```json
+     * {
+     *   "name": "BlackCat",
+     *   "language": "vi",
+     *   "prefix": "!"
+     * }
+     * ```
+     *
+     * ```ts
+     * await db.update("config", {
+     *     prefix: "?",
+     *     color: "#5865F2"
+     * });
+     * ```
+     *
+     * Kết quả:
+     *
+     * ```json
+     * {
+     *   "name": "BlackCat",
+     *   "language": "vi",
+     *   "prefix": "?",
+     *   "color": "#5865F2"
+     * }
+     * ```
+     *
+     * ---
+     *
+     * ### Ví dụ 4 - Merge mảng và loại bỏ phần tử trùng
+     *
+     * Giá trị hiện tại:
+     *
+     * ```json
+     * [
+     *   {
+     *     "username": "Alice",
+     *     "guild": "123"
+     *   }
+     * ]
+     * ```
+     *
+     * ```ts
+     * await db.update("history", [
+     *     {
+     *         username: "Alice",
+     *         guild: "123"
+     *     },
+     *     {
+     *         username: "Bob",
+     *         guild: "123"
+     *     }
+     * ]);
+     * ```
+     *
+     * Kết quả:
+     *
+     * ```json
+     * [
+     *   {
+     *     "username": "Alice",
+     *     "guild": "123"
+     *   },
+     *   {
+     *     "username": "Bob",
+     *     "guild": "123"
+     *   }
+     * ]
+     * ```
+     *
+     * Phần tử `"Alice"` sẽ không được thêm lần nữa vì đã tồn tại với cùng
+     * `username` và `guild`.
+     *
      * @throws {BlackCatError}
-     * - `REQUIRED_PARAMETER_MISSING` nếu key không được cung cấp
-     * - `INVALID_TYPE` nếu key không phải string
+     * - `REQUIRED_PARAMETER_MISSING` nếu không truyền `key`.
+     * - `INVALID_TYPE` nếu `key` không phải kiểu `string`.
      */
     public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, P>>> {
         if (!key) {
@@ -449,16 +596,134 @@ export class Database<V = any> {
         }
 
         const lastKey = keys[keys.length - 1];
-        if (isObject(value) && isObject(current[lastKey])) {
+        const currentValue = current[lastKey];
+
+        if (Array.isArray(value) && Array.isArray(currentValue)) {
+            const unique = value.filter((item) => !currentValue.some((existing) => existing.username === item.username && existing.guild === item.guild));
+            current[lastKey] = [...currentValue, ...unique];
+        } else if (isObject(value) && isObject(currentValue)) {
             current[lastKey] = {
-                ...current[lastKey],
+                ...currentValue,
                 ...value
             };
         } else {
             current[lastKey] = value;
         }
+
         await this.driver.set(allDatabase);
         return current[lastKey];
+    }
+    /**
+     * ## Đồng bộ dữ liệu với cơ sở dữ liệu
+     *
+     * ### Chức năng
+     * Đồng bộ dữ liệu tại một đường dẫn (`keys`) với giá trị mới (`value`).
+     *
+     * Hàm sẽ tự động:
+     * - Tạo mới dữ liệu nếu chưa tồn tại.
+     * - So sánh dữ liệu cũ và mới.
+     * - Chỉ cập nhật các trường thực sự thay đổi đối với Object.
+     * - Không thực hiện ghi nếu dữ liệu không thay đổi.
+     *
+     * Điều này giúp giảm số lần ghi xuống cơ sở dữ liệu và tối ưu hiệu năng.
+     *
+     * ---
+     *
+     * ### Cơ chế hoạt động
+     *
+     * 1. Lấy dữ liệu hiện tại bằng `get()`.
+     * 2. Nếu chưa tồn tại (`undefined` hoặc `null`)
+     *    → gọi `set()` để tạo mới.
+     * 3. Nếu truyền hàm `compare` và hàm này trả về `true`
+     *    → bỏ qua đồng bộ.
+     * 4. Nếu dữ liệu không phải Object (hoặc là Array)
+     *    → so sánh bằng `Object.is()`, nếu khác thì gọi `update()`.
+     * 5. Nếu dữ liệu là Object
+     *    → chỉ lấy các thuộc tính thay đổi và cập nhật đúng các trường đó.
+     * 6. Nếu không có trường nào thay đổi thì không ghi dữ liệu.
+     *
+     * ---
+     *
+     * ### Giá trị trả về
+     *
+     * - `undefined`
+     *   - Khi tạo mới dữ liệu.
+     *   - Khi không có thay đổi.
+     *   - Khi dữ liệu nguyên thủy được cập nhật.
+     * - `Partial<ObjectValue<V, P>>`
+     *   - Trả về object chỉ chứa các trường đã được cập nhật khi đồng bộ Object.
+     *
+     * ---
+     *
+     * ### Ví dụ
+     *
+     * ```ts
+     * // Tạo mới nếu chưa tồn tại
+     * await db.syncDatabase({
+     *   keys: "users.1",
+     *   value: {
+     *     name: "BlackCat",
+     *     age: 20
+     *   }
+     * });
+     *
+     * // Chỉ cập nhật trường age
+     * await db.syncDatabase({
+     *   keys: "users.1",
+     *   value: {
+     *     name: "BlackCat",
+     *     age: 21
+     *   }
+     * });
+     *
+     * // Sử dụng compare để bỏ qua đồng bộ
+     * await db.syncDatabase({
+     *   keys: "users.1",
+     *   value: newData,
+     *   compare(oldData, newData) {
+     *     return oldData.version >= newData.version;
+     *   }
+     * });
+     * ```
+     *
+     * @template P Đường dẫn tới dữ liệu trong cơ sở dữ liệu.
+     *
+     * @param options Thông tin đồng bộ.
+     * @param options.keys Đường dẫn của dữ liệu cần đồng bộ.
+     * @param options.value Giá trị mới cần ghi.
+     * @param options.compare Hàm so sánh tùy chỉnh. Nếu trả về `true` thì sẽ không thực hiện đồng bộ.
+     *
+     * @returns
+     * - `undefined` nếu không có thay đổi hoặc dữ liệu được tạo mới.
+     * - `Partial<ObjectValue<V, P>>` chứa các trường đã thay đổi khi cập nhật Object.
+     */
+    public async syncDatabase<P extends AutocompletableString<ObjectPath<V>>>({ keys, value, compare }: {
+        keys: AutocompletableString<P>,
+        value: ObjectValue<V, P>,
+        compare?: (oldData: ObjectValue<V, P>, newData: ObjectValue<V, P>) => boolean,
+    }) {
+        const oldValue = await this.get(keys);
+        if (oldValue === undefined || oldValue === null) {
+            await this.set(keys, value);
+            return;
+        }
+        if (compare?.(oldValue, value)) return;
+        if (!isObject(oldValue) || !isObject(value) || Array.isArray(oldValue) || Array.isArray(value)) {
+            if (!Object.is(oldValue, value)) {
+                await this.update(keys, value);
+            }
+            return;
+        }
+        const changed: Partial<typeof value> = {};
+        for (const k in value) {
+            const field = k as keyof typeof value;
+            if (!Object.is(oldValue[field], value[field])) {
+                changed[field] = value[field];
+            }
+        }
+        if (Object.keys(changed).length === 0) return;
+        await this.update(keys, changed as ObjectValue<V, P>);
+        return changed;
     }
     /**
      * Cộng thêm giá trị vào một key dạng number.
@@ -525,6 +790,48 @@ export class Database<V = any> {
         return targetNumber - numberToSubtract;
     }
     /**
+     * Thêm một hoặc nhiều phần tử vào đầu array.
+     *
+     * Chỉ thêm những phần tử chưa tồn tại trong array.
+     *
+     * @typeParam P - Path trỏ tới array.
+     *
+     * @param key - Đường dẫn array.
+     * @param values - Một hoặc nhiều phần tử cần thêm.
+     *
+     * @returns Array sau khi thêm.
+     *
+     * @example
+     * await db.unshift("users", newUser);
+     */
+    public async unshift<P extends ObjectPath<V>>(key: AutocompletableString<P>, ...values: RestOrArray<ExtractFromArray<ObjectValue<V, P>>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
+        if (!values.length) {
+            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
+        }
+        const root = await this.all() as any;
+        const pathParts = key.split(".");
+        let target: any = root;
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            if (!(part in target)) {
+                throw new BlackCatError("INVALID_KEY", key);
+            }
+            if (i === pathParts.length - 1) {
+                if (!Array.isArray(target[part])) {
+                    throw new BlackCatError("INVALID_TARGET", "array", typeOf(target[part]));
+                }
+                const uniqueValues = (values as any[]).filter(v => !target[part].includes(v));
+                target[part].unshift(...uniqueValues);
+            } else {
+                target = target[part];
+            }
+        }
+
+        await this.set(pathParts[0], root[pathParts[0]]);
+
+        return target[pathParts[pathParts.length - 1]];
+    }
+    /**
      * Thêm một hoặc nhiều phần tử vào cuối array tại key-path.
      *
      * Method này sẽ:
@@ -557,7 +864,7 @@ export class Database<V = any> {
         }
         const root = await this.all() as any;
         const pathParts = key.split(".");
-        let target = root as any;
+        let target = root;
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
             if (!(part in target)) {

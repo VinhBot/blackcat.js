@@ -7,7 +7,8 @@ interface User {
     database?: {
         username: string;
         guild: string;
-    }[]
+    }[];
+    time?: Date;
 }
 
 interface Databases {
@@ -18,7 +19,7 @@ interface Databases {
 
 const database = new Database<Databases>({
     driver: new JSONDriver({
-        filePath: "./test/database.json"
+        filePath: "./database.json"
     })
 });
 
@@ -72,6 +73,15 @@ const memberID: string = "111111111111111";
     // const data = await database.values("member.user.test");
     // const data = await database.random("member.user.test");
     // const data = await database.deleteAll();
-    const data = await database.find((i) => i[memberID]);
-    console.log(data);
+    // const data = await database.find((i) => i[memberID]);
+    // console.log(data);
+    // await database.syncDatabase({
+    //     keys: `${guildID}.${memberID}.database`,
+    //     value: [
+    //         {
+    //             username: "xxxsxxxx",
+    //             guild: "123456789"
+    //         }
+    //     ]
+    // });
 })();
