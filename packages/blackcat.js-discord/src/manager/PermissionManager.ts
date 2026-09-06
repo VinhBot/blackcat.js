@@ -123,7 +123,7 @@ export interface PermissionConfig<T extends "message" | "interaction" = "message
  *
  * @public
  */
-interface PermissionResult<T extends "message" | "interaction" = "message"> {
+export interface PermissionResult<T extends "message" | "interaction" = "message"> {
     /**
      * Trạng thái kiểm tra permission.
      * - true: hợp lệ, có thể tiếp tục thực thi command

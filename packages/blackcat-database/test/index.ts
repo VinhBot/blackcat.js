@@ -27,23 +27,21 @@ const guildID: string = "999999999999999";
 const memberID: string = "111111111111111";
 (async () => {
     // await database.set(`${guildID}.${memberID}`, {
-    //     user: {
-    //         name: "blackcat.js",
-    //         age: 24,
-    //         test: [
-    //             "test1", "test2", "test3"
-    //         ],
-    //         database: [
-    //             {
-    //                 username: "vinh",
-    //                 guild: "1234566666666"
-    //             },
-    //             {
-    //                 username: "zzzz",
-    //                 guild: "1234566655656566666"
-    //             }
-    //         ]
-    //     }
+    //     name: "blackcat.js",
+    //     age: 24,
+    //     test: [
+    //         "test1", "test2", "test3"
+    //     ],
+    //     database: [
+    //         {
+    //             username: "vinh",
+    //             guild: "1234566666666"
+    //         },
+    //         {
+    //             username: "zzzz",
+    //             guild: "1234566655656566666"
+    //         }
+    //     ]
     // });
     // const data = await database.update(`${guildID}.${memberID}`, {
     //     name: "vinh"

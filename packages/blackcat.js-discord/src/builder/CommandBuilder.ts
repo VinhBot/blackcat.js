@@ -120,7 +120,7 @@ export class CommandBuilder<InGuild extends boolean = boolean> {
      * });
      * ```
      */
-    constructor(options: Partial<CommandBuilderOptions<InGuild>>) {
+    constructor(options?: Partial<CommandBuilderOptions<InGuild>>) {
         if (options) {
             if (options.commandName) this.commandName = options.commandName;
             if (options.aliases) this.aliases = options.aliases;
@@ -196,7 +196,6 @@ export class CommandBuilder<InGuild extends boolean = boolean> {
      * @param args - Command arguments
      */
     public async execute(client: Client<true>, message: OmitPartialGroupDMChannel<Message<InGuild>>, args: string[]) {
-        // Thực thi command handler
         return this.handler(client, message, args);
     }
 }

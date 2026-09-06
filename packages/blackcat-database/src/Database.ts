@@ -13,8 +13,7 @@ export { DatabaseDriver } from "./types";
  * - thao tác object
  * - query dữ liệu (find, filter, map...)
  *
- * Việc lưu trữ dữ liệu thực tế sẽ được thực hiện bởi các **driver phụ trợ**
- * như:
+ * Việc lưu trữ dữ liệu thực tế sẽ được thực hiện bởi các **driver phụ trợ** như:
  *
  * - `JSONDriver`
  * - `MemoryDriver`
@@ -53,17 +52,6 @@ export class Database<V = any> {
      *   driver: new JSONDriver({ filePath: "./database.json" }),
      * })
      * ```
-     *
-     * Ví dụ với MongoDB:
-     *
-     * ```ts
-     * const db = new Database({
-     *   driver: new MongoDriver({
-     *     uri: "mongodb://localhost:27017",
-     *     databaseName: "mydb"
-     *   })
-     * });
-     * ```
      */
     constructor(options: DatabaseConfiguration) {
         this.driver = options.driver;
@@ -78,7 +66,7 @@ export class Database<V = any> {
      * @example
      * ```ts
      * const data = await db.all();
-     * console.log(data.users);
+     * console.log(data);
      * ```
      */
     public async all(): Promise<V> {
@@ -113,7 +101,8 @@ export class Database<V = any> {
      * ```
      */
     public async get<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>>> {
-        const data = await this.all();
+        const data = await this.all() as Maybe<ObjectValue<V, P>>;
+        if(!key) return data;
         if (typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
         }

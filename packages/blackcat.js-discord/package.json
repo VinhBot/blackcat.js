@@ -15,7 +15,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "docs": "typedoc",
@@ -47,7 +49,8 @@
     "blackcat.js-discord"
   ],
   "dependencies": {
-    "discord.js": "^14.25.1"
+    "discord.js": "^14.25.1",
+    "eventemitter3": "^5.0.4"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

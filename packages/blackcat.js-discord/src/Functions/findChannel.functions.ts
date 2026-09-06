@@ -1,5 +1,5 @@
-import { Client, Channel, Guild, ChannelType } from "discord.js";
-
+import { Channel, Guild, ChannelType } from "discord.js";
+import type { Client } from "..";
 /**
  * Tìm một Discord channel trong guild bằng nhiều phương thức khác nhau.
  *
@@ -62,10 +62,10 @@ export const findChannel = async (client: Client, guild: Guild, query: string): 
     }
     // Nếu tìm được ID thì ưu tiên lấy từ cache hoặc fetch API
     if (channelId) {
-        const cached = client.channels.cache.get(channelId);
+        const cached = client.discord.channels.cache.get(channelId);
         if (cached) return cached;
         try {
-            const fetched = await client.channels.fetch(channelId);
+            const fetched = await client.discord.channels.fetch(channelId);
             if (fetched) return fetched;
         } catch {}
     }

@@ -296,8 +296,8 @@ export class SlashCommandManager {
      */
     public async registerCommands(): Promise<void> {
         const client = this.ensureClient();
-        if (!client.user) return;
-        const applicationId = client.user.id;
+        if (!client.discord.user) return;
+        const applicationId = client.discord.user.id;
         const rest = this.createRest();
         const commands = this.getCommandPayloads();
         const guildIDs = this.getGuildIDs();
@@ -434,7 +434,7 @@ export class SlashCommandManager {
     private attachInteractionListener(): void {
         if (this.interactionListenerAttached) return;
         this.interactionListenerAttached = true;
-        this.client.on(Events.InteractionCreate, async (interaction) => {
+        this.client.discord.on(Events.InteractionCreate, async (interaction) => {
             if (!interaction.isChatInputCommand()) return;
             await this.handleChatInputCommand(interaction);
         });
@@ -505,13 +505,13 @@ export class SlashCommandManager {
     }
 
     private async registerWhenReady(): Promise<void> {
-        if (this.client.user) {
+        if (this.client.discord.user) {
             await this.registerCommands();
             return;
         }
         if (this.registrationListenerAttached) return;
         this.registrationListenerAttached = true;
-        this.client.once(Events.ClientReady, async () => {
+        this.client.discord.once(Events.ClientReady, async () => {
             this.registrationListenerAttached = false;
             try {
                 await this.registerCommands();
@@ -522,7 +522,7 @@ export class SlashCommandManager {
     }
 
     private createRest(): REST {
-        const token = this.client.token ?? this.client.config?.botToken ?? "";
+        const token = this.client.discord.token ?? this.client.config?.botToken ?? "";
         return new REST({ version: "10" }).setToken(token);
     }
 

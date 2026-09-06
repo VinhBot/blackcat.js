@@ -147,9 +147,9 @@ export class EventManager {
                         }
 
                         if (event.once) {
-                            this.client.once(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                            this.client.discord.once(event.eventName, (...args: any) => event.execute(this.client, ...args));
                         } else {
-                            this.client.on(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                            this.client.discord.on(event.eventName, (...args: any) => event.execute(this.client, ...args));
                         }
 
                         options.onLoad?.({

@@ -1,4 +1,4 @@
-import { Client, CommandBuilder, CommandManager, EventManager, SlashCommandManager, version } from "blackcat.js-discord";
+import { Client, CommandBuilder, CommandManager, EventManager, SlashCommandManager } from "../src";
 import { GatewayIntentBits, Partials } from "discord.js";
 
 const config = {
@@ -7,7 +7,7 @@ const config = {
     guildID: ["1055150050357022840", "1330081862609272905"],
 };
 
-const client = new Client<true>({
+const client = new Client<false>({
     discordClientOptions: {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
         partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
@@ -28,7 +28,7 @@ const client = new Client<true>({
         }
     }),
     commandManager: new CommandManager({
-        directory: "./commands",
+        // directory: "./commands",
         prefix: config.prefix,
         // prefix: async(guildID) => {
         //     if(!guildID) return config.prefix;
@@ -48,5 +48,14 @@ const client = new Client<true>({
         onError: (command) => console.error(`${command.file}:`, command.error),
     }),
 });
+
+const pings = new CommandBuilder({
+    commandName: "ping",
+    execute: (client, message, args) => {
+        return message.reply({ content: `ping của tôi là ${client.discord.ws.ping}` });
+    },  
+});
+
+client.commandManager.registerCommand([pings]);
 
 client.start();

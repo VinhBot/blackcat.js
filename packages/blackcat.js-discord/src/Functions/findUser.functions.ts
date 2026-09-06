@@ -1,5 +1,5 @@
-import type { Client, Message, OmitPartialGroupDMChannel, User } from "discord.js";
-
+import type {  Message, OmitPartialGroupDMChannel, User } from "discord.js";
+import type { Client } from "..";
 /**
  * Tìm và resolve một {@link User} từ nhiều dạng input khác nhau.
  *
@@ -39,10 +39,10 @@ export const findUser = async<T extends boolean = boolean>(client: Client, messa
     const idMatch = input.match(/^(\d{17,20})$/);
     if (idMatch) {
         const id = idMatch[1];
-        const cached = client.users.cache.get(id);
+        const cached = client.discord.users.cache.get(id);
         if (cached) return cached;
         try {
-            return await client.users.fetch(id);
+            return await client.discord.users.fetch(id);
         } catch {
             return null;
         }
@@ -50,11 +50,11 @@ export const findUser = async<T extends boolean = boolean>(client: Client, messa
     // 3. Kiểm tra tag (username#1234)
     const tagMatch = input.match(/^(.+)#(\d{4})$/);
     if (tagMatch) {
-        const user = client.users.cache.find((u) => u.username === tagMatch[1] && u.discriminator === tagMatch[2]);
+        const user = client.discord.users.cache.find((u) => u.username === tagMatch[1] && u.discriminator === tagMatch[2]);
         if (user) return user;
     }
     // 4. Tìm theo username
-    const username = client.users.cache.find((u) => u.username.toLowerCase() === input.toLowerCase());
+    const username = client.discord.users.cache.find((u) => u.username.toLowerCase() === input.toLowerCase());
     if (username) return username;
     // 5. Tìm theo display name / nickname trong guild
     if (message.guild) {

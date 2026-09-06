@@ -1,5 +1,5 @@
-import type { ClientOptions as DiscordClientOptions } from "discord.js";
-import { Client as DiscordClient, Collection, Partials, GatewayIntentBits } from "discord.js";
+import { Client as DiscordClient, Collection, Partials, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
+import type { ClientOptions as DiscordClientOptions, PermissionsBitField } from "discord.js";
 
 import type { CommandBuilder, SlashCommandBuilder } from "./builder";
 import { CommandManager, EventManager, SlashCommandManager } from "./manager";
@@ -364,6 +364,21 @@ interface Stats {
     uptime: number | null;
 }
 
+interface Events {
+    ready: void;
+
+    login: {
+        id: number;
+        username: string;
+    };
+
+    message: {
+        author: string;
+        content: string;
+    };
+
+    error: Error;
+}
 /**
  * Client mở rộng từ {@link DiscordClient}.
  *
@@ -407,7 +422,14 @@ interface Stats {
  * await client.start();
  * ```
  */
-export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready> {
+
+export class Client<Ready extends boolean = boolean> {
+    /**
+     * Client Discord được sử dụng để kết nối và tương tác với Discord.
+     *
+     * @typeParam Ready - Kiểu dữ liệu đại diện cho trạng thái sẵn sàng của client.
+     */
+    public discord: DiscordClient<Ready>;
     /**
      * Cấu hình bot.
      * 
@@ -508,14 +530,14 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
      * Không thực hiện load hoặc login.
      */
     constructor(options: ClientOptions) {
-        super(options.discordClientOptions ?? {
+        this.discord = new DiscordClient<Ready>(options.discordClientOptions ?? {
             intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
             partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
             allowedMentions: {
                 parse: ["users", "roles"],
                 repliedUser: false
             },
-        });
+        })
         this.config = options.config ?? {} as Config;
         // Collection
         this.commands = new Collection<string, CommandBuilder>();
@@ -533,10 +555,11 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
         }
         this.commandManager = options.commandManager;
         // slashCommandManager
-        if (options.slashCommandManager) {
-            options.slashCommandManager.setClient(this);
+        const slashCommandManager = options.slashCommandManager;
+        if (slashCommandManager) {
+            slashCommandManager.setClient(this);
         }
-        this.slashCommandManager = options.slashCommandManager;
+        this.slashCommandManager = slashCommandManager;
     }
     /**
      * Thiết lập hoặc cập nhật cấu hình bot.
@@ -597,10 +620,46 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
         // Ưu tiên config
         if (ownerID) return Array.isArray(ownerID) ? ownerID.includes(userID) : ownerID === userID;
         // Fallback lấy từ application
-        const app = await this.application?.fetch();
+        const app = await this.discord.application?.fetch();
         if (!app?.owner) return false;
         if ("members" in app.owner) return app.owner.members.some((m) => m.id === userID);
         return app.owner.id === userID;
+    }
+    /**
+     * Kiểm tra xem một đối tượng có quyền quản trị viên (Administrator) hay không.
+     *
+     * Quyền `Administrator` sẽ bỏ qua hầu hết các kiểm tra quyền của Discord và
+     * cho phép thực hiện gần như mọi hành động trong máy chủ.
+     *
+     * @param target Đối tượng chứa tập quyền (`permissions`) cần kiểm tra.
+     * @returns `true` nếu đối tượng có quyền {@link PermissionFlagsBits.Administrator};
+     * ngược lại trả về `false`.
+     *
+     * @example
+     * ```ts
+     * if (client.isAdmin(member)) {
+     *     console.log("Người dùng là quản trị viên.");
+     * }
+     * ```
+     *
+     * @example
+     * ```ts
+     * client.on("interactionCreate", async (interaction) => {
+     *     if (!interaction.inGuild()) return;
+     *
+     *     const member = interaction.member;
+     *
+     *     if (!client.isAdmin(member)) return interaction.reply({
+     *        content: "Bạn không có quyền sử dụng lệnh này.",
+     *        ephemeral: true,
+     *     });
+     *
+     *     // Xử lý lệnh...
+     * });
+     * ```
+     */
+    public isAdmin(target: { permissions: Readonly<PermissionsBitField> }): boolean {
+        return target.permissions.has(PermissionFlagsBits.Administrator);
     }
     /**
      * Trả về snapshot thống kê runtime của bot.
@@ -616,9 +675,9 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
             slashCommandCount: this.slashCommands.size,
             aliasCount: this.aliases.size,
             categoryCount: this.categories.size,
-            guildCount: this.guilds.cache.size,
-            memberCount: this.guilds.cache.map((c) => c.memberCount).filter((v) => typeof v === "number").reduce((a, b) => a + b, 0),
-            uptime: this.uptime,
+            guildCount: this.discord.guilds.cache.size,
+            memberCount: this.discord.guilds.cache.map((c) => c.memberCount).filter((v) => typeof v === "number").reduce((a, b) => a + b, 0),
+            uptime: this.discord.uptime,
         };
     }
     /**
@@ -638,6 +697,28 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
     public setToken(token: string): string {
         this.config.botToken = token;
         return token;
+    }
+    /**
+     * Kiểm tra một giá trị có phải class hay không.
+     *
+     * Hàm này dùng chuỗi source của function để xác định giá trị có bắt đầu bằng
+     * từ khóa `class` hay không.
+     *
+     * @internal
+     *
+     * @param value - Giá trị cần kiểm tra.
+     * @returns `true` nếu giá trị là class, ngược lại là `false`.
+     *
+     * @example
+     * ```ts
+     * class HelpCommand {}
+     *
+     * this.isClass(HelpCommand); // true
+     * this.isClass(() => {}); // false
+     * ```
+     */
+    public isClass(value: unknown): boolean {
+        return typeof value === "function" && /^class\s/.test(Function.prototype.toString.call(value));
     }
     /**
      * Khởi động bot.
@@ -672,11 +753,12 @@ export class Client<Ready extends boolean = boolean> extends DiscordClient<Ready
         ]);
         const token = this.config.botToken;
         if (!token) throw new Error("Bot token chưa được thiết lập.");
-        const result = await this.login(token);
+        const result = await this.discord.login(token);
         // SlashCommand
         if (this.slashCommandManager) {
             await this.slashCommandManager.loadAll();
         }
+
         return result;
     }
 }
