@@ -1,227 +1,645 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>blackcat.js-database - v1.0.7</title><meta name="description" content="Documentation for blackcat.js-database"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><link rel="stylesheet" href="assets/rhineai-style.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">blackcat.js-database - v1.0.7</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>blackcat.js-database - v1.0.7</h1></div><div class="tsd-panel tsd-typography"><h1 id="🐈⬛-blackcatjs-database" class="tsd-anchor-link">🐈‍⬛ blackcat.js-database<a href="#🐈⬛-blackcatjs-database" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>blackcat.js-database - v1.1.0</title><meta name="description" content="Documentation for blackcat.js-database"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><link rel="stylesheet" href="assets/rhineai-style.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="index.html" class="title">blackcat.js-database - v1.1.0</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<h1>blackcat.js-database - v1.1.0</h1></div>
+<div class="tsd-panel tsd-typography"><h1 id="🐈⬛-blackcatjs-database" class="tsd-anchor-link">🐈‍⬛ blackcat.js-database<a href="#🐈⬛-blackcatjs-database" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
 <p><img src="https://img.shields.io/npm/v/blackcat.js-database" alt="npm version">
 <img src="https://img.shields.io/npm/dm/blackcat.js-database" alt="npm downloads">
 <img src="https://img.shields.io/npm/l/blackcat.js-database" alt="license">
 <img src="https://img.shields.io/badge/types-TypeScript-blue" alt="typescript"></p>
 <blockquote>
-<p>Một <strong>database nhẹ, typed và hỗ trợ autocomplete path cho TypeScript</strong>.
-<code>blackcat.js-database</code> cho phép bạn lưu trữ và truy vấn dữ liệu bằng <strong>dot notation</strong> với <strong>type inference mạnh mẽ trong IDE</strong>.</p>
+<p>Một <strong>database nhẹ, typed và có autocomplete path cho TypeScript</strong>, viết cho bot Discord.
+Lưu và truy vấn dữ liệu bằng <strong>dot notation</strong> (<code>guilds.123.members.456.xp</code>), chạy trên nhiều storage
+(JSON, Memory, SQLite, MongoDB) qua hệ thống <strong>driver</strong>.</p>
 </blockquote>
 <blockquote>
-<p><a href="https://blackcat-js-database.vercel.app">Xem tài liệu ở đây.</a></p>
+<p><a href="https://blackcat-js-database.vercel.app">Xem tài liệu API ở đây.</a></p>
 </blockquote>
+<hr>
+<h1 id="mục-lục" class="tsd-anchor-link">Mục lục<a href="#mục-lục" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<ul>
+<li><a href="#t%C3%ADnh-n%C4%83ng">Tính năng</a></li>
+<li><a href="#c%C3%A0i-%C4%91%E1%BA%B7t">Cài đặt</a></li>
+<li><a href="#b%E1%BA%AFt-%C4%91%E1%BA%A7u-nhanh">Bắt đầu nhanh</a></li>
+<li><a href="#c%E1%BA%A5u-h%C3%ACnh-database">Cấu hình Database</a></li>
+<li><a href="#typescript-schema-v%C3%A0-autocomplete">TypeScript Schema và autocomplete</a></li>
+<li><a href="#api">API</a>
+<ul>
+<li><a href="#%C4%91%E1%BB%8Dc">Đọc</a></li>
+<li><a href="#ghi">Ghi</a></li>
+<li><a href="#x%C3%B3a">Xóa</a></li>
+<li><a href="#number">Number</a></li>
+<li><a href="#array">Array</a></li>
+<li><a href="#query">Query</a></li>
+<li><a href="#keys-values-entries">Keys, values, entries</a></li>
+<li><a href="#scope">Scope</a></li>
+<li><a href="#transaction">Transaction</a></li>
+<li><a href="#ttl-key-t%E1%BB%B1-h%E1%BA%BFt-h%E1%BA%A1n">TTL (key tự hết hạn)</a></li>
+<li><a href="#s%E1%BB%B1-ki%E1%BB%87n">Sự kiện</a></li>
+<li><a href="#import-export-backup-migrate">Import, export, backup, migrate</a></li>
+<li><a href="#v%C3%B2ng-%C4%91%E1%BB%9Di-init-flush-close">Vòng đời: init, flush, close</a></li>
+</ul>
+</li>
+<li><a href="#drivers">Drivers</a>
+<ul>
+<li><a href="#jsondriver">JSONDriver</a></li>
+<li><a href="#memorydriver">MemoryDriver</a></li>
+<li><a href="#sqlitedriver">SQLiteDriver</a></li>
+<li><a href="#mongodriver">MongoDriver</a></li>
+<li><a href="#cacheddriver">CachedDriver</a></li>
+<li><a href="#encrypteddriver-v%C3%A0-compresseddriver">EncryptedDriver và CompressedDriver</a></li>
+<li><a href="#mirrordriver">MirrorDriver</a></li>
+<li><a href="#t%E1%BA%A1o-custom-driver">Tạo Custom Driver</a></li>
+</ul>
+</li>
+<li><a href="#x%E1%BB%AD-l%C3%BD-l%E1%BB%97i">Xử lý lỗi</a></li>
+<li><a href="#hi%E1%BB%87u-n%C4%83ng-v%C3%A0-%C4%91%E1%BB%99-an-to%C3%A0n">Hiệu năng và độ an toàn</a></li>
+<li><a href="#n%C3%A2ng-c%E1%BA%A5p-t%E1%BB%AB-10x">Nâng cấp từ 1.0.x</a></li>
+<li><a href="#ph%C3%A1t-tri%E1%BB%83n-v%C3%A0-test">Phát triển và test</a></li>
+<li><a href="#license">License</a></li>
+</ul>
 <hr>
 <h1 id="tính-năng" class="tsd-anchor-link">Tính năng<a href="#tính-năng" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
 <ul>
-<li>Autocomplete path trong IDE (<code>user.profile.name</code>)</li>
-<li>Type-safe với TypeScript</li>
-<li>Hỗ trợ nested object</li>
-<li>API tương tự <code>Array</code></li>
-<li>Driver system (memory, file, custom storage)</li>
-<li>Query helpers (<code>find</code>, <code>filter</code>, <code>map</code>, ...)</li>
-<li>Hỗ trợ thao tác với number và array</li>
+<li>Autocomplete path trong IDE (<code>user.profile.name</code>), type-safe với TypeScript</li>
+<li>Nested object và mảng (<code>users.0.coins</code>)</li>
+<li>API quen thuộc: <code>get</code>, <code>set</code>, <code>update</code>, <code>delete</code>, <code>add</code>, <code>push</code>, <code>find</code>, <code>filter</code>, <code>map</code>...</li>
+<li><strong>Hàng đợi tuần tự</strong>: gọi song song <code>add()</code>/<code>push()</code>... không mất dữ liệu</li>
+<li>Mỗi thao tác ghi chỉ <strong>đọc 1 lần + ghi 1 lần</strong> xuống driver</li>
+<li>Driver: <code>JSON</code>, <code>Memory</code>, <code>SQLite</code>, <code>MongoDB</code> và các driver bọc <code>Cached</code>, <code>Encrypted</code>, <code>Compressed</code>, <code>Mirror</code></li>
+<li>Query nâng cao: toán tử <code>$gt</code>, <code>$in</code>..., <code>findMany</code>, <code>count</code>, <code>paginate</code>, <code>updateMany</code></li>
+<li><code>scope</code>, <code>transaction</code>, <code>setMany</code>/<code>getMany</code>, <code>increment</code>, TTL theo key</li>
+<li>Sự kiện, validator, giá trị mặc định, backup tự động, migrate giữa các driver</li>
+<li>An toàn: ghi file atomic, cách ly file JSON hỏng, chặn prototype pollution</li>
 </ul>
 <hr>
 <h1 id="cài-đặt" class="tsd-anchor-link">Cài đặt<a href="#cài-đặt" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">blackcat.js-database</span>
 </code><button type="button">Copy</button></pre>
 
-<hr>
-<h1 id="khởi-tạo-database" class="tsd-anchor-link">Khởi tạo Database<a href="#khởi-tạo-database" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">JSONDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+<p><code>better-sqlite3</code> và <code>mongodb</code> là <strong>optional peer dependency</strong>, chỉ cài khi bạn dùng driver tương ứng:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">better-sqlite3</span><span class="hl-1">   </span><span class="hl-3"># nếu dùng SQLiteDriver</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">mongodb</span><span class="hl-1">          </span><span class="hl-3"># nếu dùng MongoDriver</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Yêu cầu: Node.js &gt;= 18.</p>
+<p>Có thể import driver từ subpath để không phải nạp phần còn lại:</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">SQLiteDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database/sqlite&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">MongoDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database/mongo&quot;</span><span class="hl-1">;</span>
 </code><button type="button">Copy</button></pre>
 
 <hr>
-<h1 id="sử-dụng-với-typescript-schema" class="tsd-anchor-link">Sử dụng với TypeScript Schema<a href="#sử-dụng-với-typescript-schema" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-5">type</span><span class="hl-1"> </span><span class="hl-7">Schema</span><span class="hl-1"> = {</span><br/><span class="hl-1">  </span><span class="hl-4">users</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">id</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-4">name</span><span class="hl-1">: </span><span class="hl-7">string</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-4">coins</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">;</span><br/><span class="hl-1">  }[];</span><br/><span class="hl-1">  </span><span class="hl-4">settings</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">prefix</span><span class="hl-1">: </span><span class="hl-7">string</span><span class="hl-1">;</span><br/><span class="hl-1">  };</span><br/><span class="hl-1">};</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">&lt;</span><span class="hl-7">Schema</span><span class="hl-1">&gt;({</span><br/><span class="hl-1">  </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+<h1 id="bắt-đầu-nhanh" class="tsd-anchor-link">Bắt đầu nhanh<a href="#bắt-đầu-nhanh" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1">, </span><span class="hl-5">JSONDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><span class="hl-1"> })</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, []);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-5">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;Alice&quot;</span><span class="hl-1">, </span><span class="hl-5">coins:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1"> });</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">50</span><span class="hl-1">);</span><br/><br/><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0&quot;</span><span class="hl-1">)); </span><span class="hl-3">// { id: 1, name: &quot;Alice&quot;, coins: 150 }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">close</span><span class="hl-1">(); </span><span class="hl-3">// nên gọi khi tắt ứng dụng</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Autocomplete trong IDE:</p>
+<hr>
+<h1 id="cấu-hình-database" class="tsd-anchor-link">Cấu hình Database<a href="#cấu-hình-database" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<pre><code class="ts"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver</span><span class="hl-1">,                       </span><span class="hl-3">// bắt buộc</span><br/><span class="hl-1">  </span><span class="hl-5">delimiter:</span><span class="hl-1"> </span><span class="hl-2">&quot;.&quot;</span><span class="hl-1">,               </span><span class="hl-3">// ký tự phân tách key path</span><br/><span class="hl-1">  </span><span class="hl-5">debug:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,                 </span><span class="hl-3">// log thời gian + số lần đọc/ghi của từng thao tác</span><br/><span class="hl-1">  </span><span class="hl-5">cloneOnRead:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,           </span><span class="hl-3">// trả về bản sao sâu thay vì tham chiếu</span><br/><span class="hl-1">  </span><span class="hl-5">autoCreateArrays:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,      </span><span class="hl-3">// push/unshift tự tạo mảng nếu key chưa có</span><br/><span class="hl-1">  </span><span class="hl-5">defaults:</span><span class="hl-1"> { </span><span class="hl-5">settings:</span><span class="hl-1"> { </span><span class="hl-5">prefix:</span><span class="hl-1"> </span><span class="hl-2">&quot;!&quot;</span><span class="hl-1"> } },</span><br/><span class="hl-1">  </span><span class="hl-0">validator</span><span class="hl-5">:</span><span class="hl-1"> ({ </span><span class="hl-5">key</span><span class="hl-1">, </span><span class="hl-5">value</span><span class="hl-1">, </span><span class="hl-5">operation</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">uniqueBy:</span><span class="hl-1"> [</span><span class="hl-2">&quot;id&quot;</span><span class="hl-1">],             </span><span class="hl-3">// cách loại trùng mặc định khi update nối mảng</span><br/><span class="hl-1">  </span><span class="hl-5">ttlKey:</span><span class="hl-1"> </span><span class="hl-2">&quot;__blackcat_ttl__&quot;</span><span class="hl-1">,   </span><span class="hl-3">// key nội bộ lưu hạn TTL</span><br/><span class="hl-1">  </span><span class="hl-5">ttlSweepInterval:</span><span class="hl-1"> </span><span class="hl-8">60_000</span><span class="hl-1">,     </span><span class="hl-3">// chu kỳ quét key hết hạn (0 = tắt quét nền)</span><br/><span class="hl-1">  </span><span class="hl-5">autoBackup:</span><span class="hl-1"> { </span><span class="hl-5">dir:</span><span class="hl-1"> </span><span class="hl-2">&quot;./backups&quot;</span><span class="hl-1">, </span><span class="hl-5">every:</span><span class="hl-1"> </span><span class="hl-8">3_600_000</span><span class="hl-1">, </span><span class="hl-5">keep:</span><span class="hl-1"> </span><span class="hl-8">5</span><span class="hl-1"> }</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Mặc định</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>driver</code></td>
+<td>bắt buộc</td>
+<td>Storage driver.</td>
+</tr>
+<tr>
+<td><code>delimiter</code></td>
+<td><code>&quot;.&quot;</code></td>
+<td>Ký tự phân tách key path.</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td><code>false</code></td>
+<td>In <code>[blackcat.js-database] set &quot;a.b&quot; - 1.2ms (read: 1, write: 1)</code> cho mỗi thao tác.</td>
+</tr>
+<tr>
+<td><code>cloneOnRead</code></td>
+<td><code>false</code></td>
+<td>Giá trị trả về là bản sao sâu, sửa kết quả không ảnh hưởng dữ liệu bên trong (quan trọng với <code>MemoryDriver</code>/<code>CachedDriver</code>).</td>
+</tr>
+<tr>
+<td><code>autoCreateArrays</code></td>
+<td><code>false</code></td>
+<td><code>push</code>/<code>unshift</code> tự tạo <code>[]</code> khi key chưa tồn tại thay vì ném <code>INVALID_KEY</code>.</td>
+</tr>
+<tr>
+<td><code>defaults</code></td>
+<td>không</td>
+<td>Ở lần dùng đầu tiên, các key còn thiếu được điền vào database (đệ quy với object).</td>
+</tr>
+<tr>
+<td><code>validator</code></td>
+<td>không</td>
+<td>Chạy trước <code>set</code>, <code>update</code>, <code>ensure</code>, <code>setMany</code>. Trả <code>false</code> hoặc một chuỗi (lý do) để từ chối.</td>
+</tr>
+<tr>
+<td><code>uniqueBy</code></td>
+<td><code>username</code> + <code>guild</code></td>
+<td>Cách coi hai phần tử mảng là trùng khi <code>update</code> nối mảng.</td>
+</tr>
+<tr>
+<td><code>ttlKey</code></td>
+<td><code>&quot;__blackcat_ttl__&quot;</code></td>
+<td>Key cấp cao nhất dùng lưu hạn TTL (ẩn khỏi <code>all()</code>, <code>keys()</code>, <code>size()</code>...).</td>
+</tr>
+<tr>
+<td><code>ttlSweepInterval</code></td>
+<td><code>60000</code></td>
+<td>Chu kỳ quét nền. Key hết hạn vẫn bị xóa khi truy cập dù tắt quét.</td>
+</tr>
+<tr>
+<td><code>autoBackup</code></td>
+<td>không</td>
+<td>Sao lưu định kỳ ra file JSON.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="typescript-schema-và-autocomplete" class="tsd-anchor-link">TypeScript Schema và autocomplete<a href="#typescript-schema-và-autocomplete" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<pre><code class="ts"><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-9">Schema</span><span class="hl-1"> = {</span><br/><span class="hl-1">  </span><span class="hl-5">users</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-5">id</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-5">name</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-5">coins</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">  }[];</span><br/><span class="hl-1">  </span><span class="hl-5">settings</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-5">prefix</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">  };</span><br/><span class="hl-1">};</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">&lt;</span><span class="hl-9">Schema</span><span class="hl-1">&gt;({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><span class="hl-1"> })</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p>IDE sẽ gợi ý:</p>
 <pre><code><span class="hl-2">&quot;users&quot;</span><br/><span class="hl-2">&quot;users.0.id&quot;</span><br/><span class="hl-2">&quot;settings.prefix&quot;</span>
 </code><button>Copy</button></pre>
 
+<p>Kiểu của giá trị được suy ra từ path (<code>db.get(&quot;settings.prefix&quot;)</code> là <code>string | null</code>).
+Độ sâu gợi ý tối đa là 8 cấp để tránh làm chậm trình biên dịch.</p>
 <hr>
-<h1 id="lấy-dữ-liệu" class="tsd-anchor-link">Lấy dữ liệu<a href="#lấy-dữ-liệu" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;settings.prefix&quot;</span><span class="hl-1">);</span>
+<h1 id="api" class="tsd-anchor-link">API<a href="#api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p>Mọi method đều trả về <code>Promise</code>. Key path được tách bằng <code>delimiter</code> (mặc định <code>.</code>).
+Segment <code>__proto__</code>, <code>constructor</code>, <code>prototype</code> bị chặn (xem <a href="#x%E1%BB%AD-l%C3%BD-l%E1%BB%97i">Xử lý lỗi</a>).</p>
+<h2 id="đọc" class="tsd-anchor-link">Đọc<a href="#đọc" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">all</span><span class="hl-1">();                     </span><span class="hl-3">// toàn bộ dữ liệu</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">();                     </span><span class="hl-3">// giống all()</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;user.profile.name&quot;</span><span class="hl-1">);  </span><span class="hl-3">// giá trị, hoặc null nếu không tồn tại</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">has</span><span class="hl-1">(</span><span class="hl-2">&quot;user.profile&quot;</span><span class="hl-1">);       </span><span class="hl-3">// true/false (giá trị khác null/undefined)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">getMany</span><span class="hl-1">([</span><span class="hl-2">&quot;a.b&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;x.y&quot;</span><span class="hl-1">]);   </span><span class="hl-3">// nhiều key trong một lần đọc, theo thứ tự (thiếu = null)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">isTargetArray</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">isTargetNumber</span><span class="hl-1">(</span><span class="hl-2">&quot;user.coins&quot;</span><span class="hl-1">);</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Lấy toàn bộ database</p>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">();</span>
+<p>Với driver có đường nhanh (SQLite, Mongo), <code>get</code>/<code>has</code> chỉ đọc đúng giá trị cần thiết.</p>
+<h2 id="ghi" class="tsd-anchor-link">Ghi<a href="#ghi" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;user.profile.name&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;Vinh&quot;</span><span class="hl-1">);   </span><span class="hl-3">// tự tạo object trung gian</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">setMany</span><span class="hl-1">({ </span><span class="hl-2">&quot;a.b&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-2">&quot;a.c&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1"> });    </span><span class="hl-3">// một lần đọc + một lần ghi</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">setMany</span><span class="hl-1">([[</span><span class="hl-2">&quot;x&quot;</span><span class="hl-1">, </span><span class="hl-8">1</span><span class="hl-1">], [</span><span class="hl-2">&quot;y&quot;</span><span class="hl-1">, </span><span class="hl-8">2</span><span class="hl-1">]]);</span><br/><br/><span class="hl-3">// Lấy giá trị, nếu chưa có thì gán mặc định rồi trả về</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">settings</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">ensure</span><span class="hl-1">(</span><span class="hl-2">&quot;guild.123&quot;</span><span class="hl-1">, { </span><span class="hl-5">prefix:</span><span class="hl-1"> </span><span class="hl-2">&quot;!&quot;</span><span class="hl-1"> });</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Lấy bằng điều kiện nhất định</p>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">data</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">database</span><span class="hl-1">.</span><span class="hl-0">findOne</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;username&quot;</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="kiểm-tra-key-tồn-tại" class="tsd-anchor-link">Kiểm tra key tồn tại<a href="#kiểm-tra-key-tồn-tại" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">has</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="gán-giá-trị" class="tsd-anchor-link">Gán giá trị<a href="#gán-giá-trị" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;settings.prefix&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;!&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="cập-nhật-giá-trị" class="tsd-anchor-link">Cập nhật giá trị<a href="#cập-nhật-giá-trị" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">update</span><span class="hl-1">(</span><span class="hl-2">&quot;settings.prefix&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;?&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="xóa-dữ-liệu" class="tsd-anchor-link">Xóa dữ liệu<a href="#xóa-dữ-liệu" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">delete</span><span class="hl-1">(</span><span class="hl-2">&quot;settings.prefix&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Xóa toàn bộ database</p>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">deleteAll</span><span class="hl-1">();</span>
-</code><button type="button">Copy</button></pre>
-
-<p>xóa bằng điều kiện nhất đinh</p>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">data</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">database</span><span class="hl-1">.</span><span class="hl-0">deleteMany</span><span class="hl-1">(</span><span class="hl-2">&quot;member.user.database&quot;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;username&quot;</span><br/><span class="hl-1">})</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="number-operations" class="tsd-anchor-link">Number Operations<a href="#number-operations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<h2 id="cộng-giá-trị" class="tsd-anchor-link">Cộng giá trị<a href="#cộng-giá-trị" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">10</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<h2 id="trừ-giá-trị" class="tsd-anchor-link">Trừ giá trị<a href="#trừ-giá-trị" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">subtract</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">5</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="array-operations" class="tsd-anchor-link">Array Operations<a href="#array-operations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<h2 id="thêm-phần-tử" class="tsd-anchor-link">Thêm phần tử<a href="#thêm-phần-tử" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;Alice&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">coins:</span><span class="hl-1"> </span><span class="hl-8">0</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Hoặc</p>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;numbers&quot;</span><span class="hl-1">, </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-8">2</span><span class="hl-1">, </span><span class="hl-8">3</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="thay-thế-phần-tử-trong-mảng" class="tsd-anchor-link">Thay thế phần tử trong mảng<a href="#thay-thế-phần-tử-trong-mảng" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">pull</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;Bob&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">coins:</span><span class="hl-1"> </span><span class="hl-8">10</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="xóa-phần-tử" class="tsd-anchor-link">Xóa phần tử<a href="#xóa-phần-tử" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">pop</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Hoặc</p>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">pop</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, [</span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-8">2</span><span class="hl-1">]);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="lấy-phần-tử-ngẫu-nhiên" class="tsd-anchor-link">Lấy phần tử ngẫu nhiên<a href="#lấy-phần-tử-ngẫu-nhiên" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">random</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="query-api" class="tsd-anchor-link">Query API<a href="#query-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Database hỗ trợ các method tương tự <code>Array</code>.</p>
-<h2 id="find" class="tsd-anchor-link">find<a href="#find" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">user</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">find</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">id</span><span class="hl-1"> === </span><span class="hl-8">1</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="filter" class="tsd-anchor-link">filter<a href="#filter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">admins</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">filter</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">role</span><span class="hl-1"> === </span><span class="hl-2">&quot;admin&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="map" class="tsd-anchor-link">map<a href="#map" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">names</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">map</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">name</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="findindex" class="tsd-anchor-link">findIndex<a href="#findindex" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">index</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">findIndex</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">id</span><span class="hl-1"> === </span><span class="hl-8">1</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="some" class="tsd-anchor-link">some<a href="#some" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">some</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">active</span><span class="hl-1"> === </span><span class="hl-5">true</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="every" class="tsd-anchor-link">every<a href="#every" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">every</span><span class="hl-1">((</span><span class="hl-4">u</span><span class="hl-1">) </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">u</span><span class="hl-1">.</span><span class="hl-4">active</span><span class="hl-1"> === </span><span class="hl-5">true</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="utilities" class="tsd-anchor-link">Utilities<a href="#utilities" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<h2 id="keys" class="tsd-anchor-link">keys<a href="#keys" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">keys</span><span class="hl-1">();</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">keys</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="values" class="tsd-anchor-link">values<a href="#values" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">values</span><span class="hl-1">();</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">values</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="size" class="tsd-anchor-link">size<a href="#size" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">size</span><span class="hl-1">();</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h2 id="kiểm-tra-kiểu-dữ-liệu" class="tsd-anchor-link">Kiểm tra kiểu dữ liệu<a href="#kiểm-tra-kiểu-dữ-liệu" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="ts"><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">isTargetArray</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">isTargetNumber</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0.coins&quot;</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="driver-system" class="tsd-anchor-link">Driver System<a href="#driver-system" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Database sử dụng <strong>driver system</strong> để lưu trữ dữ liệu.</p>
-<p>Driver chịu trách nhiệm:</p>
+<h3 id="update" class="tsd-anchor-link">update<a href="#update" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><code>update</code> kết hợp theo kiểu dữ liệu:</p>
 <ul>
-<li>đọc dữ liệu</li>
-<li>ghi dữ liệu</li>
-<li>xóa dữ liệu</li>
+<li>object + object: merge nông</li>
+<li>mảng + mảng: nối thêm các phần tử chưa có</li>
+<li>còn lại: ghi đè</li>
+</ul>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">update</span><span class="hl-1">(</span><span class="hl-2">&quot;user.profile&quot;</span><span class="hl-1">, { </span><span class="hl-5">age:</span><span class="hl-1"> </span><span class="hl-8">25</span><span class="hl-1"> });</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">update</span><span class="hl-1">(</span><span class="hl-2">&quot;members&quot;</span><span class="hl-1">, [{ </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> }, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1"> }], { </span><span class="hl-5">uniqueBy:</span><span class="hl-1"> [</span><span class="hl-2">&quot;id&quot;</span><span class="hl-1">] });</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">update</span><span class="hl-1">(</span><span class="hl-2">&quot;tags&quot;</span><span class="hl-1">, [</span><span class="hl-2">&quot;a&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;b&quot;</span><span class="hl-1">]); </span><span class="hl-3">// phần tử nguyên thủy so sánh theo giá trị</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>uniqueBy</code> là danh sách field hoặc hàm <code>(item) =&gt; khóa</code>. Nếu không đặt, object có <code>username</code>/<code>guild</code> được so sánh theo hai field này, các phần tử khác so sánh theo nội dung.</p>
+<h3 id="syncdatabase" class="tsd-anchor-link">syncDatabase<a href="#syncdatabase" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Chỉ ghi khi dữ liệu thực sự thay đổi, trả về các field đã đổi:</p>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">syncDatabase</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">keys:</span><span class="hl-1"> </span><span class="hl-2">&quot;user.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">value:</span><span class="hl-1"> { </span><span class="hl-5">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;Alice&quot;</span><span class="hl-1">, </span><span class="hl-5">age:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">, </span><span class="hl-5">tags:</span><span class="hl-1"> [</span><span class="hl-2">&quot;a&quot;</span><span class="hl-1">] },</span><br/><span class="hl-1">  </span><span class="hl-5">deep:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">,                              </span><span class="hl-3">// so sánh sâu từng field (mặc định: Object.is)</span><br/><span class="hl-1">  </span><span class="hl-0">compare</span><span class="hl-5">:</span><span class="hl-1"> (</span><span class="hl-5">oldData</span><span class="hl-1">, </span><span class="hl-5">newData</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">     </span><span class="hl-3">// trả true để bỏ qua cập nhật</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="xóa" class="tsd-anchor-link">Xóa<a href="#xóa" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">delete</span><span class="hl-1">(</span><span class="hl-2">&quot;user.profile.name&quot;</span><span class="hl-1">);        </span><span class="hl-3">// true nếu đã xóa, false nếu không tồn tại</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">deleteKeys</span><span class="hl-1">([</span><span class="hl-2">&quot;a.b&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;x&quot;</span><span class="hl-1">]);           </span><span class="hl-3">// nhiều key, trả về số key đã xóa</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">clear</span><span class="hl-1">(</span><span class="hl-2">&quot;user.items&quot;</span><span class="hl-1">);                </span><span class="hl-3">// làm rỗng object/mảng nhưng giữ lại key, trả về số phần tử đã xóa</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">deleteAll</span><span class="hl-1">();                        </span><span class="hl-3">// xóa toàn bộ database</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">deleteMany</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">coins:</span><span class="hl-1"> { </span><span class="hl-5">$lt:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> } }); </span><span class="hl-3">// xóa phần tử mảng khớp điều kiện</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>delete(&quot;list.1&quot;)</code> trên mảng xóa phần tử bằng <code>splice</code> (không để lại &quot;lỗ&quot;).</p>
+<h2 id="number" class="tsd-anchor-link">Number<a href="#number" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;user.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">10</span><span class="hl-1">);        </span><span class="hl-3">// key chưa có được coi là 0, trả về giá trị mới</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">subtract</span><span class="hl-1">(</span><span class="hl-2">&quot;user.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">5</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">increment</span><span class="hl-1">(</span><span class="hl-2">&quot;user.hp&quot;</span><span class="hl-1">, -</span><span class="hl-8">30</span><span class="hl-1">, { </span><span class="hl-5">min:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-5">max:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1"> }); </span><span class="hl-3">// kẹp trong khoảng cho phép</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Tham số dạng chuỗi số (<code>&quot;5&quot;</code>) được ép thành số.</p>
+<h2 id="array" class="tsd-anchor-link">Array<a href="#array" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> });                </span><span class="hl-3">// thêm cuối, bỏ qua giá trị đã có</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;numbers&quot;</span><span class="hl-1">, </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-8">2</span><span class="hl-1">, </span><span class="hl-8">3</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">unshift</span><span class="hl-1">(</span><span class="hl-2">&quot;numbers&quot;</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">);                   </span><span class="hl-3">// thêm đầu</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">pull</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1"> });             </span><span class="hl-3">// THAY phần tử tại index (hỗ trợ index âm)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">replaceAt</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, -</span><span class="hl-8">1</span><span class="hl-1">, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">3</span><span class="hl-1"> });       </span><span class="hl-3">// bí danh rõ nghĩa của pull</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">pop</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">);                         </span><span class="hl-3">// xóa theo index</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">pop</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, [</span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-8">2</span><span class="hl-1">, -</span><span class="hl-8">1</span><span class="hl-1">]);                </span><span class="hl-3">// nhiều index (loại trùng, hỗ trợ index âm)</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">random</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);                         </span><span class="hl-3">// phần tử ngẫu nhiên (null nếu mảng rỗng)</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Lưu ý:</p>
+<ul>
+<li><code>push</code>/<code>unshift</code> loại trùng theo <code>Set</code> (nguyên thủy so theo giá trị, object so theo tham chiếu) và không ghi nếu không thêm gì.</li>
+<li><code>pull</code> ném <code>INDEX_OUT_OF_BOUNDS</code> nếu index nằm ngoài mảng.</li>
+<li><code>pop</code> với key không tồn tại trả về <code>[]</code> và không tạo key mới.</li>
+<li><code>push</code>/<code>unshift</code> ném <code>INVALID_KEY</code> nếu key chưa tồn tại, trừ khi bật <code>autoCreateArrays</code>.</li>
+</ul>
+<h2 id="query" class="tsd-anchor-link">Query<a href="#query" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="truy-vấn-theo-điều-kiện-trên-mảng" class="tsd-anchor-link">Truy vấn theo điều kiện trên mảng<a href="#truy-vấn-theo-điều-kiện-trên-mảng" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">findOne</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> });</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">findOne</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">coins:</span><span class="hl-1"> { </span><span class="hl-5">$gte:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1"> } });</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">findMany</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">banned:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> }, {</span><br/><span class="hl-1">  </span><span class="hl-5">sort:</span><span class="hl-1"> { </span><span class="hl-5">coins:</span><span class="hl-1"> -</span><span class="hl-8">1</span><span class="hl-1"> },   </span><span class="hl-3">// hoặc hàm so sánh (a, b) =&gt; number</span><br/><span class="hl-1">  </span><span class="hl-5">skip:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">limit:</span><span class="hl-1"> </span><span class="hl-8">10</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">count</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">coins:</span><span class="hl-1"> { </span><span class="hl-5">$gt:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1"> } });     </span><span class="hl-3">// số phần tử khớp</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">count</span><span class="hl-1">(</span><span class="hl-2">&quot;settings&quot;</span><span class="hl-1">);                         </span><span class="hl-3">// số key của object</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">page</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">paginate</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-5">page:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">pageSize:</span><span class="hl-1"> </span><span class="hl-8">10</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">query:</span><span class="hl-1"> { </span><span class="hl-5">banned:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> },</span><br/><span class="hl-1">  </span><span class="hl-5">sort:</span><span class="hl-1"> { </span><span class="hl-5">coins:</span><span class="hl-1"> -</span><span class="hl-8">1</span><span class="hl-1"> }</span><br/><span class="hl-1">});</span><br/><span class="hl-3">// { items, page, pageSize, total, totalPages, hasNext, hasPrev }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">updateMany</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">banned:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> }, { </span><span class="hl-5">warned:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1"> }); </span><span class="hl-3">// trả về số phần tử đã cập nhật</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">deleteMany</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">coins:</span><span class="hl-1"> { </span><span class="hl-5">$lt:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1"> } });               </span><span class="hl-3">// trả về số phần tử đã xóa</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Mặc định mỗi field so sánh bằng <code>==</code>. Có thể dùng toán tử:</p>
+<table>
+<thead>
+<tr>
+<th>Toán tử</th>
+<th>Ý nghĩa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$eq</code>, <code>$ne</code></td>
+<td>bằng, khác</td>
+</tr>
+<tr>
+<td><code>$gt</code>, <code>$gte</code>, <code>$lt</code>, <code>$lte</code></td>
+<td>so sánh (hỗ trợ <code>Date</code>)</td>
+</tr>
+<tr>
+<td><code>$in</code>, <code>$nin</code></td>
+<td>nằm trong, không nằm trong danh sách</td>
+</tr>
+<tr>
+<td><code>$exists</code></td>
+<td>field có tồn tại hay không</td>
+</tr>
+<tr>
+<td><code>$regex</code></td>
+<td>khớp biểu thức chính quy (chỉ với chuỗi)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="find-filter-map-findindex-some-every" class="tsd-anchor-link">find, filter, map, findIndex, some, every<a href="#find-filter-map-findindex-some-every" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Mỗi method chạy trên <strong>giá trị cấp cao nhất</strong>, hoặc trên mảng/object tại <code>key</code> nếu truyền thêm key:</p>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">find</span><span class="hl-1">((</span><span class="hl-5">guild</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-5">premium</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">filter</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">coins</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">map</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">name</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">findIndex</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">id</span><span class="hl-1"> === </span><span class="hl-8">1</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">some</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">coins</span><span class="hl-1"> === </span><span class="hl-8">0</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">every</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">coins</span><span class="hl-1"> &gt;= </span><span class="hl-8">0</span><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Hàm callback nhận <code>(item, index, values)</code>.</p>
+<h2 id="keys-values-entries" class="tsd-anchor-link">Keys, values, entries<a href="#keys-values-entries" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">keys</span><span class="hl-1">();                 </span><span class="hl-3">// key cấp cao nhất</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">keys</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">);          </span><span class="hl-3">// mặc định bỏ qua giá trị null/undefined khi có key</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">values</span><span class="hl-1">(</span><span class="hl-2">&quot;settings&quot;</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">entries</span><span class="hl-1">(</span><span class="hl-2">&quot;settings&quot;</span><span class="hl-1">);    </span><span class="hl-3">// [[key, value], ...]</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">toMap</span><span class="hl-1">(</span><span class="hl-2">&quot;settings&quot;</span><span class="hl-1">);      </span><span class="hl-3">// Map</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">size</span><span class="hl-1">();                 </span><span class="hl-3">// số key cấp cao nhất</span><br/><br/><span class="hl-3">// bỏ/giữ giá trị rỗng</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">keys</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, { </span><span class="hl-5">skipNullish:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> });</span><br/><br/><span class="hl-3">// Duyệt từng key cấp cao nhất</span><br/><span class="hl-4">for</span><span class="hl-1"> </span><span class="hl-4">await</span><span class="hl-1"> (</span><span class="hl-6">const</span><span class="hl-1"> [</span><span class="hl-7">guildId</span><span class="hl-1">, </span><span class="hl-7">data</span><span class="hl-1">] </span><span class="hl-6">of</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">) { </span><span class="hl-3">/* ... */</span><span class="hl-1"> }</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="scope" class="tsd-anchor-link">Scope<a href="#scope" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><code>scope</code> tạo một database con có <strong>tiền tố key cố định</strong>, dùng chung hàng đợi, driver và cấu hình:</p>
+<pre><code class="ts"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">guild</span><span class="hl-1"> = </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">scope</span><span class="hl-1">(</span><span class="hl-2">&quot;guilds.123&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;prefix&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;!&quot;</span><span class="hl-1">);              </span><span class="hl-3">// = db.set(&quot;guilds.123.prefix&quot;, &quot;!&quot;)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;members.456.xp&quot;</span><span class="hl-1">, </span><span class="hl-8">10</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;members.456&quot;</span><span class="hl-1">);</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;logs&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;Đã tham gia&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">member</span><span class="hl-1"> = </span><span class="hl-5">guild</span><span class="hl-1">.</span><span class="hl-0">scope</span><span class="hl-1">(</span><span class="hl-2">&quot;members.456&quot;</span><span class="hl-1">);   </span><span class="hl-3">// scope lồng nhau</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">member</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;xp&quot;</span><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Scope hỗ trợ: <code>get</code>, <code>has</code>, <code>set</code>, <code>ensure</code>, <code>update</code>, <code>delete</code>, <code>clear</code>, <code>add</code>, <code>subtract</code>, <code>increment</code>, <code>push</code>, <code>unshift</code>, <code>pull</code>, <code>pop</code>, <code>random</code>, <code>findOne</code>, <code>findMany</code>, <code>count</code>, <code>deleteMany</code>, <code>keys</code>, <code>values</code>, <code>entries</code>.</p>
+<h2 id="transaction" class="tsd-anchor-link">Transaction<a href="#transaction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Chạy nhiều thao tác <strong>nguyên tử</strong>: đọc một lần, ghi một lần, nếu hàm ném lỗi thì <strong>không ghi gì</strong>:</p>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">transaction</span><span class="hl-1">((</span><span class="hl-5">tx</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-0">subtract</span><span class="hl-1">(</span><span class="hl-2">&quot;user.1.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">100</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;user.2.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">100</span><span class="hl-1">);</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Trong <code>tx</code> các thao tác chạy <strong>đồng bộ</strong>: <code>get</code>, <code>has</code>, <code>set</code>, <code>ensure</code>, <code>update</code>, <code>delete</code>, <code>add</code>, <code>subtract</code>, <code>push</code>.
+Trong transaction không có TTL.</p>
+<h2 id="ttl-key-tự-hết-hạn" class="tsd-anchor-link">TTL (key tự hết hạn)<a href="#ttl-key-tự-hết-hạn" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;cooldown.123&quot;</span><span class="hl-1">, </span><span class="hl-5">Date</span><span class="hl-1">.</span><span class="hl-0">now</span><span class="hl-1">(), { </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">60_000</span><span class="hl-1"> }); </span><span class="hl-3">// hết hạn sau 60 giây</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li>Hạn được lưu cùng database nên <strong>vẫn còn hiệu lực sau khi khởi động lại</strong>.</li>
+<li>Key hết hạn bị xóa khi truy cập hoặc bởi bộ quét nền (<code>ttlSweepInterval</code>), và phát sự kiện <code>expire</code>.</li>
+<li>Ghi lại key bằng <code>set</code> không kèm <code>ttl</code> sẽ bỏ hạn.</li>
+<li>Khi có key TTL, đường nhanh <code>getPath</code> bị tắt để đảm bảo kiểm tra hạn.</li>
+</ul>
+<h2 id="sự-kiện" class="tsd-anchor-link">Sự kiện<a href="#sự-kiện" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&quot;set&quot;</span><span class="hl-1">, ({ </span><span class="hl-5">key</span><span class="hl-1">, </span><span class="hl-5">value</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&quot;set&quot;</span><span class="hl-1">, </span><span class="hl-5">key</span><span class="hl-1">, </span><span class="hl-5">value</span><span class="hl-1">));</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&quot;delete&quot;</span><span class="hl-1">, ({ </span><span class="hl-5">key</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&quot;delete&quot;</span><span class="hl-1">, </span><span class="hl-5">key</span><span class="hl-1">));</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&quot;expire&quot;</span><span class="hl-1">, ({ </span><span class="hl-5">key</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`</span><span class="hl-6">${</span><span class="hl-5">key</span><span class="hl-6">}</span><span class="hl-2"> đã hết hạn`</span><span class="hl-1">));</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&quot;error&quot;</span><span class="hl-1">, (</span><span class="hl-5">error</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-5">error</span><span class="hl-1">));</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&quot;change&quot;</span><span class="hl-1">, ({ </span><span class="hl-5">operation</span><span class="hl-1">, </span><span class="hl-5">key</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {}); </span><span class="hl-3">// mọi thay đổi (kể cả add, push, pop...)</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">once</span><span class="hl-1">(</span><span class="hl-2">&quot;clear&quot;</span><span class="hl-1">, () </span><span class="hl-6">=&gt;</span><span class="hl-1"> {});</span><br/><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">off</span><span class="hl-1">(</span><span class="hl-2">&quot;set&quot;</span><span class="hl-1">, </span><span class="hl-5">listener</span><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Sự kiện</th>
+<th>Khi nào</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>change</code></td>
+<td>Mọi thao tác làm thay đổi dữ liệu (<code>operation</code> cho biết thao tác nào).</td>
+</tr>
+<tr>
+<td><code>set</code>, <code>update</code>, <code>delete</code>, <code>clear</code></td>
+<td>Thao tác tương ứng.</td>
+</tr>
+<tr>
+<td><code>expire</code></td>
+<td>Key hết hạn TTL bị xóa.</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>Thao tác thất bại (chỉ phát nếu có listener).</td>
+</tr>
+</tbody>
+</table>
+<p>Lỗi trong listener không làm hỏng thao tác database.</p>
+<p>Đếm số lần đọc/ghi để đo hiệu quả:</p>
+<pre><code class="ts"><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-5">stats</span><span class="hl-1">); </span><span class="hl-3">// { reads, writes, queued }</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="import-export-backup-migrate" class="tsd-anchor-link">Import, export, backup, migrate<a href="#import-export-backup-migrate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">json</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">export</span><span class="hl-1">();                        </span><span class="hl-3">// chuỗi JSON</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">import</span><span class="hl-1">(</span><span class="hl-5">json</span><span class="hl-1">);                                 </span><span class="hl-3">// thay toàn bộ</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">import</span><span class="hl-1">({ </span><span class="hl-5">b:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1"> }, { </span><span class="hl-5">merge:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1"> });            </span><span class="hl-3">// gộp theo key cấp cao nhất</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">file</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">backup</span><span class="hl-1">({ </span><span class="hl-5">dir:</span><span class="hl-1"> </span><span class="hl-2">&quot;./backups&quot;</span><span class="hl-1">, </span><span class="hl-5">keep:</span><span class="hl-1"> </span><span class="hl-8">10</span><span class="hl-1"> }); </span><span class="hl-3">// trả về đường dẫn file</span><br/><br/><span class="hl-3">// Chuyển dữ liệu giữa hai driver (ví dụ JSON → SQLite)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">moved</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">Database</span><span class="hl-1">.</span><span class="hl-0">migrate</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./old.json&quot;</span><span class="hl-1"> }),</span><br/><span class="hl-1">  </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">SQLiteDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./new.sqlite&quot;</span><span class="hl-1"> }),</span><br/><span class="hl-1">  { </span><span class="hl-5">overwrite:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> } </span><span class="hl-3">// driver đích đã có dữ liệu thì cần overwrite: true</span><br/><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="vòng-đời-init-flush-close" class="tsd-anchor-link">Vòng đời: init, flush, close<a href="#vòng-đời-init-flush-close" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">init</span><span class="hl-1">();   </span><span class="hl-3">// không bắt buộc: database tự khởi tạo ở lần dùng đầu tiên</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">flush</span><span class="hl-1">();  </span><span class="hl-3">// ghi dữ liệu đang chờ (với driver có cache)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">close</span><span class="hl-1">();  </span><span class="hl-3">// dừng timer, flush, đóng driver. Nên gọi khi tắt ứng dụng.</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h1 id="drivers" class="tsd-anchor-link">Drivers<a href="#drivers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p><code>Database</code> chỉ xử lý logic (key path, validate, query...). Driver chỉ chịu trách nhiệm <strong>đọc và ghi toàn bộ dữ liệu</strong> xuống storage.</p>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Lưu ở</th>
+<th>Ghi chú</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JSONDriver</code></td>
+<td>file <code>.json</code></td>
+<td>Ghi atomic, tự cách ly file hỏng.</td>
+</tr>
+<tr>
+<td><code>MemoryDriver</code></td>
+<td>RAM</td>
+<td>Mất khi tắt process.</td>
+</tr>
+<tr>
+<td><code>SQLiteDriver</code></td>
+<td>file SQLite</td>
+<td>Cần <code>better-sqlite3</code>. Có đường nhanh theo path.</td>
+</tr>
+<tr>
+<td><code>MongoDriver</code></td>
+<td>MongoDB</td>
+<td>Cần <code>mongodb</code>. Có đường nhanh theo path.</td>
+</tr>
+<tr>
+<td><code>CachedDriver</code></td>
+<td>bọc driver khác</td>
+<td>Cache RAM + ghi trễ.</td>
+</tr>
+<tr>
+<td><code>EncryptedDriver</code></td>
+<td>bọc driver khác</td>
+<td>Mã hóa AES-256-GCM.</td>
+</tr>
+<tr>
+<td><code>CompressedDriver</code></td>
+<td>bọc driver khác</td>
+<td>Nén gzip.</td>
+</tr>
+<tr>
+<td><code>MirrorDriver</code></td>
+<td>bọc nhiều driver</td>
+<td>Ghi đồng thời để có bản sao dự phòng.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="jsondriver" class="tsd-anchor-link">JSONDriver<a href="#jsondriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1">, </span><span class="hl-5">JSONDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">minifyJSON:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,   </span><span class="hl-3">// true: không format</span><br/><span class="hl-1">    </span><span class="hl-5">indent:</span><span class="hl-1"> </span><span class="hl-2">&quot;</span><span class="hl-10">\t</span><span class="hl-2">&quot;</span><span class="hl-1">,        </span><span class="hl-3">// thụt lề khi minifyJSON tắt</span><br/><span class="hl-1">    </span><span class="hl-5">backup:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,       </span><span class="hl-3">// true: giữ bản .bak và tự khôi phục khi file hỏng</span><br/><span class="hl-1">    </span><span class="hl-5">fsync:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">,        </span><span class="hl-3">// true: fsync trước khi đổi tên (an toàn hơn khi mất điện, chậm hơn)</span><br/><span class="hl-1">    </span><span class="hl-0">onError</span><span class="hl-5">:</span><span class="hl-1"> (</span><span class="hl-5">error</span><span class="hl-1">, { </span><span class="hl-5">filePath</span><span class="hl-1">, </span><span class="hl-5">quarantinePath</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {}</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li>Thư mục và file được tự tạo nếu chưa có.</li>
+<li>Ghi <strong>atomic</strong> (ghi file tạm rồi đổi tên), process bị kill giữa chừng không làm hỏng file.</li>
+<li>File JSON hỏng được <strong>đổi tên</strong> thành <code>&lt;file&gt;.corrupt-&lt;timestamp&gt;</code> (hoặc khôi phục từ <code>.bak</code> nếu bật <code>backup</code>), driver ghi <code>console.error</code> và tiếp tục với database rỗng. Dữ liệu cũ không bị ghi đè.</li>
+<li>Lỗi I/O khác (quyền truy cập, ổ đĩa...) được ném ra.</li>
+</ul>
+<h2 id="memorydriver" class="tsd-anchor-link">MemoryDriver<a href="#memorydriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1">, </span><span class="hl-5">MemoryDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">MemoryDriver</span><span class="hl-1">({ </span><span class="hl-5">users:</span><span class="hl-1"> [] }) </span><span class="hl-3">// dữ liệu ban đầu (tùy chọn)</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>MemoryDriver</code> trả về <strong>tham chiếu</strong> tới dữ liệu bên trong. Bật <code>cloneOnRead: true</code> ở <code>Database</code> nếu bạn không muốn sửa kết quả làm thay đổi dữ liệu.</p>
+<h2 id="sqlitedriver" class="tsd-anchor-link">SQLiteDriver<a href="#sqlitedriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">better-sqlite3</span>
+</code><button type="button">Copy</button></pre>
+
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">SQLiteDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database/sqlite&quot;</span><span class="hl-1">; </span><span class="hl-3">// hoặc từ &quot;blackcat.js-database&quot;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">SQLiteDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.sqlite&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">table:</span><span class="hl-1"> </span><span class="hl-2">&quot;json_store&quot;</span><span class="hl-1">,       </span><span class="hl-3">// chỉ chữ cái, chữ số, gạch dưới</span><br/><span class="hl-1">    </span><span class="hl-5">wal:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">,                 </span><span class="hl-3">// chế độ WAL (mặc định bật)</span><br/><span class="hl-1">    </span><span class="hl-5">synchronous:</span><span class="hl-1"> </span><span class="hl-2">&quot;NORMAL&quot;</span><span class="hl-1">      </span><span class="hl-3">// &quot;OFF&quot; | &quot;NORMAL&quot; | &quot;FULL&quot;</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li>Toàn bộ database nằm trong một row. <code>get</code>/<code>set</code> theo key dùng <code>json_extract</code>/<code>json_set</code> nên không phải đọc/ghi cả database.</li>
+<li>Việc mở file diễn ra ở thao tác đầu tiên hoặc <code>await driver.init()</code>.</li>
+<li><code>await db.close()</code> đóng kết nối.</li>
+</ul>
+<h2 id="mongodriver" class="tsd-anchor-link">MongoDriver<a href="#mongodriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">mongodb</span>
+</code><button type="button">Copy</button></pre>
+
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">MongoDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database/mongo&quot;</span><span class="hl-1">; </span><span class="hl-3">// hoặc từ &quot;blackcat.js-database&quot;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">MongoDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">mongourl:</span><span class="hl-1"> </span><span class="hl-2">&quot;mongodb://localhost:27017&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">databaseName:</span><span class="hl-1"> </span><span class="hl-2">&quot;mybot&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">collectionName:</span><span class="hl-1"> </span><span class="hl-2">&quot;json_store&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-0">onLoad</span><span class="hl-5">:</span><span class="hl-1"> ({ </span><span class="hl-5">databaseName</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&quot;Đã kết nối&quot;</span><span class="hl-1">, </span><span class="hl-5">databaseName</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-0">onError</span><span class="hl-5">:</span><span class="hl-1"> ({ </span><span class="hl-5">error</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-5">error</span><span class="hl-1">)</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li>Toàn bộ database nằm trong <strong>một document</strong> (<code>_id: &quot;database&quot;</code>), nên giới hạn 16 MB của MongoDB áp dụng.</li>
+<li>Kết nối chỉ tạo <strong>một lần</strong> dù có nhiều lời gọi song song.</li>
+<li><code>get</code>/<code>set</code> theo key dùng projection và <code>$set</code>, không đọc/ghi cả document.</li>
+</ul>
+<h2 id="cacheddriver" class="tsd-anchor-link">CachedDriver<a href="#cacheddriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Bọc <strong>bất kỳ driver nào</strong> bằng cache RAM và ghi trễ (write-behind):</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Database</span><span class="hl-1">, </span><span class="hl-5">JSONDriver</span><span class="hl-1">, </span><span class="hl-5">CachedDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">db</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">CachedDriver</span><span class="hl-1">(</span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><span class="hl-1"> }), {</span><br/><span class="hl-1">    </span><span class="hl-5">flushDelay:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1">,    </span><span class="hl-3">// debounce (ms)</span><br/><span class="hl-1">    </span><span class="hl-5">maxWait:</span><span class="hl-1"> </span><span class="hl-8">5000</span><span class="hl-1">,      </span><span class="hl-3">// tối đa chờ trước khi buộc ghi (ms)</span><br/><span class="hl-1">    </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1">,             </span><span class="hl-3">// cache hết hạn sau ms (0 = không bao giờ)</span><br/><span class="hl-1">    </span><span class="hl-5">retry:</span><span class="hl-1"> </span><span class="hl-8">3</span><span class="hl-1">,           </span><span class="hl-3">// số lần thử lại khi ghi lỗi</span><br/><span class="hl-1">    </span><span class="hl-5">retryDelay:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">flushOnExit:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">,  </span><span class="hl-3">// tự flush khi beforeExit, SIGINT, SIGTERM</span><br/><span class="hl-1">    </span><span class="hl-0">onError</span><span class="hl-5">:</span><span class="hl-1"> (</span><span class="hl-5">error</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-5">error</span><span class="hl-1">)</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">close</span><span class="hl-1">(); </span><span class="hl-3">// flush và đóng</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li><code>all()</code> đọc từ RAM, <code>set()</code> chỉ đánh dấu &quot;bẩn&quot; rồi ghi xuống driver thật theo lịch.</li>
+<li>Ghi thất bại sẽ được thử lại, dữ liệu vẫn nằm trong cache.</li>
+<li>Nếu process bị kill đột ngột (SIGKILL, mất điện), dữ liệu chưa flush sẽ mất. Hãy gọi <code>await db.close()</code> khi tắt chủ động.</li>
+</ul>
+<h2 id="encrypteddriver-và-compresseddriver" class="tsd-anchor-link">EncryptedDriver và CompressedDriver<a href="#encrypteddriver-và-compresseddriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">EncryptedDriver</span><span class="hl-1">, </span><span class="hl-5">CompressedDriver</span><span class="hl-1">, </span><span class="hl-5">JSONDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">driver</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">EncryptedDriver</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">key:</span><span class="hl-1"> </span><span class="hl-5">process</span><span class="hl-1">.</span><span class="hl-5">env</span><span class="hl-1">.</span><span class="hl-7">DB_KEY</span><span class="hl-1">!,   </span><span class="hl-3">// chuỗi bất kỳ hoặc Buffer 32 byte</span><br/><span class="hl-1">  </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">CompressedDriver</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">level:</span><span class="hl-1"> </span><span class="hl-8">6</span><span class="hl-1">,                 </span><span class="hl-3">// mức nén gzip 0-9</span><br/><span class="hl-1">    </span><span class="hl-5">driver:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./data.json&quot;</span><span class="hl-1"> })</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<ul>
+<li><code>EncryptedDriver</code> dùng <strong>AES-256-GCM</strong>. Sai khóa hoặc dữ liệu bị sửa sẽ ném <code>DECRYPT_FAILED</code>.</li>
+<li>Dữ liệu cũ chưa mã hóa/chưa nén vẫn đọc được, lần ghi tiếp theo sẽ được mã hóa/nén.</li>
+<li>Khi kết hợp: đặt <code>EncryptedDriver</code> <strong>bên ngoài</strong> <code>CompressedDriver</code> (nén rồi mới mã hóa).</li>
+<li>Mất khóa nghĩa là mất dữ liệu.</li>
+</ul>
+<h2 id="mirrordriver" class="tsd-anchor-link">MirrorDriver<a href="#mirrordriver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">MirrorDriver</span><span class="hl-1">, </span><span class="hl-5">JSONDriver</span><span class="hl-1">, </span><span class="hl-5">SQLiteDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">driver</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">MirrorDriver</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">primary:</span><span class="hl-1"> </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><span class="hl-1"> }),</span><br/><span class="hl-1">  </span><span class="hl-5">mirrors:</span><span class="hl-1"> [</span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">SQLiteDriver</span><span class="hl-1">({ </span><span class="hl-5">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./backup.sqlite&quot;</span><span class="hl-1"> })],</span><br/><span class="hl-1">  </span><span class="hl-0">onError</span><span class="hl-5">:</span><span class="hl-1"> (</span><span class="hl-5">error</span><span class="hl-1">, </span><span class="hl-5">mirror</span><span class="hl-1">, </span><span class="hl-5">operation</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">warn</span><span class="hl-1">(</span><span class="hl-5">operation</span><span class="hl-1">, </span><span class="hl-5">error</span><span class="hl-1">),</span><br/><span class="hl-1">  </span><span class="hl-5">strict:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1">   </span><span class="hl-3">// true: lỗi ở driver phụ cũng được ném ra</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Đọc từ <code>primary</code>, ghi vào <code>primary</code> rồi vào các <code>mirrors</code>.</p>
+<h2 id="tạo-custom-driver" class="tsd-anchor-link">Tạo Custom Driver<a href="#tạo-custom-driver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Chỉ cần ba method bắt buộc:</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> </span><span class="hl-4">type</span><span class="hl-1"> { </span><span class="hl-5">DatabaseDriver</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">class</span><span class="hl-1"> </span><span class="hl-9">MyDriver</span><span class="hl-1"> </span><span class="hl-6">implements</span><span class="hl-1"> </span><span class="hl-9">DatabaseDriver</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-6">async</span><span class="hl-1"> </span><span class="hl-0">all</span><span class="hl-1">&lt;</span><span class="hl-9">T</span><span class="hl-1"> = </span><span class="hl-9">any</span><span class="hl-1">&gt;(): </span><span class="hl-9">Promise</span><span class="hl-1">&lt;</span><span class="hl-9">T</span><span class="hl-1">&gt; { </span><span class="hl-3">/* trả về toàn bộ dữ liệu */</span><span class="hl-1"> }</span><br/><span class="hl-1">  </span><span class="hl-6">async</span><span class="hl-1"> </span><span class="hl-0">set</span><span class="hl-1">&lt;</span><span class="hl-9">T</span><span class="hl-1"> = </span><span class="hl-9">any</span><span class="hl-1">&gt;(</span><span class="hl-5">data</span><span class="hl-1">: </span><span class="hl-9">T</span><span class="hl-1">): </span><span class="hl-9">Promise</span><span class="hl-1">&lt;</span><span class="hl-9">T</span><span class="hl-1">&gt; { </span><span class="hl-3">/* ghi toàn bộ dữ liệu */</span><span class="hl-1"> }</span><br/><span class="hl-1">  </span><span class="hl-6">async</span><span class="hl-1"> </span><span class="hl-0">delete</span><span class="hl-1">(): </span><span class="hl-9">Promise</span><span class="hl-1">&lt;</span><span class="hl-9">boolean</span><span class="hl-1">&gt; { </span><span class="hl-3">/* reset về {} */</span><span class="hl-1"> }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Các method <strong>tùy chọn</strong> để tối ưu:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Mục đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init()</code></td>
+<td>Mở kết nối, tạo file/bảng. <code>Database</code> gọi một lần trước thao tác đầu tiên.</td>
+</tr>
+<tr>
+<td><code>flush()</code></td>
+<td>Ghi dữ liệu đang chờ (driver có cache).</td>
+</tr>
+<tr>
+<td><code>close()</code></td>
+<td>Giải phóng tài nguyên.</td>
+</tr>
+<tr>
+<td><code>getPath(parts)</code></td>
+<td>Đọc một giá trị theo path mà không đọc cả database. Trả <code>{ found: true, value }</code>, <code>{ found: false }</code>, hoặc <code>undefined</code> nếu không hỗ trợ (Database tự quay về đọc toàn bộ).</td>
+</tr>
+<tr>
+<td><code>setPath(parts, value)</code></td>
+<td>Ghi một giá trị theo path. Trả <code>true</code> nếu đã ghi, <code>false</code> để Database quay về cách cũ.</td>
+</tr>
+</tbody>
+</table>
+<p>Lưu ý khi viết driver:</p>
+<ul>
+<li>Nên <code>JSON.stringify</code> dữ liệu <strong>ngay đầu</strong> <code>set()</code> (đồng bộ) trước khi <code>await</code>, vì object có thể bị thay đổi bởi thao tác khác.</li>
+<li><code>Database</code> đã tuần tự hóa mọi thao tác, driver không cần tự khóa cho các lời gọi từ <code>Database</code>.</li>
 </ul>
 <hr>
-<h1 id="memory-driver-ví-dụ" class="tsd-anchor-link">Memory Driver (ví dụ)<a href="#memory-driver-ví-dụ" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Driver lưu dữ liệu trong RAM.</p>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">MemoryDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">MemoryDriver</span><span class="hl-1">()</span><br/><span class="hl-1">});</span>
+<h1 id="xử-lý-lỗi" class="tsd-anchor-link">Xử lý lỗi<a href="#xử-lý-lỗi" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p>Mọi lỗi của thư viện là <code>BlackCatError</code> với thuộc tính <code>code</code>:</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">BlackCatError</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">try</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, </span><span class="hl-8">1</span><span class="hl-1">);</span><br/><span class="hl-1">} </span><span class="hl-4">catch</span><span class="hl-1"> (</span><span class="hl-5">error</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-4">if</span><span class="hl-1"> (</span><span class="hl-5">error</span><span class="hl-1"> </span><span class="hl-6">instanceof</span><span class="hl-1"> </span><span class="hl-9">BlackCatError</span><span class="hl-1"> &amp;&amp; </span><span class="hl-5">error</span><span class="hl-1">.</span><span class="hl-5">code</span><span class="hl-1"> === </span><span class="hl-2">&quot;INVALID_TARGET&quot;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-3">// ...</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
+<table>
+<thead>
+<tr>
+<th><code>code</code></th>
+<th>Ý nghĩa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUIRED_PARAMETER_MISSING</code></td>
+<td>Thiếu tham số bắt buộc.</td>
+</tr>
+<tr>
+<td><code>INVALID_TYPE</code></td>
+<td>Tham số sai kiểu.</td>
+</tr>
+<tr>
+<td><code>ONE_OR_MORE_ARRAY_TYPES_INVALID</code></td>
+<td>Mảng tham số chứa phần tử sai kiểu.</td>
+</tr>
+<tr>
+<td><code>INVALID_TARGET</code></td>
+<td>Giá trị đang lưu không phải kiểu cần thiết (ví dụ <code>push</code> vào giá trị không phải mảng).</td>
+</tr>
+<tr>
+<td><code>INVALID_KEY</code></td>
+<td>Path không tồn tại (với <code>push</code>, <code>unshift</code>, <code>pull</code>).</td>
+</tr>
+<tr>
+<td><code>UNSAFE_KEY</code></td>
+<td>Key chứa <code>__proto__</code>, <code>constructor</code> hoặc <code>prototype</code>.</td>
+</tr>
+<tr>
+<td><code>INDEX_OUT_OF_BOUNDS</code></td>
+<td>Index của <code>pull</code> nằm ngoài mảng.</td>
+</tr>
+<tr>
+<td><code>VALIDATION_FAILED</code></td>
+<td><code>validator</code> từ chối giá trị.</td>
+</tr>
+<tr>
+<td><code>INVALID_OPTION</code></td>
+<td>Tùy chọn không hợp lệ (ví dụ <code>ttl</code> không phải số dương, tên bảng SQLite sai).</td>
+</tr>
+<tr>
+<td><code>MODULE_NOT_FOUND</code></td>
+<td>Chưa cài <code>better-sqlite3</code>/<code>mongodb</code> nhưng dùng driver tương ứng.</td>
+</tr>
+<tr>
+<td><code>DECRYPT_FAILED</code></td>
+<td>Sai khóa hoặc dữ liệu mã hóa bị thay đổi.</td>
+</tr>
+<tr>
+<td><code>UNKNOWN_ERROR</code></td>
+<td>Lỗi không xác định.</td>
+</tr>
+</tbody>
+</table>
+<p><code>get</code>/<code>has</code> với key không an toàn trả về <code>null</code>/<code>false</code> thay vì ném lỗi.</p>
 <hr>
-<h1 id="json-driver-ví-dụ" class="tsd-anchor-link">JSON Driver (ví dụ)<a href="#json-driver-ví-dụ" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Driver lưu dữ liệu trong file json.</p>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">JSONDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">database</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({</span><br/><span class="hl-1">      </span><span class="hl-4">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><br/><span class="hl-1">    })</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
+<h1 id="hiệu-năng-và-độ-an-toàn" class="tsd-anchor-link">Hiệu năng và độ an toàn<a href="#hiệu-năng-và-độ-an-toàn" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<ul>
+<li><strong>Hàng đợi tuần tự:</strong> mọi thao tác xếp hàng nên các lời gọi song song không ghi đè lẫn nhau.</li>
+<li><strong>Đọc/ghi tối thiểu:</strong> mỗi thao tác ghi đọc 1 lần và ghi 1 lần. <code>deleteMany</code>, <code>push</code>, <code>unshift</code>, <code>pop</code> không ghi khi không có gì thay đổi.</li>
+<li><strong>Đường nhanh theo path:</strong> SQLite (<code>json_extract</code>/<code>json_set</code>) và Mongo (projection/<code>$set</code>) không đọc/ghi toàn bộ database cho <code>get</code>/<code>has</code>/<code>set</code>.</li>
+<li><strong>Cache:</strong> dùng <code>CachedDriver</code> để gom nhiều lần ghi thành một (rất hợp với bot ghi liên tục).</li>
+<li><strong>File JSON an toàn:</strong> ghi atomic, file hỏng được cách ly thay vì bị ghi đè.</li>
+<li><strong>Chống prototype pollution:</strong> key chứa <code>__proto__</code>, <code>constructor</code>, <code>prototype</code> bị chặn; <code>get</code> chỉ đọc thuộc tính sở hữu.</li>
+<li><strong>Đo lường:</strong> bật <code>debug: true</code> hoặc xem <code>db.stats</code> để thấy số lần đọc/ghi thực tế.</li>
+</ul>
 <hr>
-<h1 id="mongo-driver-ví-dụ" class="tsd-anchor-link">Mongo Driver (ví dụ)<a href="#mongo-driver-ví-dụ" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Driver lưu dữ liệu trong mongoose.</p>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">MongoDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">database</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({ </span><br/><span class="hl-1">    </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">MongoDriver</span><span class="hl-1">({</span><br/><span class="hl-1">        </span><span class="hl-4">mongourl:</span><span class="hl-1"> </span><span class="hl-2">&quot;mongourl&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-4">databaseName:</span><span class="hl-1"> </span><span class="hl-2">&quot;BlackCat-Club&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-4">collectionName:</span><span class="hl-1"> </span><span class="hl-2">&quot;database-test&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-0">onLoad</span><span class="hl-4">:</span><span class="hl-1"> ({ </span><span class="hl-4">db</span><span class="hl-1">, </span><span class="hl-4">collection</span><span class="hl-1">, </span><span class="hl-4">databaseName</span><span class="hl-1"> }) </span><span class="hl-5">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">            </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`✅ Đã kết nối với cơ sở dữ liệu: </span><span class="hl-5">${</span><span class="hl-4">databaseName</span><span class="hl-5">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-1">            </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`📦 Bộ sưu tập: </span><span class="hl-5">${</span><span class="hl-4">collection</span><span class="hl-9">.</span><span class="hl-4">collectionName</span><span class="hl-5">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-1">            </span><span class="hl-10">// Ví dụ advanced:</span><br/><span class="hl-1">            </span><span class="hl-10">// db.command({ ping: 1 })</span><br/><span class="hl-1">        },</span><br/><span class="hl-1">        </span><span class="hl-0">onError</span><span class="hl-4">:</span><span class="hl-1"> ({ </span><span class="hl-4">error</span><span class="hl-1">, </span><span class="hl-4">databaseName</span><span class="hl-1"> }) </span><span class="hl-5">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">            </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-2">`❌ Không thể kết nối với cơ sở dữ liệu: </span><span class="hl-5">${</span><span class="hl-4">databaseName</span><span class="hl-5">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-1">            </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-4">error</span><span class="hl-1">);</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">    }),</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="sqlite-driver-ví-dụ" class="tsd-anchor-link">SQLite Driver (ví dụ)<a href="#sqlite-driver-ví-dụ" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Driver lưu dữ liệu trong SQLite.</p>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">SQLiteDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">database</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({ </span><br/><span class="hl-1">    </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">SQLiteDriver</span><span class="hl-1">({</span><br/><span class="hl-1">        </span><span class="hl-4">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;database.sqlite&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-4">table:</span><span class="hl-1"> </span><span class="hl-2">&quot;json_store&quot;</span><br/><span class="hl-1">    })</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="tạo-custom-driver" class="tsd-anchor-link">Tạo Custom Driver<a href="#tạo-custom-driver" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>Bạn có thể tạo driver riêng bằng cách implement <code>DatabaseDriver</code>.</p>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">DatabaseDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">class</span><span class="hl-1"> </span><span class="hl-7">MyDriver</span><span class="hl-1"> </span><span class="hl-5">implements</span><span class="hl-1"> </span><span class="hl-7">DatabaseDriver</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">async</span><span class="hl-1"> </span><span class="hl-0">all</span><span class="hl-1">() {</span><br/><span class="hl-1">    </span><span class="hl-3">return</span><span class="hl-1"> {};</span><br/><span class="hl-1">  }</span><br/><br/><span class="hl-1">  </span><span class="hl-5">async</span><span class="hl-1"> </span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-4">data</span><span class="hl-1">) {</span><br/><span class="hl-1">  }</span><br/><br/><span class="hl-1">  </span><span class="hl-5">async</span><span class="hl-1"> </span><span class="hl-0">delete</span><span class="hl-1">() {</span><br/><span class="hl-1">  }</span><br/><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Sử dụng:</p>
-<pre><code class="ts"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">MyDriver</span><span class="hl-1">()</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
-
-<hr>
-<h1 id="ví-dụ-hoàn-chỉnh" class="tsd-anchor-link">Ví dụ hoàn chỉnh<a href="#ví-dụ-hoàn-chỉnh" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<pre><code class="ts"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">Database</span><span class="hl-1">, </span><span class="hl-4">JSONDriver</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&quot;blackcat.js-database&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Database</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-4">driver:</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">JSONDriver</span><span class="hl-1">({</span><br/><span class="hl-1">      </span><span class="hl-4">filePath:</span><span class="hl-1"> </span><span class="hl-2">&quot;./database.json&quot;</span><br/><span class="hl-1">    })</span><br/><span class="hl-1">});</span><br/><span class="hl-1"> </span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">set</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, []);</span><br/><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">push</span><span class="hl-1">(</span><span class="hl-2">&quot;users&quot;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;Alice&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">coins:</span><span class="hl-1"> </span><span class="hl-8">100</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0.coins&quot;</span><span class="hl-1">, </span><span class="hl-8">50</span><span class="hl-1">);</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">user</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-2">&quot;users.0&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">user</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
+<h1 id="nâng-cấp-từ-10x" class="tsd-anchor-link">Nâng cấp từ 1.0.x<a href="#nâng-cấp-từ-10x" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p>Các thay đổi hành vi cần lưu ý (xem <code>CHANGELOG.md</code> để biết đầy đủ):</p>
+<ol>
+<li><code>add</code>/<code>subtract</code> ép tham số chuỗi số thành số (trước đây gây nối chuỗi).</li>
+<li><code>pull</code> ném <code>INDEX_OUT_OF_BOUNDS</code> khi index ngoài phạm vi và hỗ trợ index âm.</li>
+<li><code>pop</code> loại trùng index, hỗ trợ index âm và không tạo key mới khi key không tồn tại.</li>
+<li><code>update</code> nối mảng: phần tử không có <code>username</code>/<code>guild</code> được so sánh theo nội dung; dùng <code>uniqueBy</code> để tự chọn.</li>
+<li>Path đi qua mảng (<code>users.0.coins</code>) cho cả <code>set</code>/<code>update</code>; <code>delete(&quot;list.1&quot;)</code> dùng <code>splice</code>.</li>
+<li><code>JSONDriver.all()</code> ném lỗi I/O thay vì trả <code>{}</code>; file JSON hỏng được đổi tên <code>.corrupt-&lt;time&gt;</code>.</li>
+<li><code>SQLiteDriver</code>/<code>MongoDriver</code> mở file/kết nối ở thao tác đầu tiên (hoặc <code>init()</code>), không phải trong constructor.</li>
+<li><code>better-sqlite3</code> và <code>mongodb</code> là optional peer dependency (cài thêm khi cần); <code>mongoose</code> không còn là dependency.</li>
+</ol>
 <hr>
 <h1 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>MIT</p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#🐈⬛-blackcatjs-database"><span>🐈‍⬛ blackcat.js-<wbr/>database</span></a><a href="#tính-năng"><span>Tính năng</span></a><a href="#cài-đặt"><span>Cài đặt</span></a><a href="#khởi-tạo-database"><span>Khởi tạo <wbr/>Database</span></a><a href="#sử-dụng-với-typescript-schema"><span>Sử dụng với <wbr/>Type<wbr/>Script <wbr/>Schema</span></a><a href="#lấy-dữ-liệu"><span>Lấy dữ liệu</span></a><a href="#kiểm-tra-key-tồn-tại"><span>Kiểm tra key tồn tại</span></a><a href="#gán-giá-trị"><span>Gán giá trị</span></a><a href="#cập-nhật-giá-trị"><span>Cập nhật giá trị</span></a><a href="#xóa-dữ-liệu"><span>Xóa dữ liệu</span></a><a href="#number-operations"><span>Number <wbr/>Operations</span></a><ul><li><a href="#cộng-giá-trị"><span>Cộng giá trị</span></a></li><li><a href="#trừ-giá-trị"><span>Trừ giá trị</span></a></li></ul><a href="#array-operations"><span>Array <wbr/>Operations</span></a><ul><li><a href="#thêm-phần-tử"><span>Thêm phần tử</span></a></li><li><a href="#thay-thế-phần-tử-trong-mảng"><span>Thay thế phần tử trong mảng</span></a></li><li><a href="#xóa-phần-tử"><span>Xóa phần tử</span></a></li><li><a href="#lấy-phần-tử-ngẫu-nhiên"><span>Lấy phần tử ngẫu nhiên</span></a></li></ul><a href="#query-api"><span>Query <wbr/>API</span></a><ul><li><a href="#find"><span>find</span></a></li><li><a href="#filter"><span>filter</span></a></li><li><a href="#map"><span>map</span></a></li><li><a href="#findindex"><span>find<wbr/>Index</span></a></li><li><a href="#some"><span>some</span></a></li><li><a href="#every"><span>every</span></a></li></ul><a href="#utilities"><span>Utilities</span></a><ul><li><a href="#keys"><span>keys</span></a></li><li><a href="#values"><span>values</span></a></li><li><a href="#size"><span>size</span></a></li><li><a href="#kiểm-tra-kiểu-dữ-liệu"><span>Kiểm tra kiểu dữ liệu</span></a></li></ul><a href="#driver-system"><span>Driver <wbr/>System</span></a><a href="#memory-driver-ví-dụ"><span>Memory <wbr/>Driver (ví dụ)</span></a><a href="#json-driver-ví-dụ"><span>JSON <wbr/>Driver (ví dụ)</span></a><a href="#mongo-driver-ví-dụ"><span>Mongo <wbr/>Driver (ví dụ)</span></a><a href="#sqlite-driver-ví-dụ"><span>SQ<wbr/>Lite <wbr/>Driver (ví dụ)</span></a><a href="#tạo-custom-driver"><span>Tạo <wbr/>Custom <wbr/>Driver</span></a><a href="#ví-dụ-hoàn-chỉnh"><span>Ví dụ hoàn chỉnh</span></a><a href="#license"><span>License</span></a></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">blackcat.js-database - v1.0.7</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer></footer><div class="overlay"></div></body></html>
+<p>ISC</p>
+</div></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details"><a href="#🐈⬛-blackcatjs-database"><span>🐈‍⬛ blackcat.js-<wbr/>database</span></a><a href="#mục-lục"><span>Mục lục</span></a><a href="#tính-năng"><span>Tính năng</span></a><a href="#cài-đặt"><span>Cài đặt</span></a><a href="#bắt-đầu-nhanh"><span>Bắt đầu nhanh</span></a><a href="#cấu-hình-database"><span>Cấu hình <wbr/>Database</span></a><a href="#typescript-schema-và-autocomplete"><span>Type<wbr/>Script <wbr/>Schema và autocomplete</span></a><a href="#api"><span>API</span></a>
+<ul>
+<li><a href="#đọc"><span>Đọc</span></a></li>
+<li><a href="#ghi"><span>Ghi</span></a></li>
+<li>
+<ul>
+<li><a href="#update"><span>update</span></a></li>
+<li><a href="#syncdatabase"><span>sync<wbr/>Database</span></a></li></ul></li>
+<li><a href="#xóa"><span>Xóa</span></a></li>
+<li><a href="#number"><span>Number</span></a></li>
+<li><a href="#array"><span>Array</span></a></li>
+<li><a href="#query"><span>Query</span></a></li>
+<li>
+<ul>
+<li><a href="#truy-vấn-theo-điều-kiện-trên-mảng"><span>Truy vấn theo điều kiện trên mảng</span></a></li>
+<li><a href="#find-filter-map-findindex-some-every"><span>find, filter, map, find<wbr/>Index, some, every</span></a></li></ul></li>
+<li><a href="#keys-values-entries"><span>Keys, values, entries</span></a></li>
+<li><a href="#scope"><span>Scope</span></a></li>
+<li><a href="#transaction"><span>Transaction</span></a></li>
+<li><a href="#ttl-key-tự-hết-hạn"><span>TTL (key tự hết hạn)</span></a></li>
+<li><a href="#sự-kiện"><span>Sự kiện</span></a></li>
+<li><a href="#import-export-backup-migrate"><span>Import, export, backup, migrate</span></a></li>
+<li><a href="#vòng-đời-init-flush-close"><span>Vòng đời: init, flush, close</span></a></li></ul><a href="#drivers"><span>Drivers</span></a>
+<ul>
+<li><a href="#jsondriver"><span>JSON<wbr/>Driver</span></a></li>
+<li><a href="#memorydriver"><span>Memory<wbr/>Driver</span></a></li>
+<li><a href="#sqlitedriver"><span>SQ<wbr/>Lite<wbr/>Driver</span></a></li>
+<li><a href="#mongodriver"><span>Mongo<wbr/>Driver</span></a></li>
+<li><a href="#cacheddriver"><span>Cached<wbr/>Driver</span></a></li>
+<li><a href="#encrypteddriver-và-compresseddriver"><span>Encrypted<wbr/>Driver và <wbr/>Compressed<wbr/>Driver</span></a></li>
+<li><a href="#mirrordriver"><span>Mirror<wbr/>Driver</span></a></li>
+<li><a href="#tạo-custom-driver"><span>Tạo <wbr/>Custom <wbr/>Driver</span></a></li></ul><a href="#xử-lý-lỗi"><span>Xử lý lỗi</span></a><a href="#hiệu-năng-và-độ-an-toàn"><span>Hiệu năng và độ an toàn</span></a><a href="#nâng-cấp-từ-10x"><span>Nâng cấp từ 1.0.x</span></a><a href="#license"><span>License</span></a></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="modules.html">blackcat.js-database - v1.1.0</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer></footer>
+<div class="overlay"></div></body></html>

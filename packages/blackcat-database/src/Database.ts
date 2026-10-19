@@ -1,1193 +1,1381 @@
-import { DatabaseConfiguration, AutocompletableString, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction, RestOrArray, ExtractFromArray, DatabaseDriver, ArrayElement } from "./types";
-import { BlackCatError, createTypesArray, isNumber, typeOf, TypedObject, isObject } from "./utils";
-export { DatabaseDriver } from "./types";
+import { EventEmitter } from "node:events";
+import { promises as fs } from "node:fs";
+import { join } from "node:path";
+import type {
+    DatabaseConfiguration, AutocompletableString, If, IsObject, ObjectPath, ObjectValue, Maybe, QueryFunction,
+    RestOrArray, ExtractFromArray, DatabaseDriver, ArrayElement, DatabaseEvents, SetOptions, Query, FindOptions,
+    PaginateOptions, Page, IterateOptions, AutoBackupOptions, UniqueBy, ValidatorContext
+} from "./types";
+import {
+    BlackCatError, AsyncQueue, isObject, typeOf, isNumber, deepEqual, clone, fillDefaults, hasOwn, isContainer,
+    getByPath, setByPath, deleteByPath, hasUnsafeSegment, matchesQuery, buildComparator, applyUpdate, applyNumber,
+    assertAmount, applyInsert, applyReplaceAt, applyRemoveAt, resolveArray
+} from "./utils";
+import { ScopedDatabase } from "./ScopedDatabase";
+
+export type { DatabaseDriver } from "./types";
+
+/**
+ * Kết quả của một thao tác ghi: `changed = false` nghĩa là không cần ghi xuống driver.
+ */
+type Mutation<T> = { result: T; changed: boolean; value?: unknown };
+
 /**
  * Class Database cung cấp API thao tác dữ liệu dạng key-path
  * trên nhiều loại storage khác nhau thông qua `DatabaseDriver`.
  *
- * Đây là **lớp database chính (logic layer)** của hệ thống.
- *
- * Class này chịu trách nhiệm:
- * - parse key path (`user.profile.name`)
- * - validate dữ liệu
- * - thao tác object
- * - query dữ liệu (find, filter, map...)
- *
- * Việc lưu trữ dữ liệu thực tế sẽ được thực hiện bởi các **driver phụ trợ** như:
- *
- * - `JSONDriver`
- * - `MemoryDriver`
- * - `SQLiteDriver`
- * - `MongoDriver`
- *
- * Các driver này chỉ chịu trách nhiệm:
- * - đọc toàn bộ dữ liệu database
- * - ghi toàn bộ dữ liệu database
+ * Mọi thao tác đều được xếp vào **một hàng đợi tuần tự**, nên các lệnh gọi song song
+ * (ví dụ nhiều event cùng `add()` một key) không bị mất dữ liệu.
+ * Mỗi thao tác ghi chỉ đọc **một lần** và ghi **một lần** xuống driver.
  *
  * @template V Kiểu dữ liệu tổng thể của database.
+ *
+ * @example
+ * ```ts
+ * const db = new Database<Schema>({
+ *   driver: new JSONDriver({ filePath: "./database.json" }),
+ * });
+ * await db.set("guild.123.prefix", "!");
+ * ```
  */
 export class Database<V = any> {
     /**
      * Storage driver được sử dụng để đọc và ghi dữ liệu database.
-     *
-     * Driver phải implement interface `DatabaseDriver`.
-     *
-     * Ví dụ:
-     * ```ts
-     * const db = new Database({
-     *   driver: new JSONDriver({ filePath: "./database.json" }),
-     * })
-     * ```
      */
     public driver: DatabaseDriver;
     /**
+     * Ký tự phân tách key path.
+     */
+    public readonly delimiter: string;
+
+    private readonly config: DatabaseConfiguration;
+    private readonly ttlKey: string;
+    private readonly queue = new AsyncQueue();
+    private readonly emitter = new EventEmitter();
+    private driverReady = false;
+    private initialized = false;
+    private hasTTL = false;
+    private sweeper?: ReturnType<typeof setInterval>;
+    private backupTimer?: ReturnType<typeof setInterval>;
+    private reads = 0;
+    private writes = 0;
+    private closed = false;
+
+    /**
      * Khởi tạo Database instance.
      *
-     * @param options Cấu hình database.
-     * @param options.driver Driver lưu trữ dữ liệu.
+     * @param options Cấu hình database, xem {@link DatabaseConfiguration}.
      *
      * @example
      * ```ts
      * const db = new Database({
      *   driver: new JSONDriver({ filePath: "./database.json" }),
-     * })
+     *   cloneOnRead: false,
+     *   defaults: { settings: { prefix: "!" } },
+     * });
      * ```
      */
     constructor(options: DatabaseConfiguration) {
+        if (!options?.driver) {
+            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "driver");
+        }
         this.driver = options.driver;
+        this.config = options;
+        this.delimiter = options.delimiter || ".";
+        this.ttlKey = options.ttlKey ?? "__blackcat_ttl__";
+        if (options.autoBackup) this.startAutoBackup(options.autoBackup);
+    }
+
+    private emitSafe(event: string, payload?: unknown): void {
+        if (event === "error" && this.emitter.listenerCount("error") === 0) return;
+        try {
+            this.emitter.emit(event, payload);
+        } catch (e) {
+            // Lỗi trong listener của người dùng không được làm hỏng thao tác database.
+        }
+    }
+
+    private notify(operation: string, key?: string, value?: unknown): void {
+        const payload = { operation, key, value };
+        this.emitSafe("change", payload);
+        if (operation === "set" || operation === "update" || operation === "delete" || operation === "clear") {
+            this.emitSafe(operation, payload);
+        }
+    }
+
+    private async load(): Promise<Record<string, any>> {
+        this.reads++;
+        const data = await this.driver.all<any>();
+        const root: Record<string, any> = isContainer(data) && !Array.isArray(data) ? data : {};
+        if (this.hasTTL) {
+            const expired = this.purgeExpired(root);
+            if (expired.length) {
+                await this.save(root);
+                for (const key of expired) this.emitSafe("expire", { key });
+            }
+        }
+        return root;
+    }
+
+    private async save(root: Record<string, any>): Promise<void> {
+        this.writes++;
+        await this.driver.set(root);
+    }
+
+    private async ensureReady(): Promise<void> {
+        if (this.initialized) return;
+        if (!this.driverReady) {
+            await this.driver.init?.();
+            this.driverReady = true;
+        }
+        const root = await this.load();
+        let dirty = false;
+        if (this.config.defaults && fillDefaults(root, this.config.defaults)) dirty = true;
+        const map = this.ttlMap(root);
+        if (map && Object.keys(map).length) {
+            this.hasTTL = true;
+            this.startSweeper();
+            if (this.purgeExpired(root).length) dirty = true;
+        }
+        if (dirty) await this.save(root);
+        this.initialized = true;
+    }
+
+    private exec<T>(operation: string, key: string | undefined, task: () => Promise<T>): Promise<T> {
+        return this.queue.run(async () => {
+            const startReads = this.reads;
+            const startWrites = this.writes;
+            const start = process.hrtime.bigint();
+            try {
+                await this.ensureReady();
+                const result = await task();
+                if (this.config.debug) {
+                    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+                    console.debug(`[blackcat.js-database] ${operation}${key ? ` "${key}"` : ""} - ${ms.toFixed(2)}ms (read: ${this.reads - startReads}, write: ${this.writes - startWrites})`);
+                }
+                return result;
+            } catch (error) {
+                this.emitSafe("error", error);
+                throw error;
+            }
+        });
+    }
+
+    private read<T>(operation: string, key: string | undefined, fn: (root: Record<string, any>) => T | Promise<T>): Promise<T> {
+        return this.exec(operation, key, async () => fn(await this.load()));
+    }
+
+    private mutate<T>(operation: string, key: string | undefined, fn: (root: Record<string, any>) => Mutation<T> | Promise<Mutation<T>>): Promise<T> {
+        return this.exec(operation, key, async () => {
+            const root = await this.load();
+            const mutation = await fn(root);
+            if (mutation.changed) {
+                await this.save(root);
+                this.notify(operation, key, mutation.value);
+            }
+            return mutation.result;
+        });
+    }
+
+    private out<T>(value: T): T {
+        return this.config.cloneOnRead ? clone(value) : value;
+    }
+
+    private visible(root: Record<string, any>): Record<string, any> {
+        if (this.hasTTL && hasOwn(root, this.ttlKey)) {
+            const { [this.ttlKey]: _hidden, ...rest } = root;
+            return rest;
+        }
+        return root;
+    }
+
+    /**
+     * Tách key thành các segment (dùng cho thao tác ghi): validate kiểu và chặn segment nguy hiểm.
+     */
+    private parseKey(key: unknown): string[] {
+        if (key === undefined || key === null || key === "") {
+            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
+        }
+        if (typeof key !== "string") {
+            throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
+        }
+        const parts = key.split(this.delimiter);
+        if (hasUnsafeSegment(parts)) {
+            throw new BlackCatError("UNSAFE_KEY", key);
+        }
+        return parts;
+    }
+
+    private lookup(root: Record<string, any>, key: string | undefined): any {
+        if (!key) return this.visible(root);
+        const parts = key.split(this.delimiter);
+        if (hasUnsafeSegment(parts)) return null;
+        const value = getByPath(root, parts);
+        return value === undefined ? null : value;
+    }
+
+    /**
+     * Đọc giá trị theo key, dùng đường nhanh của driver (nếu có) để tránh đọc toàn bộ database.
+     */
+    private async fetch(key: string | undefined): Promise<any> {
+        if (!key) return this.visible(await this.load());
+        const parts = key.split(this.delimiter);
+        if (hasUnsafeSegment(parts)) return null;
+        if (this.driver.getPath && !this.hasTTL) {
+            const result = await this.driver.getPath(parts);
+            if (result) {
+                this.reads++;
+                return result.found ? (result.value ?? null) : null;
+            }
+        }
+        const value = getByPath(await this.load(), parts);
+        return value === undefined ? null : value;
+    }
+
+    private validate(key: string, value: unknown, operation: ValidatorContext["operation"]): void {
+        const verdict = this.config.validator?.({ key, value, operation });
+        if (verdict === false) throw new BlackCatError("VALIDATION_FAILED", key, "validator từ chối giá trị");
+        if (typeof verdict === "string" && verdict) throw new BlackCatError("VALIDATION_FAILED", key, verdict);
+    }
+
+    private parseTTL(ttl: unknown): number | undefined {
+        if (ttl === undefined) return undefined;
+        if (typeof ttl !== "number" || !Number.isFinite(ttl) || ttl <= 0) {
+            throw new BlackCatError("INVALID_OPTION", "ttl", "phải là số dương (ms)");
+        }
+        return ttl;
+    }
+
+    private ttlMap(root: Record<string, any>): Record<string, number> | undefined {
+        const map = root[this.ttlKey];
+        return isObject(map) ? map : undefined;
+    }
+
+    private purgeExpired(root: Record<string, any>): string[] {
+        const map = this.ttlMap(root);
+        if (!map) return [];
+        const now = Date.now();
+        const expired = Object.keys(map).filter((key) => typeof map[key] === "number" && map[key] <= now);
+        if (!expired.length) return [];
+        for (const key of expired) {
+            deleteByPath(root, key.split(this.delimiter));
+            delete map[key];
+        }
+        if (!Object.keys(map).length) {
+            delete root[this.ttlKey];
+            this.hasTTL = false;
+            this.stopSweeper();
+        }
+        return expired;
+    }
+
+    private updateTTL(root: Record<string, any>, key: string, ttl?: number): void {
+        if (ttl === undefined) {
+            const map = this.ttlMap(root);
+            if (!map) return;
+            const prefix = key + this.delimiter;
+            for (const entry of Object.keys(map)) {
+                if (entry === key || entry.startsWith(prefix)) delete map[entry];
+            }
+            if (!Object.keys(map).length) {
+                delete root[this.ttlKey];
+                this.hasTTL = false;
+                this.stopSweeper();
+            }
+            return;
+        }
+        const map = this.ttlMap(root) ?? (root[this.ttlKey] = {});
+        map[key] = Date.now() + ttl;
+        this.hasTTL = true;
+        this.startSweeper();
+    }
+
+    private startSweeper(): void {
+        const every = this.config.ttlSweepInterval ?? 60_000;
+        if (this.sweeper || every <= 0 || this.closed) return;
+        this.sweeper = setInterval(() => {
+            this.exec("sweep", undefined, async () => { await this.load(); }).catch(() => undefined);
+        }, every);
+        this.sweeper.unref?.();
+    }
+
+    private stopSweeper(): void {
+        if (this.sweeper) clearInterval(this.sweeper);
+        this.sweeper = undefined;
+    }
+
+    private startAutoBackup(options: AutoBackupOptions): void {
+        const every = options.every ?? 3_600_000;
+        this.backupTimer = setInterval(() => {
+            this.backup(options).catch((error) => this.emitSafe("error", error));
+        }, every);
+        this.backupTimer.unref?.();
+    }
+
+    private resetState(): void {
+        this.hasTTL = false;
+        this.stopSweeper();
+        this.initialized = false;
+    }
+
+    /**
+     * Lắng nghe sự kiện: `change`, `set`, `update`, `delete`, `clear`, `expire`, `error`.
+     *
+     * @example
+     * ```ts
+     * db.on("set", ({ key, value }) => console.log(key, value));
+     * db.on("expire", ({ key }) => console.log(`${key} đã hết hạn`));
+     * ```
+     */
+    public on<K extends keyof DatabaseEvents>(event: K, listener: (payload: DatabaseEvents[K]) => void): this {
+        this.emitter.on(event, listener as (...args: any[]) => void);
+        return this;
+    }
+    /**
+     * Lắng nghe sự kiện một lần.
+     */
+    public once<K extends keyof DatabaseEvents>(event: K, listener: (payload: DatabaseEvents[K]) => void): this {
+        this.emitter.once(event, listener as (...args: any[]) => void);
+        return this;
+    }
+    /**
+     * Hủy lắng nghe sự kiện.
+     */
+    public off<K extends keyof DatabaseEvents>(event: K, listener: (payload: DatabaseEvents[K]) => void): this {
+        this.emitter.off(event, listener as (...args: any[]) => void);
+        return this;
+    }
+    /**
+     * Số lần đọc/ghi đã thực hiện xuống driver (hữu ích để đo hiệu quả tối ưu).
+     */
+    public get stats(): { reads: number; writes: number; queued: number } {
+        return {
+            reads: this.reads,
+            writes: this.writes,
+            queued: this.queue.size
+        };
+    }
+    /**
+     * Khởi tạo driver và áp dụng `defaults` ngay (không bắt buộc, vì database tự khởi tạo ở lần dùng đầu tiên).
+     */
+    public async init(): Promise<void> {
+        await this.exec("init", undefined, async () => undefined);
+    }
+    /**
+     * Ghi mọi dữ liệu đang chờ xuống storage (với driver có cache như {@link CachedDriver}).
+     */
+    public async flush(): Promise<void> {
+        await this.queue.run(async () => {
+            await this.driver.flush?.();
+        });
+    }
+    /**
+     * Dừng timer nền, flush dữ liệu và đóng driver. Nên gọi khi tắt ứng dụng.
+     */
+    public async close(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
+        if (this.backupTimer) clearInterval(this.backupTimer);
+        this.stopSweeper();
+        await this.queue.run(async () => {
+            await this.driver.flush?.();
+            await this.driver.close?.();
+        });
+    }
+    /**
+     * Tạo một database con có tiền tố key cố định.
+     *
+     * @example
+     * ```ts
+     * const guild = db.scope("guilds.123");
+     * await guild.set("prefix", "!");        // = db.set("guilds.123.prefix", "!")
+     * await guild.get("members.456.xp");
+     * ```
+     */
+    public scope<S = any>(prefix: string): ScopedDatabase<S> {
+        return new ScopedDatabase<S>(this, prefix);
     }
     /**
      * Lấy toàn bộ dữ liệu từ database thông qua driver.
-     *
-     * @template T Kiểu dữ liệu object database trả về.
      *
      * @returns Promise chứa toàn bộ dữ liệu database.
      *
      * @example
      * ```ts
      * const data = await db.all();
-     * console.log(data);
      * ```
      */
     public async all(): Promise<V> {
-        return await this.driver.all();
+        return this.exec("all", undefined, async () => this.out(this.visible(await this.load()) as V));
     }
     /**
      * Lấy giá trị từ database theo key-path.
      *
-     * Key có thể là chuỗi dạng path:
-     *
-     * ```
-     * user.profile.name
-     * economy.users.123.balance
-     * ```
-     *
      * Nếu không truyền `key`, method sẽ trả về **toàn bộ database**.
-     *
-     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
-     *
-     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần lấy.
+     * Nếu driver hỗ trợ `getPath` (SQLite, Mongo), chỉ giá trị cần thiết được đọc.
      *
      * @returns Giá trị tại key hoặc `null` nếu không tồn tại.
      *
      * @example
      * ```ts
      * const name = await db.get("user.profile.name");
-     * ```
-     *
-     * @example
-     * ```ts
      * const all = await db.get();
      * ```
      */
     public async get<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>>> {
-        const data = await this.all() as Maybe<ObjectValue<V, P>>;
-        if(!key) return data;
-        if (typeof key !== "string") {
+        if (key && typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
         }
-        const keys = key.split(".");
-        let result: any = data;
-        for (const k of keys) {
-            if (!isObject(result) && !Array.isArray(result)) return null;
-            result = result[k];
-            if (result === undefined) return null;
-        }
-        return result;
+        return this.exec("get", key, async () => this.out(await this.fetch(key)));
     }
+
     /**
-     * Tìm và trả về một bản ghi đầu tiên khớp với điều kiện trong database.
+     * Tìm một bản ghi đầu tiên khớp điều kiện trong mảng tại `key`.
+     * Nếu không truyền `query`, hoạt động như `get()`.
      *
-     * Hàm này có hai cách sử dụng:
-     *
-     * 1. **Chỉ truyền `key`**
-     *    → Trả về toàn bộ dữ liệu của key (tương tự `get()`).
-     *
-     * 2. **Truyền `key` và `query`**
-     *    → Tìm phần tử đầu tiên trong mảng dữ liệu của key khớp với điều kiện.
-     *
-     * @template V - Kiểu dữ liệu của database.
-     * @template P - Đường dẫn key trong object (`ObjectPath<V>`).
-     *
-     * @param key - Key hoặc đường dẫn đến dữ liệu cần truy vấn.
-     * @param query - Đối tượng điều kiện để tìm bản ghi phù hợp.
-     *
-     * @returns
-     * - Nếu chỉ có `key`: trả về toàn bộ dữ liệu của key.
-     * - Nếu có `query`: trả về bản ghi đầu tiên khớp điều kiện.
-     * - Nếu không tìm thấy: trả về `null`.
+     * `query` mặc định so sánh `==`; có thể dùng toán tử `$gt`, `$gte`, `$lt`, `$lte`, `$ne`, `$in`, `$nin`, `$exists`, `$regex`.
      *
      * @example
-     * Chỉ lấy dữ liệu theo key
      * ```ts
-     * const users = await db.findOne("user");
-     * ```
-     *
-     * @example
-     * Tìm một bản ghi theo điều kiện
-     * ```ts
-     * const user = await db.findOne("user", {
-     *   guild: 1234566
-     * });
+     * await db.findOne("users", { id: 1 });
+     * await db.findOne("users", { coins: { $gte: 100 } });
      * ```
      */
-    public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>>> {
-        const data = await this.get(key);
-        if (!query) return data;
-        if (!Array.isArray(data)) return null as Maybe<ObjectValue<V, P>>;
-        const result = data.find((item) => Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v));
-        return (result ?? null) as Maybe<ObjectValue<V, P>>;
+    public async findOne<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Query<ArrayElement<ObjectValue<V, P>>>): Promise<Maybe<ObjectValue<V, P>>> {
+        if (key && typeof key !== "string") {
+            throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
+        }
+        return this.exec("findOne", key, async () => {
+            const data = await this.fetch(key);
+            if (!query) return this.out(data);
+            if (!Array.isArray(data)) return null;
+            return this.out(data.find((item) => matchesQuery(item, query)) ?? null);
+        });
     }
+
     /**
-     * Kiểm tra một key-path có tồn tại trong database hay không.
-     *
-     * Method này sử dụng `get()` để xác định giá trị có tồn tại.
-     *
-     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
-     *
-     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần kiểm tra.
-     *
-     * @returns `true` nếu key tồn tại, ngược lại `false`.
+     * Tìm **tất cả** bản ghi khớp điều kiện, có thể sắp xếp và phân trang bằng `skip`/`limit`.
      *
      * @example
      * ```ts
-     * const exists = await db.has("users.123");
+     * const top = await db.findMany("users", { coins: { $gt: 0 } }, { sort: { coins: -1 }, limit: 10 });
+     * ```
+     */
+    public async findMany<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, query?: Query<ArrayElement<ObjectValue<V, P>>>, options: FindOptions<ArrayElement<ObjectValue<V, P>>> = {}): Promise<ArrayElement<ObjectValue<V, P>>[]> {
+        return this.exec("findMany", key, async () => {
+            const data = await this.fetch(key);
+            if (!Array.isArray(data)) return [];
+            let items = query ? data.filter((item) => matchesQuery(item, query)) : [...data];
+            if (options.sort) items.sort(buildComparator(options.sort));
+            const skip = Math.max(0, options.skip ?? 0);
+            if (skip || options.limit !== undefined) {
+                items = items.slice(skip, options.limit === undefined ? undefined : skip + Math.max(0, options.limit));
+            }
+            return this.out(items);
+        });
+    }
+
+    /**
+     * Đếm số phần tử: với mảng là số phần tử khớp `query` (hoặc độ dài), với object là số key.
+     *
+     * @example
+     * ```ts
+     * await db.count("users", { coins: { $gt: 100 } });
+     * ```
+     */
+    public async count<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>, query?: Query<ArrayElement<ObjectValue<V, P>>>): Promise<number> {
+        return this.exec("count", key, async () => {
+            const data = await this.fetch(key);
+            if (Array.isArray(data)) return query ? data.filter((item) => matchesQuery(item, query)).length : data.length;
+            return isObject(data) ? Object.keys(data).length : 0;
+        });
+    }
+
+    /**
+     * Phân trang một mảng (thường dùng cho bảng xếp hạng).
+     *
+     * @example
+     * ```ts
+     * const page = await db.paginate("users", { page: 2, pageSize: 10, sort: { coins: -1 } });
+     * ```
+     */
+    public async paginate<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, options: PaginateOptions<ArrayElement<ObjectValue<V, P>>> = {}): Promise<Page<ArrayElement<ObjectValue<V, P>>>> {
+        const page = options.page ?? 1;
+        const pageSize = options.pageSize ?? 10;
+        if (!Number.isInteger(page) || page < 1) throw new BlackCatError("INVALID_OPTION", "page", "phải là số nguyên >= 1");
+        if (!Number.isInteger(pageSize) || pageSize < 1) throw new BlackCatError("INVALID_OPTION", "pageSize", "phải là số nguyên >= 1");
+        return this.exec("paginate", key, async () => {
+            const data = await this.fetch(key);
+            let items: any[] = Array.isArray(data) ? data : [];
+            if (options.query) {
+                items = items.filter((item) => matchesQuery(item, options.query!));
+            } else {
+                items = [...items];
+            }
+            if (options.sort) items.sort(buildComparator(options.sort));
+            const total = items.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            return {
+                items: this.out(items.slice((page - 1) * pageSize, page * pageSize)),
+                page, pageSize, total, totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1
+            };
+        });
+    }
+
+    /**
+     * Kiểm tra key có tồn tại (giá trị khác `null`/`undefined`) hay không.
+     *
+     * @example
+     * ```ts
+     * if (await db.has("user.profile")) { ... }
      * ```
      */
     public async has<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
-        const value = await this.get(key);
-        return value !== null && value !== undefined;
-    }
-    /**
-     * Gán giá trị cho một key-path trong database.
-     *
-     * Nếu key-path chưa tồn tại, các object trung gian
-     * sẽ được tự động tạo.
-     *
-     * @template {AutocompletableString<ObjectPath<V>>} P Key path trong database.
-     *
-     * @param {AutocompletableString<P>} key Đường dẫn dữ liệu cần gán giá trị.
-     * @param {ObjectValue<V, P>} value Giá trị mới.
-     *
-     * @returns {void} Giá trị vừa được set hoặc object root nếu value là object.
-     *
-     * @example
-     * ```ts
-     * await db.set("users.123.name", "Alice");
-     * ```
-     *
-     * @example
-     * ```ts
-     * await db.set("config.prefix", "!");
-     * ```
-     */
-    public async set<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<void> {
-        const allDatabase = await this.all();
-        if (!key) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
-        }
-        if (typeof key !== "string") {
+        if (key && typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
         }
-        const keys = key.split(".");
-        let currentObj = allDatabase as any;
-
-        for (let i = 0; i < keys.length; i++) {
-            if (keys.length - 1 === i) {
-                currentObj[keys[i]] = value
-            } else {
-                if (!isObject(currentObj[keys[i]])) {
-                    currentObj[keys[i]] = {};
-                }
-                currentObj = currentObj[keys[i]];
-            };
-        };
-        await this.driver.set(allDatabase);
+        return this.exec("has", key, async () => {
+            const value = await this.fetch(key);
+            return value !== null && value !== undefined;
+        });
     }
+
     /**
-     * Đảm bảo một key tồn tại với giá trị mặc định.
-     * Nếu key đã tồn tại → giữ nguyên và trả về giá trị hiện tại.
-     * Nếu chưa tồn tại → set giá trị default và trả về default đó.
-     *
-     * Khác với `set()` — không bao giờ ghi đè dữ liệu đã có.
-     *
-     * @template P Key path trong database.
-     *
-     * @param key Đường dẫn cần đảm bảo tồn tại.
-     * @param defaultValue Giá trị mặc định nếu key chưa có.
-     *
-     * @returns Giá trị tại key sau khi ensure (current hoặc default).
+     * Lấy nhiều key trong **một lần đọc**. Kết quả theo đúng thứ tự `keys` (key không tồn tại → `null`).
      *
      * @example
-     * // "config.maxRetries" chưa tồn tại → set về 3, trả về 3
-     * const retries = await db.ensure("config.maxRetries", 3);
+     * ```ts
+     * const [a, b] = await db.getMany(["user.1.name", "user.2.name"]);
+     * ```
+     */
+    public async getMany(keys: string[]): Promise<any[]> {
+        if (!Array.isArray(keys)) throw new BlackCatError("INVALID_TYPE", "keys", "array", typeOf(keys));
+        return this.read("getMany", undefined, (root) => this.out(keys.map((key) => this.lookup(root, key))));
+    }
+
+    /**
+     * Gán giá trị theo key-path (tự tạo object trung gian nếu cần).
+     *
+     * Với driver hỗ trợ `setPath`, chỉ phần dữ liệu thay đổi được ghi.
+     *
+     * @param options.ttl Thời gian sống (ms); hết hạn key sẽ tự bị xóa.
      *
      * @example
-     * // "config.maxRetries" đã là 10 → không đổi, trả về 10
-     * const retries = await db.ensure("config.maxRetries", 3);
+     * ```ts
+     * await db.set("user.profile.name", "Vinh");
+     * await db.set("cooldown.123", Date.now(), { ttl: 60_000 });
+     * ```
+     */
+    public async set<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>, options?: SetOptions): Promise<void> {
+        const parts = this.parseKey(key);
+        this.validate(key, value, "set");
+        const ttl = this.parseTTL(options?.ttl);
+        await this.exec("set", key, async () => {
+            if (ttl === undefined && !this.hasTTL && this.driver.setPath && value !== undefined) {
+                if (await this.driver.setPath(parts, value)) {
+                    this.writes++;
+                    this.notify("set", key, value);
+                    return;
+                }
+            }
+            const root = await this.load();
+            setByPath(root, parts, value);
+            if (ttl !== undefined || this.hasTTL) this.updateTTL(root, key, ttl);
+            await this.save(root);
+            this.notify("set", key, value);
+        });
+    }
+
+    /**
+     * Gán nhiều key trong **một lần đọc + một lần ghi**.
      *
      * @example
-     * // Dùng với object — đảm bảo cấu trúc user tồn tại
-     * const user = await db.ensure("users.123", {
-     *   balance: 0,
-     *   level: 1,
-     *   joinedAt: Date.now(),
-     * });
+     * ```ts
+     * await db.setMany({ "a.b": 1, "a.c": 2 });
+     * await db.setMany([["x", 1], ["y", 2]]);
+     * ```
+     */
+    public async setMany(entries: Record<string, unknown> | [string, unknown][]): Promise<void> {
+        const list = Array.isArray(entries) ? entries : Object.entries(entries);
+        const parsed = list.map(([key, value]) => {
+            const parts = this.parseKey(key);
+            this.validate(key, value, "setMany");
+            return { key, value, parts };
+        });
+        if (!parsed.length) return;
+        await this.exec("setMany", undefined, async () => {
+            const root = await this.load();
+            for (const { key, value, parts } of parsed) {
+                setByPath(root, parts, value);
+                if (this.hasTTL) this.updateTTL(root, key);
+            }
+            await this.save(root);
+            for (const { key, value } of parsed) this.notify("set", key, value);
+        });
+    }
+
+    /**
+     * Lấy giá trị tại key; nếu chưa có thì gán `defaultValue` và trả về nó.
+     *
+     * @example
+     * ```ts
+     * const settings = await db.ensure("guild.123", { prefix: "!" });
+     * ```
      */
     public async ensure<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, defaultValue: ObjectValue<V, P>): Promise<NonNullable<ObjectValue<V, P>>> {
-        const current = await this.get(key);
-        if (current !== null && current !== undefined) return current as NonNullable<ObjectValue<V, P>>;
-        await this.set(key, defaultValue);
-        return defaultValue as NonNullable<ObjectValue<V, P>>;
+        const parts = this.parseKey(key);
+        this.validate(key, defaultValue, "ensure");
+        return this.mutate("ensure", key, (root) => {
+            const current = this.lookup(root, key);
+            if (current !== null && current !== undefined) return { result: this.out(current), changed: false };
+            setByPath(root, parts, defaultValue);
+            return { result: defaultValue as NonNullable<ObjectValue<V, P>>, changed: true, value: defaultValue };
+        });
     }
+
     /**
-     * Xóa dữ liệu khỏi database.
-     * Hỗ trợ truy cập dữ liệu lồng nhau bằng dot notation.
-     * Nếu key không tồn tại hoặc đường dẫn không hợp lệ, hàm sẽ trả về `false`.
+     * Cập nhật giá trị tại key:
+     * - object + object → merge nông,
+     * - mảng + mảng → nối thêm các phần tử chưa có (xem `uniqueBy`),
+     * - còn lại → ghi đè.
      *
-     * @typeParam P - Path của object.
-     *
-     * @param key - Đường dẫn dữ liệu cần xóa.
-     *
-     * @returns
-     * - `true` nếu xóa thành công.
-     * - `false` nếu key không tồn tại hoặc đường dẫn không hợp lệ.
-     *
-     * @throws BlackCatError
-     * - INVALID_TYPE nếu `key` không phải là chuỗi.
+     * @param options.uniqueBy Cách loại trùng khi nối mảng: danh sách field hoặc hàm. Mặc định tương thích cũ (`username` + `guild`).
      *
      * @example
-     * // Xóa một thuộc tính
-     * await db.delete("user.name");
+     * ```ts
+     * await db.update("user.profile", { age: 25 });
+     * await db.update("members", [{ id: 1 }], { uniqueBy: ["id"] });
+     * ```
+     */
+    public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>, options?: { uniqueBy?: UniqueBy }): Promise<If<IsObject<V>, ObjectValue<V, P>>> {
+        const parts = this.parseKey(key);
+        this.validate(key, value, "update");
+        return this.mutate("update", key, (root) => {
+            const result = applyUpdate(root, parts, value, options?.uniqueBy ?? this.config.uniqueBy);
+            if (this.hasTTL) this.updateTTL(root, key);
+            return { result: this.out(result), changed: true, value: result };
+        });
+    }
+
+    /**
+     * Đồng bộ một giá trị: chỉ ghi khi thực sự có thay đổi.
+     *
+     * @param params.compare Hàm trả `true` nếu hai giá trị coi như giống nhau (bỏ qua cập nhật).
+     * @param params.deep So sánh sâu từng field thay vì `Object.is`.
+     * @returns Các field đã thay đổi (với object), hoặc `undefined`.
      *
      * @example
-     * // Xóa object lồng nhau
-     * await db.delete("users.0.profile");
+     * ```ts
+     * await db.syncDatabase({ keys: "user.1", value: { name: "A", age: 20 }, deep: true });
+     * ```
+     */
+    public async syncDatabase<P extends AutocompletableString<ObjectPath<V>>>({ keys, value, compare, deep }: {
+        keys: AutocompletableString<P>,
+        value: ObjectValue<V, P>,
+        compare?: (oldData: ObjectValue<V, P>, newData: ObjectValue<V, P>) => boolean,
+        deep?: boolean,
+    }): Promise<Partial<ObjectValue<V, P>> | undefined> {
+        const parts = this.parseKey(keys);
+        this.validate(keys, value, "update");
+        const same = deep ? deepEqual : Object.is;
+        return this.mutate("syncDatabase", keys, (root) => {
+            const oldValue = this.lookup(root, keys);
+            if (oldValue === undefined || oldValue === null) {
+                setByPath(root, parts, value);
+                return { result: undefined, changed: true, value };
+            }
+            if (compare?.(oldValue, value)) return { result: undefined, changed: false };
+            if (!isObject(oldValue) || !isObject(value)) {
+                if (same(oldValue, value)) return { result: undefined, changed: false };
+                applyUpdate(root, parts, value, this.config.uniqueBy);
+                return { result: undefined, changed: true, value };
+            }
+            const changed: Record<string, unknown> = {};
+            for (const field of Object.keys(value as object)) {
+                if (!same((oldValue as any)[field], (value as any)[field])) changed[field] = (value as any)[field];
+            }
+            if (Object.keys(changed).length === 0) return { result: undefined, changed: false };
+            applyUpdate(root, parts, changed, this.config.uniqueBy);
+            return { result: changed as Partial<ObjectValue<V, P>>, changed: true, value: changed };
+        });
+    }
+
+    // ───────────────────────────── Xóa ─────────────────────────────
+
+    /**
+     * Xóa giá trị tại key.
+     *
+     * @returns `true` nếu đã xóa, `false` nếu key không tồn tại.
      *
      * @example
-     * // Key không tồn tại
-     * const deleted = await db.delete("user.address");
-     * console.log(deleted); // false
+     * ```ts
+     * await db.delete("user.profile.name");
+     * ```
      */
     public async delete<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<boolean> {
         if (typeof key !== "string") {
             throw new BlackCatError("INVALID_TYPE", "key", "string", typeof key);
         }
-        const allDatabase = await this.all();
-        const keys = key.split(".");
-        const lastKey = keys.pop() as string;
-        let currentObj: any = allDatabase;
-        for (const k of keys) {
-            if (!isObject(currentObj[k])) {
-                return false;
-            }
-            currentObj = currentObj[k];
-        }
-        if (!(lastKey in currentObj)) return false;
-        delete currentObj[lastKey];
-        await this.driver.set(allDatabase);
-        return true;
+        const parts = key.split(this.delimiter);
+        if (hasUnsafeSegment(parts)) return false;
+        return this.mutate("delete", key, (root) => {
+            const removed = deleteByPath(root, parts);
+            if (removed && this.hasTTL) this.updateTTL(root, key);
+            return { result: removed, changed: removed };
+        });
     }
+
     /**
-     * Xóa toàn bộ dữ liệu trong database.
+     * Xóa nhiều key trong **một lần đọc + một lần ghi**.
      *
-     * Method này gọi trực tiếp `driver.delete()` để reset storage.
-     *
-     * @returns `true` sau khi dữ liệu đã được xóa.
-     *
-     * @example
-     * await db.deleteAll();
+     * @returns Số key đã xóa.
+     */
+    public async deleteKeys(keys: string[]): Promise<number> {
+        if (!Array.isArray(keys)) throw new BlackCatError("INVALID_TYPE", "keys", "array", typeOf(keys));
+        return this.mutate("deleteKeys", undefined, (root) => {
+            let removed = 0;
+            for (const key of keys) {
+                if (typeof key !== "string") continue;
+                const parts = key.split(this.delimiter);
+                if (hasUnsafeSegment(parts)) continue;
+                if (deleteByPath(root, parts)) {
+                    removed++;
+                    if (this.hasTTL) this.updateTTL(root, key);
+                }
+            }
+            return { result: removed, changed: removed > 0 };
+        });
+    }
+
+    /**
+     * Xóa toàn bộ database.
      */
     public async deleteAll(): Promise<boolean> {
-        const result = await this.driver.delete();
-        return result;
-    }
-    /**
-     * Xóa nhiều bản ghi trong một mảng dữ liệu dựa trên điều kiện truy vấn.
-     *
-     * ⚠️ Method này **chỉ hoạt động với dữ liệu dạng mảng (array)**.
-     * Nếu dữ liệu tại `key` không phải là mảng, method sẽ **không thực hiện xóa**
-     * và trả về `0`.
-     *
-     * Method sẽ duyệt qua toàn bộ phần tử trong mảng và xóa những phần tử
-     * khớp với điều kiện `query`.
-     *
-     * @template V - Kiểu dữ liệu của database.
-     * @template P - Đường dẫn key trong object (`ObjectPath<V>`).
-     *
-     * @param key - Đường dẫn đến mảng dữ liệu cần thao tác.
-     * @param query - Điều kiện để xác định các phần tử cần xóa.
-     * Có thể truyền:
-     * - Một object điều kiện
-     *
-     * @returns Số lượng phần tử đã bị xóa khỏi mảng.
-     *
-     * @example
-     * Database mẫu:
-     * ```json
-     * {
-     *   "member": {
-     *     "user": {
-     *       "database": [
-     *         { "guild": "123", "username": "vinh" },
-     *         { "guild": "456", "username": "test" }
-     *       ]
-     *     }
-     *   }
-     * }
-     * ```
-     *
-     * @example
-     * Xóa tất cả user có guild = "123"
-     * ```ts
-     * await db.deleteMany("member.user.database", {
-     *   guild: "123"
-     * });
-     * ```
-     */
-    public async deleteMany<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, query: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<number> {
-        const data = await this.get(key as any);
-        if (!Array.isArray(data)) return 0;
-        const originalLength = data.length;
-        const filtered = data.filter((item: any) => {
-            return !Object.entries(query as Record<string, any>).every(([k, v]) => item[k] == v);
+        return this.exec("deleteAll", undefined, async () => {
+            this.writes++;
+            const result = await this.driver.delete();
+            this.hasTTL = false;
+            this.stopSweeper();
+            this.notify("clear");
+            return result;
         });
-        await this.set(key, filtered as any);
-
-        return originalLength - filtered.length;
     }
+
     /**
-     * Cập nhật dữ liệu trong database theo đường dẫn (`key`).
+     * Làm rỗng object/mảng tại `key` nhưng giữ lại chính key đó (không truyền `key` = `deleteAll`).
      *
-     * ## Chức năng
-     * - Cập nhật giá trị tại một key hoặc nested key trong database.
-     * - Tự động tạo object trung gian nếu đường dẫn chưa tồn tại.
-     * - Hỗ trợ gộp dữ liệu (merge) đối với object và mảng nhằm hạn chế ghi đè dữ liệu đã có.
-     *
-     * ## Mô tả hoạt động
-     * Hàm sẽ đọc toàn bộ dữ liệu database, tìm đến vị trí tương ứng với `key`
-     * và cập nhật giá trị mới theo các quy tắc sau:
-     *
-     * - **Đối với Array**
-     *   - Nếu cả giá trị hiện tại và giá trị mới đều là mảng thì sẽ **không ghi đè**.
-     *   - Các phần tử mới sẽ được thêm vào cuối mảng.
-     *   - Chỉ thêm những phần tử chưa tồn tại ví dụ dựa trên cặp thuộc tính:
-     *     - `username`
-     *     - `guild`
-     *   - Điều này giúp tránh lưu trùng dữ liệu thành viên giữa nhiều lần cập nhật.
-     *
-     * - **Đối với Object**
-     *   - Nếu cả hai đều là object sẽ thực hiện **shallow merge** (`...old, ...new`).
-     *   - Các thuộc tính mới sẽ ghi đè thuộc tính cùng tên.
-     *   - Những thuộc tính khác vẫn được giữ nguyên.
-     *
-     * - **Các kiểu dữ liệu khác**
-     *   - Giá trị mới sẽ ghi đè hoàn toàn giá trị cũ.
-     *
-     * Sau khi cập nhật xong, toàn bộ database sẽ được ghi lại thông qua driver.
-     *
-     * @template P
-     * Đường dẫn hợp lệ của object trong database.
-     *
-     * @param key
-     * Đường dẫn cần cập nhật.
-     *
-     * Hỗ trợ nested path:
-     * ```ts
-     * "guilds.123.settings.prefix"
-     * "users.456.profile.name"
-     * ```
-     *
-     * @param value
-     * Giá trị mới cần cập nhật.
-     *
-     * @returns
-     * Trả về giá trị cuối cùng sau khi được lưu vào database.
-     *
-     * ## Cách sử dụng
-     *
-     * ### Ví dụ 1 - Cập nhật object
-     *
-     * Database ban đầu:
-     * ```json
-     * {
-     *   "123": {
-     *     "guildID": "123",
-     *     "guildName": "BlackCat",
-     *     "history": []
-     *   }
-     * }
-     * ```
-     *
-     * ```ts
-     * await db.update("123", {
-     *     history: [1, 2, 3]
-     * });
-     * ```
-     *
-     * Kết quả:
-     * ```json
-     * {
-     *   "123": {
-     *     "guildID": "123",
-     *     "guildName": "BlackCat",
-     *     "history": [1, 2, 3]
-     *   }
-     * }
-     * ```
-     *
-     * ---
-     *
-     * ### Ví dụ 2 - Cập nhật nested key
-     *
-     * ```ts
-     * await db.update("guilds.123.settings.prefix", "!");
-     * ```
-     *
-     * Nếu đường dẫn chưa tồn tại:
-     *
-     * ```json
-     * {}
-     * ```
-     *
-     * Sau khi cập nhật:
-     *
-     * ```json
-     * {
-     *   "guilds": {
-     *     "123": {
-     *       "settings": {
-     *         "prefix": "!"
-     *       }
-     *     }
-     *   }
-     * }
-     * ```
-     *
-     * ---
-     *
-     * ### Ví dụ 3 - Merge object
-     *
-     * Giá trị hiện tại:
-     *
-     * ```json
-     * {
-     *   "name": "BlackCat",
-     *   "language": "vi",
-     *   "prefix": "!"
-     * }
-     * ```
-     *
-     * ```ts
-     * await db.update("config", {
-     *     prefix: "?",
-     *     color: "#5865F2"
-     * });
-     * ```
-     *
-     * Kết quả:
-     *
-     * ```json
-     * {
-     *   "name": "BlackCat",
-     *   "language": "vi",
-     *   "prefix": "?",
-     *   "color": "#5865F2"
-     * }
-     * ```
-     *
-     * ---
-     *
-     * ### Ví dụ 4 - Merge mảng và loại bỏ phần tử trùng
-     *
-     * Giá trị hiện tại:
-     *
-     * ```json
-     * [
-     *   {
-     *     "username": "Alice",
-     *     "guild": "123"
-     *   }
-     * ]
-     * ```
-     *
-     * ```ts
-     * await db.update("history", [
-     *     {
-     *         username: "Alice",
-     *         guild: "123"
-     *     },
-     *     {
-     *         username: "Bob",
-     *         guild: "123"
-     *     }
-     * ]);
-     * ```
-     *
-     * Kết quả:
-     *
-     * ```json
-     * [
-     *   {
-     *     "username": "Alice",
-     *     "guild": "123"
-     *   },
-     *   {
-     *     "username": "Bob",
-     *     "guild": "123"
-     *   }
-     * ]
-     * ```
-     *
-     * Phần tử `"Alice"` sẽ không được thêm lần nữa vì đã tồn tại với cùng
-     * `username` và `guild`.
-     *
-     * @throws {BlackCatError}
-     * - `REQUIRED_PARAMETER_MISSING` nếu không truyền `key`.
-     * - `INVALID_TYPE` nếu `key` không phải kiểu `string`.
+     * @returns Số phần tử đã xóa.
      */
-    public async update<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, value: ObjectValue<V, P>): Promise<If<IsObject<V>, ObjectValue<V, P>>> {
+    public async clear<P extends AutocompletableString<ObjectPath<V>>>(key?: AutocompletableString<P>): Promise<number> {
         if (!key) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "key");
+            const total = await this.size();
+            await this.deleteAll();
+            return total;
         }
-        if (typeof key !== "string") {
-            throw new BlackCatError("INVALID_TYPE", "key", "string", typeOf(key));
-        }
-        const allDatabase = await this.all();
-        const keys = key.split(".");
-        let current: any = allDatabase;
-        for (let i = 0; i < keys.length - 1; i++) {
-            const part = keys[i];
-            if (!isObject(current[part])) {
-                current[part] = {};
+        const parts = this.parseKey(key);
+        return this.mutate("clear", key, (root) => {
+            const data = this.lookup(root, key);
+            if (Array.isArray(data)) {
+                const count = data.length;
+                setByPath(root, parts, []);
+                return { result: count, changed: count > 0 };
             }
-            current = current[part];
-        }
-
-        const lastKey = keys[keys.length - 1];
-        const currentValue = current[lastKey];
-
-        if (Array.isArray(value) && Array.isArray(currentValue)) {
-            const unique = value.filter((item) => !currentValue.some((existing) => existing.username === item.username && existing.guild === item.guild));
-            current[lastKey] = [...currentValue, ...unique];
-        } else if (isObject(value) && isObject(currentValue)) {
-            current[lastKey] = {
-                ...currentValue,
-                ...value
-            };
-        } else {
-            current[lastKey] = value;
-        }
-
-        await this.driver.set(allDatabase);
-        return current[lastKey];
+            if (isObject(data)) {
+                const count = Object.keys(data).length;
+                setByPath(root, parts, {});
+                return { result: count, changed: count > 0 };
+            }
+            return { result: 0, changed: false };
+        });
     }
+
     /**
-     * ## Đồng bộ dữ liệu với cơ sở dữ liệu
+     * Xóa các phần tử của mảng tại `key` khớp với `query`.
      *
-     * ### Chức năng
-     * Đồng bộ dữ liệu tại một đường dẫn (`keys`) với giá trị mới (`value`).
-     *
-     * Hàm sẽ tự động:
-     * - Tạo mới dữ liệu nếu chưa tồn tại.
-     * - So sánh dữ liệu cũ và mới.
-     * - Chỉ cập nhật các trường thực sự thay đổi đối với Object.
-     * - Không thực hiện ghi nếu dữ liệu không thay đổi.
-     *
-     * Điều này giúp giảm số lần ghi xuống cơ sở dữ liệu và tối ưu hiệu năng.
-     *
-     * ---
-     *
-     * ### Cơ chế hoạt động
-     *
-     * 1. Lấy dữ liệu hiện tại bằng `get()`.
-     * 2. Nếu chưa tồn tại (`undefined` hoặc `null`)
-     *    → gọi `set()` để tạo mới.
-     * 3. Nếu truyền hàm `compare` và hàm này trả về `true`
-     *    → bỏ qua đồng bộ.
-     * 4. Nếu dữ liệu không phải Object (hoặc là Array)
-     *    → so sánh bằng `Object.is()`, nếu khác thì gọi `update()`.
-     * 5. Nếu dữ liệu là Object
-     *    → chỉ lấy các thuộc tính thay đổi và cập nhật đúng các trường đó.
-     * 6. Nếu không có trường nào thay đổi thì không ghi dữ liệu.
-     *
-     * ---
-     *
-     * ### Giá trị trả về
-     *
-     * - `undefined`
-     *   - Khi tạo mới dữ liệu.
-     *   - Khi không có thay đổi.
-     *   - Khi dữ liệu nguyên thủy được cập nhật.
-     * - `Partial<ObjectValue<V, P>>`
-     *   - Trả về object chỉ chứa các trường đã được cập nhật khi đồng bộ Object.
-     *
-     * ---
-     *
-     * ### Ví dụ
-     *
-     * ```ts
-     * // Tạo mới nếu chưa tồn tại
-     * await db.syncDatabase({
-     *   keys: "users.1",
-     *   value: {
-     *     name: "BlackCat",
-     *     age: 20
-     *   }
-     * });
-     *
-     * // Chỉ cập nhật trường age
-     * await db.syncDatabase({
-     *   keys: "users.1",
-     *   value: {
-     *     name: "BlackCat",
-     *     age: 21
-     *   }
-     * });
-     *
-     * // Sử dụng compare để bỏ qua đồng bộ
-     * await db.syncDatabase({
-     *   keys: "users.1",
-     *   value: newData,
-     *   compare(oldData, newData) {
-     *     return oldData.version >= newData.version;
-     *   }
-     * });
-     * ```
-     *
-     * @template P Đường dẫn tới dữ liệu trong cơ sở dữ liệu.
-     *
-     * @param options Thông tin đồng bộ.
-     * @param options.keys Đường dẫn của dữ liệu cần đồng bộ.
-     * @param options.value Giá trị mới cần ghi.
-     * @param options.compare Hàm so sánh tùy chỉnh. Nếu trả về `true` thì sẽ không thực hiện đồng bộ.
-     *
-     * @returns
-     * - `undefined` nếu không có thay đổi hoặc dữ liệu được tạo mới.
-     * - `Partial<ObjectValue<V, P>>` chứa các trường đã thay đổi khi cập nhật Object.
-     */
-    public async syncDatabase<P extends AutocompletableString<ObjectPath<V>>>({ keys, value, compare }: {
-        keys: AutocompletableString<P>,
-        value: ObjectValue<V, P>,
-        compare?: (oldData: ObjectValue<V, P>, newData: ObjectValue<V, P>) => boolean,
-    }) {
-        const oldValue = await this.get(keys);
-        if (oldValue === undefined || oldValue === null) {
-            await this.set(keys, value);
-            return;
-        }
-        if (compare?.(oldValue, value)) return;
-        if (!isObject(oldValue) || !isObject(value) || Array.isArray(oldValue) || Array.isArray(value)) {
-            if (!Object.is(oldValue, value)) {
-                await this.update(keys, value);
-            }
-            return;
-        }
-        const changed: Partial<typeof value> = {};
-        for (const k in value) {
-            const field = k as keyof typeof value;
-            if (!Object.is(oldValue[field], value[field])) {
-                changed[field] = value[field];
-            }
-        }
-        if (Object.keys(changed).length === 0) return;
-        await this.update(keys, changed as ObjectValue<V, P>);
-        return changed;
-    }
-    /**
-     * Cộng thêm giá trị vào một key dạng number.
-     *
-     * Nếu key chưa tồn tại, giá trị mặc định sẽ là `0`.
-     *
-     * @template P Key path trong database.
-     *
-     * @param key Đường dẫn dữ liệu dạng number.
-     * @param numberToAdd Số cần cộng thêm.
-     *
-     * @returns Giá trị mới sau khi cộng.
+     * @returns Số phần tử đã xóa (không ghi xuống driver nếu không có gì bị xóa).
      *
      * @example
      * ```ts
-     * await db.add("economy.users.123.balance", 50);
+     * await db.deleteMany("users", { coins: { $lt: 1 } });
+     * ```
+     */
+    public async deleteMany<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, query: Query<ArrayElement<ObjectValue<V, P>>>): Promise<number> {
+        if (!query || typeof query !== "object") {
+            throw new BlackCatError("INVALID_TYPE", "query", "object", typeOf(query));
+        }
+        if (!key) return 0;
+        const parts = this.parseKey(key);
+        return this.mutate("deleteMany", key, (root) => {
+            const data = this.lookup(root, key);
+            if (!Array.isArray(data)) return { result: 0, changed: false };
+            const kept = data.filter((item: any) => !matchesQuery(item, query));
+            const removed = data.length - kept.length;
+            if (!removed) return { result: 0, changed: false };
+            setByPath(root, parts, kept);
+            return { result: removed, changed: true };
+        });
+    }
+
+    /**
+     * Cập nhật (merge nông) mọi phần tử của mảng tại `key` khớp với `query`.
+     *
+     * @returns Số phần tử đã cập nhật.
+     *
+     * @example
+     * ```ts
+     * await db.updateMany("users", { banned: false }, { warned: true });
+     * ```
+     */
+    public async updateMany<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, query: Query<ArrayElement<ObjectValue<V, P>>>, patch: Partial<ArrayElement<ObjectValue<V, P>>>): Promise<number> {
+        if (!query || typeof query !== "object") {
+            throw new BlackCatError("INVALID_TYPE", "query", "object", typeOf(query));
+        }
+        if (!patch || typeof patch !== "object") {
+            throw new BlackCatError("INVALID_TYPE", "patch", "object", typeOf(patch));
+        }
+        if (!key) return 0;
+        return this.mutate("updateMany", key, (root) => {
+            const data = this.lookup(root, key);
+            if (!Array.isArray(data)) return { result: 0, changed: false };
+            let updated = 0;
+            for (const item of data) {
+                if (isContainer(item) && matchesQuery(item, query)) {
+                    Object.assign(item, patch);
+                    updated++;
+                }
+            }
+            return { result: updated, changed: updated > 0 };
+        });
+    }
+
+    // ───────────────────────────── Number ─────────────────────────────
+
+    /**
+     * Cộng một số vào giá trị tại key (mặc định `0` nếu chưa có).
+     *
+     * @returns Giá trị mới.
+     *
+     * @example
+     * ```ts
+     * await db.add("user.coins", 10);
      * ```
      */
     public async add<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, numberToAdd: number): Promise<number> {
-        const targetNumber = await this.get(key) as any ?? 0;
-
-        if (!isNumber(targetNumber)) {
-            throw new BlackCatError("INVALID_TARGET", "number", typeOf(targetNumber));
-        }
-        if (numberToAdd === undefined) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "numberToAdd");
-        }
-        if (!isNumber(numberToAdd)) {
-            throw new BlackCatError("INVALID_TYPE", "numberToAdd", "number", typeOf(numberToAdd));
-        }
-        await this.set(key, targetNumber + numberToAdd);
-        return targetNumber + numberToAdd;
+        const amount = assertAmount("numberToAdd", numberToAdd);
+        const parts = this.parseKey(key);
+        return this.mutate("add", key, (root) => {
+            const result = applyNumber(root, parts, amount);
+            return { result, changed: true, value: result };
+        });
     }
+
     /**
-     * Trừ giá trị khỏi một key dạng number.
+     * Trừ một số khỏi giá trị tại key (mặc định `0` nếu chưa có).
      *
-     * Nếu key chưa tồn tại, giá trị mặc định sẽ là `0`.
-     *
-     * @template P Key path trong database.
-     *
-     * @param key Đường dẫn dữ liệu dạng number.
-     * @param numberToSubtract Số cần trừ.
-     *
-     * @returns Giá trị mới sau khi trừ.
+     * @returns Giá trị mới.
      *
      * @example
      * ```ts
-     * await db.subtract("economy.users.123.balance", 20);
+     * await db.subtract("user.coins", 5);
      * ```
      */
     public async subtract<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, numberToSubtract: number): Promise<number> {
-        const targetNumber = await this.get(key) as any ?? 0;
-
-        if (!isNumber(targetNumber)) {
-            throw new BlackCatError("INVALID_TARGET", "number", typeOf(targetNumber));
-        }
-        if (numberToSubtract === undefined) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "numberToSubtract");
-        }
-        if (!isNumber(numberToSubtract)) {
-            throw new BlackCatError("INVALID_TYPE", "numberToSubtract", "number", typeOf(numberToSubtract));
-        }
-        await this.set(key, targetNumber - numberToSubtract as any);
-        return targetNumber - numberToSubtract;
+        const amount = assertAmount("numberToSubtract", numberToSubtract);
+        const parts = this.parseKey(key);
+        return this.mutate("subtract", key, (root) => {
+            const result = applyNumber(root, parts, -amount);
+            return { result, changed: true, value: result };
+        });
     }
+
     /**
-     * Thêm một hoặc nhiều phần tử vào đầu array.
+     * Cộng/trừ (số âm) kèm giới hạn `min`/`max`.
      *
-     * Chỉ thêm những phần tử chưa tồn tại trong array.
-     *
-     * @typeParam P - Path trỏ tới array.
-     *
-     * @param key - Đường dẫn array.
-     * @param values - Một hoặc nhiều phần tử cần thêm.
-     *
-     * @returns Array sau khi thêm.
+     * @returns Giá trị mới sau khi kẹp trong khoảng cho phép.
      *
      * @example
-     * await db.unshift("users", newUser);
+     * ```ts
+     * await db.increment("user.hp", -30, { min: 0, max: 100 });
+     * ```
+     */
+    public async increment<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, amount: number, limits?: { min?: number; max?: number }): Promise<number> {
+        const value = assertAmount("amount", amount);
+        const parts = this.parseKey(key);
+        return this.mutate("increment", key, (root) => {
+            const result = applyNumber(root, parts, value, limits);
+            return { result, changed: true, value: result };
+        });
+    }
+
+    // ───────────────────────────── Array ─────────────────────────────
+
+    /**
+     * Thêm giá trị vào **đầu** mảng (bỏ qua giá trị đã có sẵn trong mảng).
+     *
+     * @returns Mảng sau khi thêm.
      */
     public async unshift<P extends ObjectPath<V>>(key: AutocompletableString<P>, ...values: RestOrArray<ExtractFromArray<ObjectValue<V, P>>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
-        if (!values.length) {
-            throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
-        }
-        const root = await this.all() as any;
-        const pathParts = key.split(".");
-        let target: any = root;
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (!(part in target)) {
-                throw new BlackCatError("INVALID_KEY", key);
-            }
-            if (i === pathParts.length - 1) {
-                if (!Array.isArray(target[part])) {
-                    throw new BlackCatError("INVALID_TARGET", "array", typeOf(target[part]));
-                }
-                const uniqueValues = (values as any[]).filter(v => !target[part].includes(v));
-                target[part].unshift(...uniqueValues);
-            } else {
-                target = target[part];
-            }
-        }
-
-        await this.set(pathParts[0], root[pathParts[0]]);
-
-        return target[pathParts[pathParts.length - 1]];
+        return this.insert("unshift", key, values as unknown[], "start");
     }
+
     /**
-     * Thêm một hoặc nhiều phần tử vào cuối array tại key-path.
+     * Thêm giá trị vào **cuối** mảng (bỏ qua giá trị đã có sẵn trong mảng).
      *
-     * Method này sẽ:
-     * - kiểm tra target có phải array không
-     * - chỉ thêm các giá trị **chưa tồn tại** trong array
-     *
-     * ⚠️ Nếu key không tồn tại hoặc target không phải array
-     * thì sẽ ném lỗi.
-     *
-     * @template P Key path trong database.
-     *
-     * @param key Đường dẫn tới array cần thêm phần tử.
-     * @param values Một hoặc nhiều giá trị cần thêm.
-     *
-     * @returns Array sau khi thêm phần tử.
+     * @returns Mảng sau khi thêm.
      *
      * @example
      * ```ts
-     * await db.push("users.123.roles", "admin");
-     * ```
-     *
-     * @example
-     * ```ts
-     * await db.push("queue.songs", song1, song2);
+     * await db.push("users", { id: 1 });
+     * await db.push("numbers", 1, 2, 3);
      * ```
      */
     public async push<P extends ObjectPath<V>>(key: AutocompletableString<P>, ...values: RestOrArray<ExtractFromArray<ObjectValue<V, P>>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
+        return this.insert("push", key, values as unknown[], "end");
+    }
+
+    private insert(operation: string, key: string, values: unknown[], position: "start" | "end"): Promise<any> {
         if (!values.length) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
         }
-        const root = await this.all() as any;
-        const pathParts = key.split(".");
-        let target = root;
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (!(part in target)) {
-                throw new BlackCatError("INVALID_KEY", key);
-            }
-            if (i === pathParts.length - 1) {
-                if (!Array.isArray(target[part])) {
-                    throw new BlackCatError("INVALID_TARGET", "array", typeOf(target[part]));
-                }
-                const uniqueValues = (values as any[]).filter(v => !target[part].includes(v));
-                target[part].push(...uniqueValues);
-            } else {
-                target = target[part];
-            }
-        };
-        const topKey = pathParts[0];
-        await this.set(topKey, root[topKey]);
-        return target[pathParts[pathParts.length - 1]];
+        const parts = this.parseKey(key);
+        return this.mutate(operation, key, (root) => {
+            const { array, added } = applyInsert(root, parts, key, values, position, Boolean(this.config.autoCreateArrays));
+            return { result: this.out(array), changed: added > 0, value: array };
+        });
     }
+
     /**
-     * Thay thế phần tử trong array theo index.
+     * Thay phần tử tại `targetArrayElementIndex` (hỗ trợ index âm) bằng `value`.
      *
-     * @typeParam P - Path trỏ đến array.
-     *
-     * @param key - Đường dẫn array.
-     * @param targetArrayElementIndex - Index cần thay.
-     * @param value - Giá trị mới.
-     *
-     * @returns Array sau khi thay thế.
-     *
-     * @throws BlackCatError
-     * - INVALID_TYPE nếu index không phải number
-     * - REQUIRED_PARAMETER_MISSING nếu thiếu value
-     * - INVALID_KEY nếu path không tồn tại
-     * - INVALID_TARGET nếu target không phải array
+     * @throws {BlackCatError} `INDEX_OUT_OF_BOUNDS` nếu index nằm ngoài mảng.
      *
      * @example
+     * ```ts
      * await db.pull("users", 0, { id: 2 });
+     * ```
      */
-    public async pull<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, targetArrayElementIndex: number, value: ExtractFromArray<ObjectValue<V, P>>,): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
+    public async pull<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, targetArrayElementIndex: number, value: ExtractFromArray<ObjectValue<V, P>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
         if (!isNumber(targetArrayElementIndex)) {
             throw new BlackCatError("INVALID_TYPE", "targetArrayElementIndex", "number", typeOf(targetArrayElementIndex));
-        };
+        }
         if (value === undefined) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "value");
-        };
-        const root = await this.all() as any;
-        const pathParts = key.split(".");
-        let target: any = root;
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (!(part in target)) {
-                throw new BlackCatError("INVALID_KEY", `Path "${key}" does not exist`);
-            }
-            if (i === pathParts.length - 1) {
-                if (!Array.isArray(target[part])) {
-                    throw new BlackCatError("INVALID_TARGET", "array", typeOf(target[part]));
-                };
-                const arr = target[part];
-                const index = targetArrayElementIndex >= 0 ? targetArrayElementIndex : arr.length + targetArrayElementIndex;
-                if (index < 0 || index >= arr.length) {
-                    console.error(`Index ${targetArrayElementIndex} is out of bounds`);
-                };
-                arr[index] = value;
-            } else {
-                target = target[part];
-            };
-        };
-        await this.set(pathParts[0], root[pathParts[0]]);
-        return target[pathParts[pathParts.length - 1]];
+        }
+        const parts = this.parseKey(key);
+        return this.mutate("pull", key, (root) => {
+            const array = applyReplaceAt(root, parts, key, Number(targetArrayElementIndex), value);
+            return { result: this.out(array), changed: true, value: array };
+        });
     }
+
     /**
-     * Xóa phần tử khỏi array theo index.
+     * Bí danh rõ nghĩa hơn của {@link Database.pull} (vì nó **thay thế** phần tử, không xóa).
+     */
+    public replaceAt<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, index: number, value: ExtractFromArray<ObjectValue<V, P>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
+        return this.pull(key, index, value);
+    }
+
+    /**
+     * Xóa các phần tử của mảng theo index (loại trùng index, hỗ trợ index âm).
      *
-     * Có thể truyền nhiều index hoặc một array index.
-     *
-     * @typeParam P - Path trỏ đến array.
-     *
-     * @param key - Đường dẫn array.
-     * @param targetArrayElementIndexes - Các index cần xóa.
-     *
-     * @returns Danh sách phần tử đã bị xóa.
-     *
-     * @throws BlackCatError
-     * - INVALID_TARGET nếu target không phải array
-     * - REQUIRED_PARAMETER_MISSING nếu thiếu index
-     * - ONE_OR_MORE_ARRAY_TYPES_INVALID nếu index không phải number
+     * @returns Các phần tử đã xóa.
      *
      * @example
+     * ```ts
      * await db.pop("users", 0);
-     * await db.pop("numbers", [1, 2, 3]);
+     * await db.pop("users", [0, 2]);
+     * ```
      */
     public async pop<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>, ...targetArrayElementIndexes: RestOrArray<ExtractFromArray<number>>): Promise<ExtractFromArray<ObjectValue<V, P>>[]> {
-        const targetArray = await this.get(key) ?? [];
-
-        if (!Array.isArray(targetArray)) {
-            throw new BlackCatError("INVALID_TARGET", "array", typeOf(targetArray));
-        };
-
+        const parts = this.parseKey(key);
         if (!targetArrayElementIndexes.length) {
             throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "targetArrayElementIndex");
-        };
+        }
         const indexes = Array.isArray(targetArrayElementIndexes[0]) ? (targetArrayElementIndexes[0] as number[]) : (targetArrayElementIndexes as number[]);
-        if (indexes.some(index => !isNumber(index))) {
-            throw new BlackCatError("ONE_OR_MORE_ARRAY_TYPES_INVALID", "targetArrayElementIndexes", "number", createTypesArray(indexes));
-        };
-
-        const sortedIndexes = [...indexes].sort((a, b) => b - a);
-        const removedElements: any[] = [];
-
-        for (const index of sortedIndexes) {
-            const removed = targetArray.splice(index, 1);
-            removedElements.push(...removed);
-        };
-
-        const parentPath = key.split(".").slice(0, -1).join(".") as AutocompletableString<any>;
-        const fieldName = key.split(".").slice(-1)[0];
-
-        if (parentPath) {
-            const parentObject = await this.get(parentPath) as Record<string, any> ?? {};
-            parentObject[fieldName] = targetArray;
-            await this.set(parentPath, parentObject as NonNullable<Exclude<ObjectValue<V, P>, undefined>>);
-        } else {
-            await this.set(key, targetArray as NonNullable<Exclude<ObjectValue<V, P>, undefined>>);
-        };
-        return removedElements;
+        if (indexes.some((index) => !isNumber(index))) {
+            throw new BlackCatError("ONE_OR_MORE_ARRAY_TYPES_INVALID", "targetArrayElementIndexes", "number", `[${indexes.map((element) => typeOf(element))}]`);
+        }
+        return this.mutate("pop", key, (root) => {
+            const found = getByPath(root, parts);
+            if (found === undefined || found === null) return { result: [], changed: false };
+            const array = resolveArray(root, parts, key, false);
+            const removed = applyRemoveAt(array, indexes.map(Number));
+            return { result: this.out(removed), changed: removed.length > 0, value: array };
+        });
     }
+
     /**
-     * Kiểm tra xem giá trị tại key có phải là Array hay không.
-     *
-     * @typeParam P - Path của object trong database.
-     * @param key - Đường dẫn key cần kiểm tra.
-     *
-     * @returns `true` nếu giá trị là Array, ngược lại `false`.
-     *
-     * @example
-     * const result = await db.isTargetArray("users");
-     * console.log(result);
+     * Kiểm tra giá trị tại key có phải mảng hay không.
      */
     public async isTargetArray<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
-        const target = await this.get(key);
-        return Array.isArray(target);
+        return this.exec("isTargetArray", key, async () => Array.isArray(await this.fetch(key)));
     }
+
     /**
-     * Kiểm tra xem giá trị tại key có phải là Number hay không.
-     *
-     * @typeParam P - Path của object trong database.
-     *
-     * @param key - Đường dẫn key cần kiểm tra.
-     *
-     * @returns `true` nếu giá trị là Number, ngược lại `false`.
-     *
-     * @example
-     * const result = await db.isTargetNumber("stats.score");
-     * console.log(result);
+     * Kiểm tra giá trị tại key có phải số hay không.
      */
     public async isTargetNumber<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<boolean> {
-        const target = await this.get(key);
-        return isNumber(target);
+        return this.exec("isTargetNumber", key, async () => isNumber(await this.fetch(key)));
     }
+
     /**
-     * Lấy danh sách các key của object trong database.
+     * Lấy một phần tử ngẫu nhiên từ mảng tại key (`null` nếu mảng rỗng).
      *
-     * Nếu không truyền `key` → trả về các key cấp cao nhất của database.
-     *
-     * @typeParam P - Path của object.
-     *
-     * @param key - Path của object cần lấy danh sách key.
-     *
-     * @returns Mảng các key tồn tại (không bao gồm `null` hoặc `undefined`).
-     *
-     * @example
-     * const rootKeys = await db.keys();
-     * const userKeys = await db.keys("user");
-     */
-    public async keys<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectPath<P>[]> {
-        const all = await this.all() as any;
-        if (!key) return TypedObject.keys(all) as ObjectPath<P>[];
-        const data = await this.get(key) as Record<string, any>;
-        return TypedObject.keys(data).filter((key) => data[key] !== undefined && data[key] !== null) as any
-    }
-    /**
-     * Lấy số lượng key cấp cao nhất trong database.
-     *
-     * @returns Tổng số key ở root level.
-     *
-     * @example
-     * const count = await db.size();
-     */
-    public async size(): Promise<number> {
-        const keys = await this.keys();
-        return keys.length;
-    }
-    /**
-     * Lấy danh sách các giá trị từ database.
-     *
-     * Nếu không truyền `key` → trả về toàn bộ values ở root level.
-     * Nếu truyền `key` → trả về values của object tại path đó.
-     *
-     * @typeParam P - Path của object trong database.
-     *
-     * @param key - Đường dẫn object cần lấy values.
-     *
-     * @returns Mảng các giá trị.
-     *
-     * @example
-     * const allValues = await db.values();
-     *
-     * const userValues = await db.values("users");
-     */
-    public async values<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<ObjectValue<V, P>[]> {
-        const all = await this.all() as any;
-        if (!key) return TypedObject.values(all);
-        const data = await this.get(key) as Record<string, any>;
-        return TypedObject.values(data) as ObjectValue<V, P>[];
-    }
-    /**
-     * Lấy ngẫu nhiên một phần tử từ array tại path được chỉ định.
-     *
-     * @typeParam P - Path trỏ đến array trong database.
-     *
-     * @param key - Đường dẫn đến array.
-     *
-     * @returns Một phần tử ngẫu nhiên trong array hoặc `null` nếu array rỗng.
-     *
-     * @throws BlackCatError
-     * - INVALID_TARGET nếu giá trị tại key không phải array
-     *
-     * @example
-     * const randomUser = await db.random("users");
+     * @throws {BlackCatError} `INVALID_TARGET` nếu giá trị không phải mảng.
      */
     public async random<P extends AutocompletableString<ObjectPath<V>>>(key: AutocompletableString<P>): Promise<Maybe<ObjectValue<V, P>>> {
-        const array = await this.get(key);
-        if (!Array.isArray(array)) {
-            throw new BlackCatError("INVALID_TARGET", "array", typeOf(array));
+        return this.exec("random", key, async () => {
+            const array = await this.fetch(key);
+            if (!Array.isArray(array)) {
+                throw new BlackCatError("INVALID_TARGET", "array", typeOf(array));
+            }
+            return this.out(array[Math.floor(Math.random() * array.length)] ?? null);
+        });
+    }
+
+    // ───────────────────────────── Keys / values / entries ─────────────────────────────
+
+    /**
+     * Danh sách key của object (hoặc index của mảng) tại `key`; không truyền `key` = key cấp cao nhất.
+     *
+     * Khi có `key`, mặc định bỏ qua các giá trị `null`/`undefined` (đặt `skipNullish: false` để giữ lại).
+     */
+    public async keys<P extends AutocompletableString<ObjectPath<V>>>(key?: P, options?: IterateOptions): Promise<ObjectPath<P>[]> {
+        return this.read("keys", key, (root) => {
+            const data = this.lookup(root, key);
+            const skip = options?.skipNullish ?? Boolean(key);
+            return Object.keys(data || {}).filter((name) => !skip || (data[name] !== undefined && data[name] !== null)) as ObjectPath<P>[];
+        });
+    }
+
+    /**
+     * Danh sách giá trị của object (hoặc phần tử của mảng) tại `key`.
+     */
+    public async values<P extends AutocompletableString<ObjectPath<V>>>(key?: P, options?: IterateOptions): Promise<ObjectValue<V, P>[]> {
+        return this.read("values", key, (root) => {
+            const data = this.lookup(root, key);
+            const values = Object.values(data || {}) as any[];
+            return this.out((options?.skipNullish ? values.filter((value) => value !== undefined && value !== null) : values) as ObjectValue<V, P>[]);
+        });
+    }
+
+    /**
+     * Danh sách `[key, value]` của object (hoặc mảng) tại `key`.
+     *
+     * @example
+     * ```ts
+     * for (const [id, user] of await db.entries("users")) { ... }
+     * ```
+     */
+    public async entries<P extends AutocompletableString<ObjectPath<V>>>(key?: P, options?: IterateOptions): Promise<[string, ObjectValue<V, P>][]> {
+        return this.read("entries", key, (root) => {
+            const data = this.lookup(root, key);
+            const entries = Object.entries(data || {}) as [string, any][];
+            return this.out((options?.skipNullish ? entries.filter(([, value]) => value !== undefined && value !== null) : entries) as [string, ObjectValue<V, P>][]);
+        });
+    }
+
+    /**
+     * Chuyển các entry cấp `key` thành `Map`.
+     */
+    public async toMap<P extends AutocompletableString<ObjectPath<V>>>(key?: P): Promise<Map<string, ObjectValue<V, P>>> {
+        return new Map(await this.entries(key));
+    }
+
+    /**
+     * Số key cấp cao nhất của database.
+     */
+    public async size(): Promise<number> {
+        return this.read("size", undefined, (root) => Object.keys(this.visible(root)).length);
+    }
+
+    /**
+     * Duyệt `[key, value]` cấp cao nhất bằng `for await`.
+     *
+     * @example
+     * ```ts
+     * for await (const [guildId, data] of db) { ... }
+     * ```
+     */
+    public async *[Symbol.asyncIterator](): AsyncGenerator<[string, any]> {
+        for (const entry of await this.entries()) yield entry as [string, any];
+    }
+
+    // ───────────────────────────── Query (find / map / filter ...) ─────────────────────────────
+
+    private async queryValues(first: unknown, second: unknown): Promise<{ values: any[]; fn: (...args: any[]) => any }> {
+        const [key, fn] = typeof first === "function" ? [undefined, first] : [first as string | undefined, second];
+        if (typeof fn !== "function") {
+            throw new BlackCatError("INVALID_TYPE", "queryFunction", "function", typeOf(fn));
         }
-        return array[Math.floor(Math.random() * array.length)] ?? null;
+        return { values: await this.values(key as any), fn: fn as (...args: any[]) => any };
     }
+
     /**
-     * Tìm phần tử đầu tiên thỏa điều kiện.
-     *
-     * Hoạt động tương tự `Array.prototype.find`.
-     *
-     * @param queryFunction - Hàm kiểm tra điều kiện.
-     *
-     * @returns Phần tử đầu tiên thỏa điều kiện hoặc `null` nếu không tìm thấy.
+     * Tìm phần tử đầu tiên thoả hàm điều kiện, trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
      *
      * @example
-     * const user = await db.find(u => u.id === 1);
+     * ```ts
+     * await db.find((guild) => guild.premium);
+     * await db.find("users", (user) => user.id === 1);
+     * ```
      */
-    public async find(queryFunction: QueryFunction<V>): Promise<Maybe<V>> {
-        const values = await this.values();
-        return values.find(queryFunction as QueryFunction<ObjectValue<V, any>>) as Promise<Maybe<V>> ?? null;
+    public find(queryFunction: QueryFunction<V>): Promise<Maybe<V>>;
+    public find<P extends AutocompletableString<ObjectPath<V>>>(key: P, queryFunction: QueryFunction<any>): Promise<Maybe<any>>;
+    public async find(first: any, second?: any): Promise<any> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.find(fn) ?? null;
     }
+
     /**
-     * Biến đổi tất cả giá trị trong database thành một mảng mới.
-     *
-     * Hoạt động giống `Array.prototype.map`.
-     *
-     * @typeParam TReturnType - Kiểu dữ liệu của phần tử trả về.
-     *
-     * @param queryFunction - Hàm transform từng phần tử.
-     *
-     * @returns Mảng kết quả sau khi transform.
+     * `map` trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
+     */
+    public map<TReturnType>(queryFunction: QueryFunction<V, TReturnType>): Promise<TReturnType[]>;
+    public map<TReturnType, P extends AutocompletableString<ObjectPath<V>> = any>(key: P, queryFunction: QueryFunction<any, TReturnType>): Promise<TReturnType[]>;
+    public async map(first: any, second?: any): Promise<any[]> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.map(fn);
+    }
+
+    /**
+     * `findIndex` trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
+     */
+    public findIndex(queryFunction: QueryFunction<V>): Promise<number>;
+    public findIndex<P extends AutocompletableString<ObjectPath<V>>>(key: P, queryFunction: QueryFunction<any>): Promise<number>;
+    public async findIndex(first: any, second?: any): Promise<number> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.findIndex(fn);
+    }
+
+    /**
+     * `filter` trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
+     */
+    public filter(queryFunction: QueryFunction<V>): Promise<V[]>;
+    public filter<P extends AutocompletableString<ObjectPath<V>>>(key: P, queryFunction: QueryFunction<any>): Promise<any[]>;
+    public async filter(first: any, second?: any): Promise<any[]> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.filter(fn);
+    }
+
+    /**
+     * `some` trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
+     */
+    public some(queryFunction: QueryFunction<V>): Promise<boolean>;
+    public some<P extends AutocompletableString<ObjectPath<V>>>(key: P, queryFunction: QueryFunction<any>): Promise<boolean>;
+    public async some(first: any, second?: any): Promise<boolean> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.some(fn);
+    }
+
+    /**
+     * `every` trên giá trị cấp cao nhất hoặc trên mảng/object tại `key`.
+     */
+    public every(queryFunction: QueryFunction<V>): Promise<boolean>;
+    public every<P extends AutocompletableString<ObjectPath<V>>>(key: P, queryFunction: QueryFunction<any>): Promise<boolean>;
+    public async every(first: any, second?: any): Promise<boolean> {
+        const { values, fn } = await this.queryValues(first, second);
+        return values.every(fn);
+    }
+
+    // ───────────────────────────── Transaction ─────────────────────────────
+
+    /**
+     * Chạy nhiều thao tác **nguyên tử**: đọc một lần, ghi một lần, và nếu `fn` ném lỗi thì **không ghi gì** (rollback).
      *
      * @example
-     * const names = await db.map(user => user.name);
+     * ```ts
+     * await db.transaction((tx) => {
+     *   tx.subtract("user.1.coins", 100);
+     *   tx.add("user.2.coins", 100);
+     * });
+     * ```
      */
-    public async map<TReturnType>(queryFunction: QueryFunction<V, TReturnType>): Promise<TReturnType[]> {
-        const values = await this.values();
-        return values.map(queryFunction as QueryFunction<ObjectValue<V, any>, TReturnType>);
+    public async transaction<T>(fn: (tx: Transaction) => T | Promise<T>): Promise<T> {
+        return this.exec("transaction", undefined, async () => {
+            const draft = clone(await this.load());
+            const tx = new Transaction(draft, {
+                delimiter: this.delimiter,
+                parseKey: (key) => this.parseKey(key),
+                uniqueBy: this.config.uniqueBy,
+                autoCreateArrays: Boolean(this.config.autoCreateArrays),
+                validate: (key, value, operation) => this.validate(key, value, operation)
+            });
+            const result = await fn(tx);
+            if (tx.changed) {
+                await this.save(draft);
+                this.notify("transaction");
+            }
+            return result;
+        });
     }
+
+    // ───────────────────────────── Import / export / backup / migrate ─────────────────────────────
+
     /**
-     * Tìm index của phần tử đầu tiên thỏa điều kiện.
+     * Xuất toàn bộ database thành chuỗi JSON.
+     */
+    public async export(): Promise<string> {
+        return JSON.stringify(await this.all(), null, 2);
+    }
+
+    /**
+     * Nhập dữ liệu (chuỗi JSON hoặc object).
      *
-     * Hoạt động giống `Array.prototype.findIndex`.
+     * @param options.merge `true` để gộp (ghi đè theo từng key cấp cao nhất), `false` (mặc định) để thay toàn bộ.
+     */
+    public async import(data: string | Record<string, any>, options: { merge?: boolean } = {}): Promise<void> {
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        if (!isObject(parsed)) {
+            throw new BlackCatError("INVALID_TYPE", "data", "object", typeOf(parsed));
+        }
+        await this.exec("import", undefined, async () => {
+            let root: Record<string, any>;
+            if (options.merge) {
+                root = await this.load();
+                Object.assign(root, clone(parsed));
+            } else {
+                root = clone(parsed);
+                this.resetState();
+            }
+            await this.save(root);
+            this.notify("import");
+        });
+    }
+
+    /**
+     * Sao lưu toàn bộ database ra một file JSON có gắn thời gian.
      *
-     * @param queryFunction - Hàm kiểm tra điều kiện.
-     *
-     * @returns Index của phần tử hoặc `-1` nếu không tìm thấy.
+     * @returns Đường dẫn file backup.
      *
      * @example
-     * const index = await db.findIndex(user => user.id === 1);
+     * ```ts
+     * await db.backup({ dir: "./backups", keep: 10 });
+     * ```
      */
-    public async findIndex(queryFunction: QueryFunction<V>): Promise<number> {
-        const values = await this.values();
-        return values.findIndex(queryFunction as QueryFunction<ObjectValue<V, any>>);
+    public async backup(options: AutoBackupOptions = {}): Promise<string> {
+        const dir = options.dir ?? this.config.autoBackup?.dir ?? "./backups";
+        const keep = options.keep ?? this.config.autoBackup?.keep ?? 5;
+        const json = await this.export();
+        await fs.mkdir(dir, { recursive: true });
+        const file = join(dir, `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+        await fs.writeFile(file, json);
+        if (keep > 0) {
+            const files = (await fs.readdir(dir)).filter((name: string) => /^backup-.*\.json$/.test(name)).sort();
+            for (const old of files.slice(0, Math.max(0, files.length - keep))) {
+                await fs.unlink(join(dir, old)).catch(() => undefined);
+            }
+        }
+        return file;
     }
+
     /**
-     * Lọc các phần tử thỏa điều kiện.
+     * Sao chép toàn bộ dữ liệu từ driver này sang driver khác (ví dụ JSON → SQLite).
      *
-     * Hoạt động giống `Array.prototype.filter`.
-     *
-     * @param queryFunction - Hàm kiểm tra điều kiện.
-     *
-     * @returns Mảng các phần tử thỏa điều kiện.
+     * @param options.overwrite Cho phép ghi đè khi driver đích đã có dữ liệu.
+     * @returns Số key cấp cao nhất đã chuyển.
      *
      * @example
-     * const admins = await db.filter(user => user.role === "admin");
+     * ```ts
+     * await Database.migrate(new JSONDriver({ filePath: "./old.json" }), new SQLiteDriver({ filePath: "./new.sqlite" }));
+     * ```
      */
-    public async filter(queryFunction: QueryFunction<V>): Promise<V[]> {
-        const values = await this.values();
-        return values.filter(queryFunction as QueryFunction<ObjectValue<V, any>>) as any;
+    public static async migrate(from: DatabaseDriver, to: DatabaseDriver, options: { overwrite?: boolean } = {}): Promise<number> {
+        await from.init?.();
+        await to.init?.();
+        const data = await from.all<Record<string, any>>();
+        if (!options.overwrite) {
+            const existing = await to.all<Record<string, any>>();
+            if (isObject(existing) && Object.keys(existing).length > 0) {
+                throw new BlackCatError("INVALID_OPTION", "overwrite", "driver đích đã có dữ liệu (đặt overwrite: true để ghi đè)");
+            }
+        }
+        await to.set(data);
+        await to.flush?.();
+        return Object.keys(data ?? {}).length;
     }
-    /**
-     * Kiểm tra có ít nhất một phần tử thỏa điều kiện hay không.
-     *
-     * Hoạt động giống `Array.prototype.some`.
-     *
-     * @param queryFunction - Hàm kiểm tra điều kiện.
-     *
-     * @returns `true` nếu tồn tại phần tử thỏa điều kiện.
-     *
-     * @example
-     * const hasAdmin = await db.some(user => user.role === "admin");
-     */
-    public async some(queryFunction: QueryFunction<V>): Promise<boolean> {
-        const values = await this.values();
-        return values.some(queryFunction as QueryFunction<ObjectValue<V, any>>);
+}
+
+/**
+ * Ngữ cảnh nội bộ cho {@link Transaction}.
+ * @hidden
+ */
+interface TransactionContext {
+    delimiter: string;
+    parseKey(key: unknown): string[];
+    uniqueBy?: UniqueBy;
+    autoCreateArrays: boolean;
+    validate(key: string, value: unknown, operation: ValidatorContext["operation"]): void;
+}
+
+/**
+ * Đối tượng thao tác đồng bộ trong {@link Database.transaction}. Mọi thay đổi chỉ áp dụng
+ * khi `transaction` hoàn tất thành công.
+ */
+export class Transaction {
+    /** `true` nếu đã có thay đổi. */
+    public changed = false;
+    /** @hidden */
+    constructor(private readonly root: Record<string, any>, private readonly ctx: TransactionContext) { }
+    /** Lấy giá trị (`null` nếu không tồn tại). */
+    public get(key: string): any {
+        const parts = key.split(this.ctx.delimiter);
+        if (hasUnsafeSegment(parts)) return null;
+        return getByPath(this.root, parts) ?? null;
     }
-    /**
-     * Kiểm tra tất cả phần tử có thỏa điều kiện hay không.
-     *
-     * Hoạt động giống `Array.prototype.every`.
-     *
-     * @param queryFunction - Hàm kiểm tra điều kiện.
-     *
-     * @returns `true` nếu tất cả phần tử đều thỏa điều kiện.
-     *
-     * @example
-     * const allActive = await db.every(user => user.active === true);
-     */
-    public async every(queryFunction: QueryFunction<V>): Promise<boolean> {
-        const values = await this.values();
-        return values.every(queryFunction as QueryFunction<ObjectValue<V, any>>);
+    /** Kiểm tra key tồn tại. */
+    public has(key: string): boolean {
+        return this.get(key) !== null;
+    }
+    /** Gán giá trị. */
+    public set(key: string, value: unknown): void {
+        const parts = this.ctx.parseKey(key);
+        this.ctx.validate(key, value, "set");
+        setByPath(this.root, parts, value);
+        this.changed = true;
+    }
+    /** Lấy giá trị, nếu chưa có thì gán mặc định. */
+    public ensure<T>(key: string, defaultValue: T): T {
+        const current = this.get(key);
+        if (current !== null) return current;
+        this.set(key, defaultValue);
+        return defaultValue;
+    }
+    /** Cập nhật (merge object / nối mảng). */
+    public update(key: string, value: unknown): any {
+        const parts = this.ctx.parseKey(key);
+        this.ctx.validate(key, value, "update");
+        this.changed = true;
+        return applyUpdate(this.root, parts, value, this.ctx.uniqueBy);
+    }
+    /** Xóa key. */
+    public delete(key: string): boolean {
+        const parts = key.split(this.ctx.delimiter);
+        if (hasUnsafeSegment(parts)) return false;
+        const removed = deleteByPath(this.root, parts);
+        if (removed) this.changed = true;
+        return removed;
+    }
+    /** Cộng số. */
+    public add(key: string, amount: number): number {
+        const value = assertAmount("numberToAdd", amount);
+        const result = applyNumber(this.root, this.ctx.parseKey(key), value);
+        this.changed = true;
+        return result;
+    }
+    /** Trừ số. */
+    public subtract(key: string, amount: number): number {
+        const value = assertAmount("numberToSubtract", amount);
+        const result = applyNumber(this.root, this.ctx.parseKey(key), -value);
+        this.changed = true;
+        return result;
+    }
+    /** Thêm vào cuối mảng. */
+    public push(key: string, ...values: unknown[]): any[] {
+        if (!values.length) throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
+        const { array, added } = applyInsert(this.root, this.ctx.parseKey(key), key, values, "end", this.ctx.autoCreateArrays);
+        if (added) this.changed = true;
+        return array;
     }
 }

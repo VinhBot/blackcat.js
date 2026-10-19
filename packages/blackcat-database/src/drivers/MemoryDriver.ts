@@ -1,4 +1,4 @@
-import { DatabaseDriver } from "../types";
+import type { DatabaseDriver } from "../types";
 
 /**
  * Driver lưu trữ dữ liệu trong RAM.

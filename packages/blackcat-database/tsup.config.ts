@@ -1,7 +1,12 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-    entry: ["src/index.ts"],
+    entry: {
+        index: "src/index.ts",
+        // Subpath exports: import { SQLiteDriver } from "blackcat.js-database/sqlite"
+        sqlite: "src/drivers/SQLiteDriver.ts",
+        mongo: "src/drivers/MongoDriver.ts"
+    },
     format: ["esm", "cjs"],
     target: "node18",
     platform: "node",

@@ -7,7 +7,7 @@
 		// "lib": [],                                   /* Specify library files to be included in the compilation. */
 		// "allowJs": true,                             /* Allow javascript files to be compiled. */
 		// "checkJs": true,                             /* Report errors in .js files. */
-		"allowImportingTsExtensions": true, 			/* Allow imports to include TypeScript file extensions. */
+		"noImplicitOverride": true,
 		"declaration": true, 							/* Generates corresponding '.d.ts' file. */
 		"declarationMap": true, 						/* Generates a sourcemap for each corresponding '.d.ts' file. */
 		"sourceMap": true,                           	/* Generates corresponding '.map' file. */
@@ -52,5 +52,5 @@
 		"forceConsistentCasingInFileNames": true 		/* Disallow inconsistently-cased references to the same file. */
 	},
 	"exclude": ["node_modules", ".build"], 				/* Specifies a list of files to be excluded from compilation. The 'exclude' property only affects the files included via the 'include' property and not the 'files' property. */
-	"include": ["src"]
+	"include": ["src", "test"]
 }

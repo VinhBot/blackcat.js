@@ -1,7 +1,7 @@
 {
   "name": "blackcat.js-database",
-  "version": "1.0.7",
-  "description": "json datatabase driver for blackcat.js",
+  "version": "1.1.0",
+  "description": "JSON-path database library (drivers: JSON, Memory, SQLite, MongoDB + cache/encryption/compression/mirror wrappers)",
   "author": "Nguyen Vinh",
   "license": "ISC",
   "main": "./dist/index.cjs",
@@ -12,20 +12,38 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./sqlite": {
+      "types": "./dist/sqlite.d.ts",
+      "import": "./dist/sqlite.mjs",
+      "require": "./dist/sqlite.cjs"
+    },
+    "./mongo": {
+      "types": "./dist/mongo.d.ts",
+      "import": "./dist/mongo.mjs",
+      "require": "./dist/mongo.cjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsup",
     "docs": "typedoc",
-    "dev": "npx tsx test/index.ts",
-    "build:all": "node --run build && node --run docs"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "build:all": "npm run build && npm run docs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "better-sqlite3": "^12.6.2",
+    "mongodb": "^7.1.0",
     "tsup": "^8.5.1",
+    "tsx": "^4.19.0",
     "typedoc": "^0.28.18",
     "typedoc-rhineai-theme": "^1.2.0",
     "typescript": "^5.9.3"
@@ -36,19 +54,27 @@
   "keywords": [
     "blackcat.js",
     "database",
-    "mongoose",
+    "discord",
+    "discord.js",
     "mongodb",
     "jsondb",
-    "jsondata",
     "memory",
-    "memorydata",
     "quick-database",
-    "better-sqlite3"
+    "better-sqlite3",
+    "cache",
+    "key-path"
   ],
-  "dependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^12.6.2",
-    "mongodb": "^7.1.0",
-    "mongoose": "^9.2.3"
+  "sideEffects": false,
+  "peerDependencies": {
+    "better-sqlite3": ">=9.0.0",
+    "mongodb": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    }
   }
 }

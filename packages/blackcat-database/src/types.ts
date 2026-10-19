@@ -58,7 +58,38 @@ export interface DatabaseDriver {
      * @returns `true` nếu thao tác thành công.
      */
     delete(): Promise<boolean>;
+    /**
+     * (Tùy chọn) Khởi tạo driver (mở kết nối, tạo file/bảng...).
+     * `Database` sẽ gọi một lần trước thao tác đầu tiên.
+     */
+    init?(): Promise<void>;
+    /**
+     * (Tùy chọn) Ghi mọi dữ liệu đang chờ xuống storage (dành cho driver có cache/write-behind).
+     */
+    flush?(): Promise<void>;
+    /**
+     * (Tùy chọn) Giải phóng tài nguyên (đóng kết nối, dừng timer...).
+     */
+    close?(): Promise<void>;
+    /**
+     * (Tùy chọn) **Đường nhanh**: đọc một giá trị theo path mà không cần đọc toàn bộ database.
+     *
+     * - Trả về `{ found: true, value }` hoặc `{ found: false }` khi chắc chắn.
+     * - Trả về `undefined` nếu driver không hỗ trợ path này → `Database` tự quay về đọc toàn bộ.
+     */
+    getPath?(parts: string[]): Promise<PathReadResult | undefined>;
+    /**
+     * (Tùy chọn) **Đường nhanh**: ghi một giá trị theo path mà không cần ghi lại toàn bộ database.
+     *
+     * Trả về `true` nếu đã ghi, `false` nếu không hỗ trợ trường hợp này → `Database` quay về cách cũ.
+     */
+    setPath?(parts: string[], value: unknown): Promise<boolean>;
 }
+
+/**
+ * Kết quả của {@link DatabaseDriver.getPath}.
+ */
+export type PathReadResult = { found: true; value: unknown } | { found: false };
 
 /**
  * Cấu hình khởi tạo cho một instance của {@link Database}.
@@ -105,6 +136,178 @@ export interface DatabaseConfiguration {
      * @defaultValue false
      */
     debug?: boolean;
+    /**
+     * Nếu `true`, các giá trị trả về sẽ được sao chép sâu để thay đổi chúng
+     * không làm ảnh hưởng dữ liệu bên trong (đặc biệt với `MemoryDriver`/`CachedDriver`).
+     *
+     * @defaultValue false
+     */
+    cloneOnRead?: boolean;
+    /**
+     * Nếu `true`, `push`/`unshift` sẽ tự tạo mảng rỗng khi key chưa tồn tại
+     * thay vì ném lỗi `INVALID_KEY`.
+     *
+     * @defaultValue false
+     */
+    autoCreateArrays?: boolean;
+    /**
+     * Dữ liệu mặc định. Ở lần dùng đầu tiên, các key còn thiếu sẽ được điền vào database.
+     */
+    defaults?: Record<string, any>;
+    /**
+     * Hàm kiểm tra giá trị trước khi ghi (`set`, `update`, `ensure`, `setMany`).
+     * Trả `false` hoặc một chuỗi (thông báo lỗi) để từ chối.
+     */
+    validator?: DatabaseValidator;
+    /**
+     * Mặc định cách loại trùng khi `update` nối mảng.
+     * Nếu không đặt, dùng hành vi tương thích cũ (`username` + `guild` cho object).
+     */
+    uniqueBy?: UniqueBy;
+    /**
+     * Key (cấp cao nhất) dùng để lưu thời hạn TTL.
+     *
+     * @defaultValue "__blackcat_ttl__"
+     */
+    ttlKey?: string;
+    /**
+     * Chu kỳ (ms) quét và xóa các key hết hạn. `0` để tắt quét nền (key vẫn hết hạn khi truy cập).
+     *
+     * @defaultValue 60000
+     */
+    ttlSweepInterval?: number;
+    /**
+     * Tự động sao lưu định kỳ.
+     */
+    autoBackup?: AutoBackupOptions;
+}
+
+/**
+ * Cách xác định hai phần tử mảng là "trùng nhau".
+ */
+export type UniqueBy = string[] | ((item: any) => unknown);
+
+/**
+ * Ngữ cảnh truyền vào {@link DatabaseValidator}.
+ */
+export interface ValidatorContext {
+    key: string;
+    value: unknown;
+    operation: "set" | "update" | "ensure" | "setMany";
+}
+
+/**
+ * Hàm validate. Trả `false` hoặc chuỗi (lý do) để từ chối, `true`/`void` để chấp nhận.
+ */
+export type DatabaseValidator = (context: ValidatorContext) => boolean | string | void;
+
+/**
+ * Tùy chọn sao lưu.
+ */
+export interface AutoBackupOptions {
+    /** Thư mục chứa file backup. @defaultValue "./backups" */
+    dir?: string;
+    /** Chu kỳ sao lưu (ms). @defaultValue 3600000 */
+    every?: number;
+    /** Số bản sao lưu giữ lại. @defaultValue 5 */
+    keep?: number;
+}
+
+/**
+ * Tùy chọn cho {@link Database.set}.
+ */
+export interface SetOptions {
+    /** Thời gian sống (ms). Hết hạn key sẽ tự bị xóa. */
+    ttl?: number;
+}
+
+/**
+ * Toán tử truy vấn dùng trong `findOne`, `findMany`, `deleteMany`, `updateMany`, `count`.
+ */
+export interface QueryOperators<T = any> {
+    $eq?: T;
+    $ne?: T;
+    $gt?: T;
+    $gte?: T;
+    $lt?: T;
+    $lte?: T;
+    $in?: readonly T[];
+    $nin?: readonly T[];
+    $exists?: boolean;
+    $regex?: RegExp | string;
+}
+
+/**
+ * Điều kiện truy vấn. Mỗi field có thể là giá trị (so sánh `==`) hoặc {@link QueryOperators}.
+ */
+export type Query<T> = { [K in keyof T]?: T[K] | QueryOperators<NonNullable<T[K]>> };
+
+/**
+ * Hướng sắp xếp.
+ */
+export type SortDirection = 1 | -1 | "asc" | "desc";
+
+/**
+ * Cách sắp xếp: object `{ field: 1 | -1 }` hoặc hàm so sánh.
+ */
+export type SortSpec<T = any> = { [K in keyof T & string]?: SortDirection } | ((a: T, b: T) => number);
+
+/**
+ * Tùy chọn cho `findMany`.
+ */
+export interface FindOptions<T = any> {
+    sort?: SortSpec<T>;
+    limit?: number;
+    skip?: number;
+}
+
+/**
+ * Tùy chọn cho `paginate`.
+ */
+export interface PaginateOptions<T = any> {
+    page?: number;
+    pageSize?: number;
+    query?: Query<T>;
+    sort?: SortSpec<T>;
+}
+
+/**
+ * Kết quả của `paginate`.
+ */
+export interface Page<T = any> {
+    items: T[];
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
+
+/**
+ * Tùy chọn cho `keys`/`values`/`entries`.
+ */
+export interface IterateOptions {
+    /** Bỏ qua các giá trị `null`/`undefined`. Mặc định: `true` cho `keys(key)`, `false` cho các trường hợp còn lại. */
+    skipNullish?: boolean;
+}
+
+/**
+ * Các sự kiện của {@link Database}.
+ */
+export interface DatabaseChangeEvent {
+    operation: string;
+    key?: string;
+    value?: unknown;
+}
+export interface DatabaseEvents {
+    change: DatabaseChangeEvent;
+    set: DatabaseChangeEvent;
+    update: DatabaseChangeEvent;
+    delete: DatabaseChangeEvent;
+    clear: DatabaseChangeEvent;
+    expire: { key: string };
+    error: Error;
 }
 /**
  * Đại diện cho một giá trị có thể là `T` hoặc `null`.
@@ -507,7 +710,7 @@ export type AutocompletableString<S extends string> = S | (string & {});
  * // "user.profile"
  * // "user.profile.name"
  */
-export type ObjectPath<T, TKey extends keyof T = keyof T> = IsAny<T> extends true ? string : T extends string | number | boolean | symbol ? string : T extends Array<any> ? TKey & string : TKey extends string ? NonNullable<T[TKey]> extends Array<any> ? TKey : NonNullable<T[TKey]> extends Record<string, any> ? `${TKey}` | `${TKey}.${ObjectPath<NonNullable<T[TKey]>>}` : TKey : never;
+export type ObjectPath<T, TKey extends keyof T = keyof T, Depth extends unknown[] = []> = Depth["length"] extends 8 ? string : IsAny<T> extends true ? string : T extends string | number | boolean | symbol ? string : T extends Array<any> ? TKey & string : TKey extends string ? NonNullable<T[TKey]> extends Array<any> ? TKey : NonNullable<T[TKey]> extends Record<string, any> ? `${TKey}` | `${TKey}.${ObjectPath<NonNullable<T[TKey]>, keyof NonNullable<T[TKey]>, [...Depth, unknown]>}` : TKey : never;
 /**
  * Trích xuất kiểu dữ liệu của giá trị tại một object path.
  * @hidden

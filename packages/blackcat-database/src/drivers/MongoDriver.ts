@@ -1,58 +1,29 @@
-import { MongoClient, Db, Collection } from "mongodb";
-import type { DatabaseDriver } from "../types";
-
+import type { MongoClient, Db, Collection } from "mongodb";
+import type { DatabaseDriver, PathReadResult } from "../types";
+import { loadModule } from "../utils/loadModule";
 
 /**
- * Context được truyền vào callback `onLoad` của MongoDriver.
- * @hidden
+ * Ngữ cảnh truyền vào callback `onLoad` khi kết nối MongoDB thành công.
  */
 interface MongoDriverOnLoadContext {
-    /**
-     * Instance MongoClient đã kết nối.
-     */
     client: MongoClient;
-    /**
-     * Database hiện tại.
-     */
     db: Db;
-    /**
-     * Collection đang được sử dụng.
-     */
     collection: Collection<DatabaseDocument>;
-    /**
-     * Tên database.
-     */
     databaseName: string;
-    /**
-     * Tên collection.
-     */
     collectionName: string;
 }
 
 /**
- * Context được truyền vào callback `onError` của MongoDriver.
- * @hidden
+ * Ngữ cảnh truyền vào callback `onError` khi kết nối MongoDB thất bại.
  */
 interface MongoDriverOnErrorContext {
-    /**
-     * Lỗi phát sinh.
-     *
-     * Có thể là bất kỳ kiểu nào (`unknown`),
-     * nên cần type guard hoặc cast khi xử lý.
-     */
     error: unknown;
-    /**
-     * Tên database tại thời điểm xảy ra lỗi.
-     */
     databaseName: string;
-    /**
-     * Tên collection tại thời điểm xảy ra lỗi.
-     */
     collectionName: string;
 }
 
 /**
- * Cấu hình cho MongoDriver.
+ * Tùy chọn khởi tạo {@link MongoDriver}.
  */
 interface MongoDriverOptions {
     /**
@@ -62,131 +33,78 @@ interface MongoDriverOptions {
      */
     mongourl?: string;
     /**
-     * Tên database MongoDB.
+     * Tên database.
      *
      * @default "database"
      */
     databaseName?: string;
     /**
-     * Tên collection lưu dữ liệu JSON.
+     * Tên collection lưu dữ liệu.
      *
      * @default "json_store"
      */
     collectionName?: string;
     /**
-     * Callback khi kết nối thành công.
+     * Được gọi **một lần** khi kết nối thành công.
      */
     onLoad?: (ctx: MongoDriverOnLoadContext) => any;
     /**
-     * Callback khi xảy ra lỗi.
+     * Được gọi khi kết nối thất bại.
      */
     onError?: (ctx: MongoDriverOnErrorContext) => any;
 }
-/**
- * Schema document dùng để lưu trữ database trong MongoDB.
- */
+
 interface DatabaseDocument<V = any> {
     _id: string;
     data: V;
 }
+
+const DOCUMENT_ID = "database";
+
 /**
  * Driver lưu trữ dữ liệu bằng MongoDB.
  *
- * ⚠️ Đây **không phải database chính**.
- * Class này chỉ là **driver lưu trữ phụ trợ** cho class `Database`.
+ * ⚠️ Đây **không phải database chính**, chỉ là **driver lưu trữ** cho `Database`.
+ * Toàn bộ database được lưu trong **một document** (`_id: "database"`).
+ * Với `get`/`set` theo key, driver dùng projection và `$set` theo path nên không phải
+ * đọc/ghi cả document.
  *
- * Logic xử lý:
- * - parse key path
- * - validate dữ liệu
- * - cập nhật object
+ * `mongodb` là **optional dependency**: chỉ được nạp khi driver thực sự được dùng.
+ * Kết nối được tạo ở thao tác đầu tiên và chỉ tạo **một lần** dù có nhiều lời gọi song song.
  *
- * sẽ được xử lý bởi class `Database`.
- *
- * `MongoDriver` chỉ chịu trách nhiệm:
- * - lưu toàn bộ database object
- * - trả về database object
- *
- * Toàn bộ database được lưu trong **một document duy nhất**.
- * 
- * @example 
+ * @example
  * ```ts
- * import { Database, MongoDriver } from "blackcat.js-database";
- * 
- * const database = new Database({ 
- *      driver: new MongoDriver({
- *          mongourl: "mongodb://localhost:27017", 
- *          databaseName: "mydb",  
- *          collectionName: "store",
- *          onLoad: ({ db, collection, databaseName }) => {
- *              console.log(`✅ Đã kết nối với cơ sở dữ liệu: ${databaseName}`);
- *              console.log(`📦 Bộ sưu tập: ${collection.collectionName}`);
- *          }, 
- *          onError: ({ error, databaseName }) => {
- *              console.error(`❌ Không thể kết nối với cơ sở dữ liệu: ${databaseName}`);
- *              console.error(error);
- *          }
- *      })
+ * const database = new Database({
+ *     driver: new MongoDriver({
+ *         mongourl: "mongodb://localhost:27017",
+ *         databaseName: "mybot",
+ *         collectionName: "json_store"
+ *     })
  * });
  * ```
  */
-
 export class MongoDriver implements DatabaseDriver {
-    /**
-     * MongoDB client instance.
-     */
-    private client: MongoClient;
-    /**
-     * MongoDB database instance.
-     */
-    private db!: Db;
-    /**
-     * Collection lưu dữ liệu JSON.
-     */
+    private client?: MongoClient;
     private collection!: Collection<DatabaseDocument>;
-    /**
-     * Tên database MongoDB.
-     */
+    private db?: Db;
+    private mongourl: string;
     private databaseName: string;
-    /**
-     * Tên collection MongoDB.
-     */
     private collectionName: string;
     /**
      * Callback khi kết nối thành công.
      */
     onLoad?: (ctx: MongoDriverOnLoadContext) => any;
     /**
-     * Callback khi xảy ra lỗi.
+     * Callback khi kết nối thất bại.
      */
     onError?: (ctx: MongoDriverOnErrorContext) => any;
-    /**
-     * Trạng thái đã gọi onLoad chưa (tránh spam)
-     */
     private isLoaded = false;
+    private connecting?: Promise<void>;
+
     /**
      * Khởi tạo MongoDriver.
      *
-     * @param options Cấu hình MongoDB driver.
-     * 
-     * @example 
-     * ```ts
-     * import { Database, MongoDriver } from "blackcat.js-database";
-     * 
-     * const database = new Database({ 
-     *      driver: new MongoDriver({
-     *          mongourl: "mongodb://localhost:27017", 
-     *          databaseName: "mydb",  
-     *          collectionName: "store",
-     *          onLoad: ({ db, collection, databaseName }) => {
-     *              console.log(`✅ Đã kết nối với cơ sở dữ liệu: ${databaseName}`);
-     *              console.log(`📦 Bộ sưu tập: ${collection.collectionName}`);
-     *          },
-     *          onError: ({ error, databaseName }) => {
-     *              console.error(`❌ Không thể kết nối với cơ sở dữ liệu: ${databaseName}`); 
-     *              console.error(error);
-     *          }
-     *      })
-     * });
+     * @param options Cấu hình driver.
      */
     constructor(options: MongoDriverOptions = {}) {
         const {
@@ -194,81 +112,152 @@ export class MongoDriver implements DatabaseDriver {
             databaseName = "database",
             collectionName = "json_store"
         } = options;
-        this.client = new MongoClient(mongourl);
+        this.mongourl = mongourl;
         this.databaseName = databaseName;
         this.collectionName = collectionName;
         this.onLoad = options.onLoad;
         this.onError = options.onError;
     }
-    /**
-     * Thiết lập kết nối MongoDB nếu chưa kết nối.
-     */
-    private async connect(): Promise<void> {
-        if (!this.db) {
-            try {
-                await this.client.connect();
-                this.db = this.client.db(this.databaseName);
-                this.collection = this.db.collection(this.collectionName);
-                const doc = await this.collection.findOne({ _id: "database" });
-                if (!doc) {
-                    await this.collection.insertOne({
-                        _id: "database",
-                        data: {}
-                    });
-                }
-                if (!this.isLoaded) {
-                    this.isLoaded = true;
-                    this.onLoad?.({
-                        client: this.client,
-                        db: this.db,
-                        collection: this.collection,
-                        databaseName: this.databaseName,
-                        collectionName: this.collectionName
-                    });
-                }
-            } catch (error) {
-                this.onError?.({
-                    error: error,
+
+    private connect(): Promise<void> {
+        this.connecting ??= this.doConnect().catch((error) => {
+            this.connecting = undefined;
+            throw error;
+        });
+        return this.connecting;
+    }
+
+    private async doConnect(): Promise<void> {
+        try {
+            const lib = await loadModule<any>("mongodb");
+            const MongoClientCtor = lib.MongoClient ?? lib.default?.MongoClient;
+            const client: MongoClient = new MongoClientCtor(this.mongourl);
+            await client.connect();
+            this.client = client;
+            this.db = client.db(this.databaseName);
+            this.collection = this.db.collection<DatabaseDocument>(this.collectionName);
+            // Một lệnh duy nhất thay cho "findOne rồi insertOne" (tránh race khi nhiều tiến trình khởi động cùng lúc).
+            await this.collection.updateOne(
+                { _id: DOCUMENT_ID },
+                { $setOnInsert: { data: {} } },
+                { upsert: true }
+            );
+            if (!this.isLoaded) {
+                this.isLoaded = true;
+                this.onLoad?.({
+                    client,
+                    db: this.db,
+                    collection: this.collection,
                     databaseName: this.databaseName,
                     collectionName: this.collectionName
                 });
-                throw error;
             }
+        } catch (error) {
+            this.onError?.({
+                error,
+                databaseName: this.databaseName,
+                collectionName: this.collectionName
+            });
+            throw error;
         }
     }
+
+    private safeField(parts: string[]): string | null {
+        const ok = parts.length > 0 && parts.every((part) => part.length > 0 && !part.includes(".") && !part.startsWith("$") && !part.includes("\u0000"));
+        return ok ? `data.${parts.join(".")}` : null;
+    }
+
     /**
-     * Lấy toàn bộ dữ liệu database từ MongoDB.
+     * Kết nối tới MongoDB (an toàn khi gọi nhiều lần).
+     */
+    public async init(): Promise<void> {
+        await this.connect();
+    }
+
+    /**
+     * Lấy toàn bộ dữ liệu database.
+     *
+     * @template T Kiểu dữ liệu database.
      */
     public async all<T = any>(): Promise<T> {
         await this.connect();
-        const doc = await this.collection.findOne({ _id: "database" });
+        const doc = await this.collection.findOne({ _id: DOCUMENT_ID });
         return (doc?.data ?? {}) as T;
     }
+
     /**
-     * Ghi toàn bộ database vào MongoDB.
+     * Ghi toàn bộ database.
      *
-     * ⚠️ Method này **không xử lý key-path**.
-     * Object database đã được xử lý bởi class `Database`.
-     * 
-     * @param data Toàn bộ object database
+     * @param data Toàn bộ database object.
      */
     public async set<T = any>(data: T): Promise<T> {
         await this.connect();
         await this.collection.updateOne(
-            { _id: "database" },
-            { $set: { data } }
+            { _id: DOCUMENT_ID },
+            { $set: { data } },
+            { upsert: true }
         );
         return data;
     }
+
     /**
-     * Reset toàn bộ database về object rỗng.
+     * Reset toàn bộ database về `{}`.
      */
     public async delete(): Promise<boolean> {
         await this.connect();
         await this.collection.updateOne(
-            { _id: "database" },
-            { $set: { data: {} } }
+            { _id: DOCUMENT_ID },
+            { $set: { data: {} } },
+            { upsert: true }
         );
         return true;
+    }
+
+    /**
+     * Đường nhanh: đọc một giá trị theo path bằng projection.
+     */
+    public async getPath(parts: string[]): Promise<PathReadResult | undefined> {
+        const field = this.safeField(parts);
+        if (!field) return undefined;
+        await this.connect();
+        const doc = await this.collection.findOne({ _id: DOCUMENT_ID }, { projection: { [field]: 1 } });
+        if (!doc) return undefined;
+        let current: any = doc.data;
+        for (const part of parts) {
+            // Projection trên mảng trả về cấu trúc khác → để Database tự xử lý để chắc chắn.
+            if (Array.isArray(current)) return undefined;
+            if (current === null || typeof current !== "object" || !Object.prototype.hasOwnProperty.call(current, part)) {
+                return { found: false };
+            }
+            current = current[part];
+        }
+        return { found: true, value: current };
+    }
+
+    /**
+     * Đường nhanh: ghi một giá trị theo path bằng `$set`.
+     * Trả `false` (để `Database` ghi theo cách thông thường) nếu path không hợp lệ hoặc Mongo từ chối.
+     */
+    public async setPath(parts: string[], value: unknown): Promise<boolean> {
+        const field = this.safeField(parts);
+        if (!field || value === undefined) return false;
+        await this.connect();
+        try {
+            const result = await this.collection.updateOne({ _id: DOCUMENT_ID }, { $set: { [field]: value } });
+            return result.matchedCount === 1;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Đóng kết nối MongoDB.
+     */
+    public async close(): Promise<void> {
+        const client = this.client;
+        this.client = undefined;
+        this.db = undefined;
+        this.connecting = undefined;
+        await client?.close();
     }
 }
