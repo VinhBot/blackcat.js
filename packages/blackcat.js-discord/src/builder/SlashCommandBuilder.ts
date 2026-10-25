@@ -1,5 +1,6 @@
 import { SlashCommandBuilder as DiscordSlashCommandBuilder, ChannelType } from "discord.js";
 import type {
+    AutocompleteInteraction,
     ChatInputCommandInteraction,
     SlashCommandStringOption,
     SlashCommandIntegerOption,
@@ -41,6 +42,28 @@ type SlashOptionGetReturnMap = {
     getAttachment: ReturnType<Resolver["getAttachment"]>;
 };
 /**
+ * Một lựa chọn gợi ý trả về từ `autocomplete`.
+ * - `name`: chữ hiển thị cho người dùng (tối đa 100 ký tự)
+ * - `value`: giá trị thật sự được gửi lên bot
+ */
+export type AutocompleteChoice<V extends string | number = string | number> = { name: string; value: V };
+
+/**
+ * Hàm xử lý autocomplete cho một option.
+ *
+ * @param focused Nội dung người dùng đang gõ trong ô option (luôn là chuỗi)
+ * @param interaction `AutocompleteInteraction` gốc của discord.js
+ * @param client Client của blackcat.js-discord
+ * @returns Tối đa 25 gợi ý. Có thể trả về mảng `{ name, value }` hoặc mảng giá trị thuần
+ * (khi đó `name` = `value`). Hỗ trợ cả đồng bộ lẫn bất đồng bộ.
+ */
+export type AutocompleteHandler<V extends string | number> = (
+    focused: string,
+    interaction: AutocompleteInteraction,
+    client: Client,
+) => Array<AutocompleteChoice<V> | V> | Promise<Array<AutocompleteChoice<V> | V>>;
+
+/**
  * @hidden
  */
 type BaseOption<TMethod extends keyof SlashOptionGetReturnMap> = {
@@ -72,7 +95,10 @@ type StringOption = BaseOption<"getString"> & {
     /**
      * Độ dài tối đa
      */
-    maxLength?: number;
+    maxLength?: number;    /**
+     * Gợi ý khi người dùng đang gõ. Không dùng chung được với `choices`.
+     */
+    autocomplete?: AutocompleteHandler<string>;
 };
 /**
  * @hidden
@@ -89,7 +115,10 @@ type IntegerOption = BaseOption<"getInteger"> & {
     /**
      * Giá trị lớn nhất
      */
-    max?: number;
+    max?: number;    /**
+     * Gợi ý khi người dùng đang gõ. Không dùng chung được với `choices`.
+     */
+    autocomplete?: AutocompleteHandler<number>;
 };
 /**
  * @hidden
@@ -106,7 +135,10 @@ type NumberOption = BaseOption<"getNumber"> & {
     /**
      * Giá trị lớn nhất
      */
-    max?: number;
+    max?: number;    /**
+     * Gợi ý khi người dùng đang gõ. Không dùng chung được với `choices`.
+     */
+    autocomplete?: AutocompleteHandler<number>;
 };
 /**
  * @hidden
@@ -155,21 +187,102 @@ type AttachmentOption = BaseOption<"getAttachment">;
  * Object được freeze để tránh bị sửa runtime.
  */
 const slashOption = Object.freeze({
-    string: (data: Omit<StringOption, "method">): StringOption => ({ method: "getString", ...data }),
-    integer: (data: Omit<IntegerOption, "method">): IntegerOption => ({ method: "getInteger", ...data }),
-    number: (data: Omit<NumberOption, "method">): NumberOption => ({ method: "getNumber", ...data }),
-    boolean: (data: Omit<BooleanOption, "method">): BooleanOption => ({ method: "getBoolean", ...data }),
-    user: (data: Omit<UserOption, "method">): UserOption => ({ method: "getUser", ...data }),
-    member: (data: Omit<MemberOption, "method">): MemberOption => ({ method: "getMember", ...data }),
-    role: (data: Omit<RoleOption, "method">): RoleOption => ({ method: "getRole", ...data }),
-    channel: (data: Omit<ChannelOption, "method">): ChannelOption => ({ method: "getChannel", ...data }),
-    mentionable: (data: Omit<MentionableOption, "method">): MentionableOption => ({ method: "getMentionable", ...data }),
-    attachment: (data: Omit<AttachmentOption, "method">): AttachmentOption => ({ method: "getAttachment", ...data }),
+    string: <R extends boolean>(data: Omit<StringOption, "method" | "required"> & { required: R }): StringOption & { required: R } => ({ method: "getString", ...data }),
+    integer: <R extends boolean>(data: Omit<IntegerOption, "method" | "required"> & { required: R }): IntegerOption & { required: R } => ({ method: "getInteger", ...data }),
+    number: <R extends boolean>(data: Omit<NumberOption, "method" | "required"> & { required: R }): NumberOption & { required: R } => ({ method: "getNumber", ...data }),
+    boolean: <R extends boolean>(data: Omit<BooleanOption, "method" | "required"> & { required: R }): BooleanOption & { required: R } => ({ method: "getBoolean", ...data }),
+    user: <R extends boolean>(data: Omit<UserOption, "method" | "required"> & { required: R }): UserOption & { required: R } => ({ method: "getUser", ...data }),
+    member: <R extends boolean>(data: Omit<MemberOption, "method" | "required"> & { required: R }): MemberOption & { required: R } => ({ method: "getMember", ...data }),
+    role: <R extends boolean>(data: Omit<RoleOption, "method" | "required"> & { required: R }): RoleOption & { required: R } => ({ method: "getRole", ...data }),
+    channel: <R extends boolean>(data: Omit<ChannelOption, "method" | "required"> & { required: R }): ChannelOption & { required: R } => ({ method: "getChannel", ...data }),
+    mentionable: <R extends boolean>(data: Omit<MentionableOption, "method" | "required"> & { required: R }): MentionableOption & { required: R } => ({ method: "getMentionable", ...data }),
+    attachment: <R extends boolean>(data: Omit<AttachmentOption, "method" | "required"> & { required: R }): AttachmentOption & { required: R } => ({ method: "getAttachment", ...data }),
 });
 /**
  * Kiểu của option factory
  * @hidden
  */
+/**
+ * Áp dụng `choices` hoặc bật `autocomplete` cho option (hai thứ này loại trừ nhau theo luật của Discord).
+ */
+function applyChoices(opt: any, name: string, def: any): void {
+    if (typeof def.autocomplete === "function") {
+        if (def.choices?.length) {
+            throw new Error(`SlashCommandBuilder: option "${name}" không thể dùng đồng thời "choices" và "autocomplete".`);
+        }
+        opt.setAutocomplete(true);
+        return;
+    }
+    if (def.choices?.length) opt.addChoices(...def.choices);
+}
+
+/**
+ * Chạy handler autocomplete của option đang được focus và phản hồi cho Discord.
+ *
+ * @returns `true` nếu option có handler và đã phản hồi, ngược lại `false`.
+ */
+async function runAutocomplete(defs: Record<string, any> | undefined, interaction: AutocompleteInteraction, client: Client): Promise<boolean> {
+    const focused = interaction.options.getFocused(true);
+    const def = defs?.[focused.name];
+    if (!def || typeof def.autocomplete !== "function") return false;
+    const raw = (await def.autocomplete(String(focused.value ?? ""), interaction, client)) ?? [];
+    const choices = raw.slice(0, 25).map((item: any) => {
+        const isObject = typeof item === "object" && item !== null;
+        const name = String(isObject ? item.name : item).slice(0, 100);
+        const value = isObject ? item.value : item;
+        return { name, value: typeof value === "string" ? value.slice(0, 100) : value };
+    });
+    await interaction.respond(choices);
+    return true;
+}
+
+/**
+ * Thêm một option vào builder (root hoặc subcommand) theo định nghĩa của thư viện.
+ * Dùng chung cho cả lệnh gốc và subcommand để hai nơi luôn nhất quán.
+ * @hidden
+ */
+function addOptionTo(target: any, name: string, def: any): void {
+    const configure = (opt: any) => {
+        opt.setName(name).setDescription(def.description).setRequired(!!def.required);
+        applyChoices(opt, name, def);
+        if (def.minLength !== undefined) opt.setMinLength(def.minLength);
+        if (def.maxLength !== undefined) opt.setMaxLength(def.maxLength);
+        if (def.min !== undefined) opt.setMinValue(def.min);
+        if (def.max !== undefined) opt.setMaxValue(def.max);
+        if (def.channelTypes?.length) opt.addChannelTypes(...def.channelTypes.map((t: keyof typeof ChannelType) => ChannelType[t]));
+        return opt;
+    };
+    switch (def.method) {
+        case "getString": target.addStringOption(configure); break;
+        case "getInteger": target.addIntegerOption(configure); break;
+        case "getNumber": target.addNumberOption(configure); break;
+        case "getBoolean": target.addBooleanOption(configure); break;
+        case "getUser":
+        case "getMember": target.addUserOption(configure); break;
+        case "getRole": target.addRoleOption(configure); break;
+        case "getChannel": target.addChannelOption(configure); break;
+        case "getMentionable": target.addMentionableOption(configure); break;
+        case "getAttachment": target.addAttachmentOption(configure); break;
+        default: throw new Error(`Loại option không được hỗ trợ: ${String(def.method)} (option "${name}")`);
+    }
+}
+/**
+ * Discord yêu cầu các option BẮT BUỘC phải đứng trước option tùy chọn (nếu không API trả lỗi 50035).
+ * Sort ổn định nên thứ tự khai báo trong từng nhóm được giữ nguyên.
+ * @hidden
+ */
+function requiredFirst(defs: Record<string, any>): Array<[string, any]> {
+    return Object.entries(defs).sort((a, b) => Number(!!b[1].required) - Number(!!a[1].required));
+}
+/**
+ * Kiểm tra tên lệnh/subcommand/option theo quy tắc của Discord.
+ * @hidden
+ */
+function assertValidName(kind: string, name: string): void {
+    if (!/^[\p{Ll}\p{Lm}\p{Lo}\p{N}_-]{1,32}$/u.test(name)) {
+        throw new Error(`SlashCommandBuilder: tên ${kind} "${name}" không hợp lệ (1-32 ký tự, chữ thường/số/_/-, không khoảng trắng).`);
+    }
+}
 type OptionFactory = typeof slashOption;
 /**
  * Infer kiểu dữ liệu trả về của một option.
@@ -178,7 +291,7 @@ type OptionFactory = typeof slashOption;
  * Nếu `required: true` → trả về kiểu trực tiếp  
  * Nếu `required: false` → trả về `T | null`
  */
-type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof SlashOptionGetReturnMap ? O["required"] extends true ? SlashOptionGetReturnMap[T] : SlashOptionGetReturnMap[T] | null : never : never;
+type InferOption<O> = O extends { method: infer T; required?: boolean } ? T extends keyof SlashOptionGetReturnMap ? O["required"] extends true ? (T extends "getMember" ? SlashOptionGetReturnMap[T] : NonNullable<SlashOptionGetReturnMap[T]>) : SlashOptionGetReturnMap[T] | null : never : never;
 /**
  * Infer toàn bộ object options.
  * @hidden
@@ -216,6 +329,11 @@ export interface ISlashSubCommandBuilder<TOptions extends Record<string, any> | 
      * Parse option từ interaction
      */
     parse(interaction: ChatInputCommandInteraction): TOptions extends Record<string, any> ? InferOptions<TOptions> : {};
+    /**
+     * Xử lý autocomplete cho option thuộc subcommand này.
+     * @returns `true` nếu đã phản hồi.
+     */
+    autocomplete?(interaction: AutocompleteInteraction, client: Client): Promise<boolean>;
 }
 /**
  * Interface builder cho nhóm subcommand.
@@ -539,26 +657,14 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
      * @param parent builder cha (root command hoặc subcommand group)
      */
     public build(name: string, parent: DiscordSlashCommandBuilder | SlashCommandSubcommandGroupBuilder) {
+        assertValidName("subcommand", name);
         parent.addSubcommand((sub) => {
             sub.setName(name).setDescription(this.description);
             const defs = this.defs;
             if (!defs) return sub;
-            for (const [key, def] of Object.entries(defs)) {
-                /**
-                 * Chuyển method resolver sang method builder
-                 *
-                 * Ví dụ:
-                 * getString -> addStringOption
-                 * getUser -> addUserOption
-                 */
-                const addOption = (sub as any)[def.method.replace("get", "add") + "Option"].bind(sub);
-                addOption((opt: any) => {
-                    opt.setName(key).setDescription(def.description).setRequired(def.required);
-                    if (def.choices?.length) opt.addChoices(...def.choices);
-                    if (def.minLength !== undefined) opt.setMinLength(def.minLength);
-                    if (def.maxLength !== undefined) opt.setMaxLength(def.maxLength);
-                    return opt;
-                });
+            for (const [key, def] of requiredFirst(defs)) {
+                assertValidName("option", key);
+                addOptionTo(sub, key, def);
             }
             return sub;
         });
@@ -589,6 +695,14 @@ export class SlashSubCommandBuilder<TOptions extends Record<string, any> | undef
             result[key] = (interaction.options as any)[def.method](key, !!def.required);
         }
         return result;
+    }
+    /**
+     * Xử lý autocomplete cho các option của subcommand.
+     *
+     * @returns `true` nếu option đang focus có handler và đã được phản hồi.
+     */
+    public async autocomplete(interaction: AutocompleteInteraction, client: Client): Promise<boolean> {
+        return runAutocomplete(this.defs as Record<string, any> | undefined, interaction, client);
     }
 }
 /**
@@ -943,7 +1057,7 @@ export class SlashCommandBuilder<
             parse: (opts: InteractionOptions, key: string, req: boolean) => opts.getString(key, req),
             build: (builder: DiscordSlashCommandBuilder, name: string, def: StringOption) => builder.addStringOption((opt: SlashCommandStringOption) => {
                 opt.setName(name).setDescription(def.description).setRequired(def.required);
-                if (def.choices?.length) opt.addChoices(...def.choices);
+                applyChoices(opt, name, def);
                 if (def.minLength !== undefined) opt.setMinLength(def.minLength);
                 if (def.maxLength !== undefined) opt.setMaxLength(def.maxLength);
                 return opt;
@@ -953,7 +1067,7 @@ export class SlashCommandBuilder<
             parse: (opts: InteractionOptions, key: string, req: boolean) => opts.getInteger(key, req),
             build: (builder: DiscordSlashCommandBuilder, name: string, def: IntegerOption) => builder.addIntegerOption((opt: SlashCommandIntegerOption) => {
                 opt.setName(name).setDescription(def.description).setRequired(def.required);
-                if (def.choices?.length) opt.addChoices(...def.choices);
+                applyChoices(opt, name, def);
                 if (def.min !== undefined) opt.setMinValue(def.min);
                 if (def.max !== undefined) opt.setMaxValue(def.max);
                 return opt;
@@ -963,7 +1077,7 @@ export class SlashCommandBuilder<
             parse: (opts: InteractionOptions, key: string, req: boolean) => opts.getNumber(key, req),
             build: (builder: DiscordSlashCommandBuilder, name: string, def: NumberOption) => builder.addNumberOption((opt: SlashCommandNumberOption) => {
                 opt.setName(name).setDescription(def.description).setRequired(def.required);
-                if (def.choices?.length) opt.setChoices(...def.choices);
+                applyChoices(opt, name, def);
                 if (def.min !== undefined) opt.setMinValue(def.min);
                 if (def.max !== undefined) opt.setMaxValue(def.max);
                 return opt;
@@ -1198,8 +1312,9 @@ export class SlashCommandBuilder<
         const groupName = interaction.options.getSubcommandGroup(false);
         const subCommandName = interaction.options.getSubcommand(false);
         if (groupName && subCommandName) {
-            const groups = this.groups[groupName]
-            const subBuilder = groups.subcommands[subCommandName];
+            const groups = this.groups[groupName];
+            const subBuilder = groups?.subcommands[subCommandName];
+            if (!subBuilder) throw new Error(`SlashCommand ${this.commandName}: không tìm thấy subcommand "${groupName}/${subCommandName}" (lệnh đã đăng ký có thể đã cũ).`);
             const parsed = subBuilder.parse(interaction);
             return this.handler(client, interaction, {
                 ...rootOptions,
@@ -1213,6 +1328,7 @@ export class SlashCommandBuilder<
         }
         if (subCommandName) {
             const subBuilder = this.subsCommands[subCommandName];
+            if (!subBuilder) throw new Error(`SlashCommand ${this.commandName}: không tìm thấy subcommand "${subCommandName}" (lệnh đã đăng ký có thể đã cũ).`);
             const parsed = subBuilder.parse(interaction);
             return this.handler(client, interaction, {
                 ...rootOptions,
@@ -1228,6 +1344,27 @@ export class SlashCommandBuilder<
             ...rootOptions,
             payload: null
         } as any);
+    }
+    /**
+     * Xử lý một `AutocompleteInteraction` thuộc lệnh này.
+     *
+     * Tự động tìm đúng option đang được focus (kể cả khi nằm trong subcommand hoặc group),
+     * gọi handler `autocomplete` tương ứng và phản hồi tối đa 25 gợi ý.
+     *
+     * @returns `true` nếu đã phản hồi, `false` nếu option đó không khai báo autocomplete.
+     */
+    public async autocomplete(client: Client, interaction: AutocompleteInteraction): Promise<boolean> {
+        const groupName = interaction.options.getSubcommandGroup(false);
+        const subCommandName = interaction.options.getSubcommand(false);
+        if (groupName && subCommandName) {
+            const sub = this.groups[groupName]?.subcommands[subCommandName];
+            return sub?.autocomplete ? sub.autocomplete(interaction, client) : false;
+        }
+        if (subCommandName) {
+            const sub = this.subsCommands[subCommandName];
+            return sub?.autocomplete ? sub.autocomplete(interaction, client) : false;
+        }
+        return runAutocomplete(this.defs as Record<string, any> | undefined, interaction, client);
     }
     /**
      * Parse interaction options thành object typed theo định nghĩa option.
@@ -1296,14 +1433,23 @@ export class SlashCommandBuilder<
         if (!this.description) {
             throw new Error("SlashCommandBuilder: thiếu mô tả lệnh");
         }
+        assertValidName("lệnh", this.commandName);
+        if (this.description.length > 100) {
+            throw new Error(`SlashCommandBuilder: mô tả của "${this.commandName}" dài ${this.description.length} ký tự (tối đa 100).`);
+        }
+        // Discord không cho phép vừa có option ở cấp gốc vừa có subcommand/group.
+        const hasSubs = Object.keys(this.subsCommands).length > 0 || Object.keys(this.groups).length > 0;
+        if (hasSubs && this.defs && Object.keys(this.defs).length > 0) {
+            throw new Error(`SlashCommandBuilder: "${this.commandName}" không thể vừa có options vừa có subcommands/groups.`);
+        }
 
         const builder = new DiscordSlashCommandBuilder().setName(this.commandName).setDescription(this.description);
         // slash commands
         const defs = this.defs;
         if (defs) {
             const handlers = this.optionHandlers;
-            for (const name in defs) {
-                const def = defs[name];
+            for (const [name, def] of requiredFirst(defs)) {
+                assertValidName("option", name);
                 const handler = handlers[def.method as keyof typeof handlers];
                 if (handler) handler.build(builder, name, def);
             }

@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import url from "node:url";
 
-import type { EventBuilderOptions, Client } from "..";
+import type { Client, EventBuilderOptions } from "..";
 
 /**
  * Cấu hình cho {@link EventManager}.
@@ -48,13 +48,6 @@ export interface EventManagerOptions {
     onError?: (event: { error: unknown; file: string; scope: string }) => void;
 }
 
-/**
- * Manager chịu trách nhiệm:
- *
- * - Load event files từ filesystem
- * - Gắn events vào Discord Client
- * - Phân chia events theo **scope**
- */
 export class EventManager {
     /**
      * Discord Client.
@@ -114,25 +107,40 @@ export class EventManager {
             scope: "không xác định"
         });
         if (options.scopes.length === 0) return;
-        const entries = await fs.promises.readdir(options.directory, {
-            withFileTypes: true
-        });
+        let entries: fs.Dirent[];
+        try {
+            entries = await fs.promises.readdir(options.directory, { withFileTypes: true });
+        } catch (error) {
+            // Thư mục không tồn tại/không đọc được: báo lỗi thay vì làm sập client.start().
+            options.onError?.({ error, file: options.directory, scope: "không xác định" });
+            return;
+        }
         const availableScopes = entries.filter((e) => e.isDirectory()).map((e) => e.name); // Lấy tất cả folder scope có sẵn.
-        const scopesToLoad = options.scopes.includes("*") ? availableScopes : options.scopes; // Nếu dùng "*" → load tất cả scope.
-        // Validate scope (trừ khi dùng "*")
-        if (!options.scopes.includes("*")) {
+        const useAll = options.scopes.includes("*");
+        let scopesToLoad: readonly string[] = useAll ? availableScopes : options.scopes; // Nếu dùng "*" → load tất cả scope.
+        // Validate scope (trừ khi dùng "*"): báo lỗi và BỎ QUA scope không tồn tại.
+        if (!useAll) {
             const invalidScopes = options.scopes.filter((scope) => !availableScopes.includes(scope));
-            if (invalidScopes.length > 0) options.onError?.({
-                error: `[registerEvents] Phạm vi không hợp lệ: ${invalidScopes.join(", ")}. Phạm vi có sẵn: ${availableScopes.join(", ")}`,
-                file: "không xác định",
-                scope: scopesToLoad.join(", ")
-            });
+            if (invalidScopes.length > 0) {
+                options.onError?.({
+                    error: `[registerEvents] Phạm vi không hợp lệ: ${invalidScopes.join(", ")}. Phạm vi có sẵn: ${availableScopes.join(", ")}`,
+                    file: "không xác định",
+                    scope: invalidScopes.join(", ")
+                });
+                scopesToLoad = scopesToLoad.filter((scope) => availableScopes.includes(scope));
+            }
         }
         for (const scope of scopesToLoad) {
             const scopePath = path.join(options.directory, scope);
-            const files = await fs.promises.readdir(scopePath);
+            let files: string[];
+            try {
+                files = (await fs.promises.readdir(scopePath)).sort();
+            } catch (error) {
+                options.onError?.({ error, file: scopePath, scope });
+                continue;
+            }
             for (const file of files) {
-                if (!/\.(ts|js)$/.test(file)) continue;
+                if (!/\.(ts|js|mjs|mts)$/.test(file) || /\.d\.m?ts$/.test(file)) continue;
                 try {
                     const imported = await import(url.pathToFileURL(path.join(scopePath, file)).href);
                     const rawExport: EventBuilderOptions[] = imported.default ?? imported;
@@ -145,13 +153,22 @@ export class EventManager {
                             });
                             continue;
                         }
-
+                        const handler = async (...args: any[]) => {
+                            try {
+                                await event.execute(this.client, ...args as any);
+                            } catch (error) {
+                                if (options.onError) {
+                                    options.onError({ error, file, scope });
+                                } else {
+                                    console.error(`[EventManager] ${scope}/${file} (${String(event.eventName)}):`, error);
+                                }
+                            }
+                        };
                         if (event.once) {
-                            this.client.discord.once(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                            this.client.discord.once(event.eventName, handler);
                         } else {
-                            this.client.discord.on(event.eventName, (...args: any) => event.execute(this.client, ...args));
+                            this.client.discord.on(event.eventName, handler);
                         }
-
                         options.onLoad?.({
                             eventName: event.eventName,
                             file: file,

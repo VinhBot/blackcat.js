@@ -1,12 +1,8 @@
 import type { BaseMessageOptions, ButtonInteraction, ChatInputCommandInteraction, InteractionCollector, StringSelectMenuInteraction } from "discord.js";
-import { ModalBuilder, TextInputBuilder, TextInputStyle, Message, LabelBuilder, Collection } from "discord.js";
-import {
-    ComponentBuilder,
-    ComponentInput,
-    AnyComponent,
-    ButtonInput,
-    parseTime,
-} from "..";
+import { ModalBuilder, TextInputBuilder, TextInputStyle, Message, LabelBuilder, Collection, MessageFlags } from "discord.js";
+import { ComponentBuilder } from "./ComponentBuilder.ts";
+import type { ComponentInput, AnyComponent, ButtonInput } from "./ComponentBuilder.ts";
+import { parseTime } from "../Functions/parseTime.functions.ts";
 
 /**
  * Context dùng trong renderPage
@@ -875,6 +871,13 @@ export type PaginationOptions<T> = {
      * timeout: 60 // 1 phút
      */
     timeout?: number;
+    /**
+     * Chỉ cho phép người gọi lệnh điều khiển (bấm nút / chọn menu).
+     * Người khác bấm sẽ nhận một thông báo ephemeral.
+     *
+     * @defaultValue `true`
+     */
+    restrictToAuthor?: boolean;
 };
 
 export class PaginationBuilder<T> {
@@ -887,6 +890,10 @@ export class PaginationBuilder<T> {
     private useCache: boolean;
     public state: Record<string, any> = {};
     private collector: InteractionCollector<any> | null = null;
+    /** ID người gọi lệnh (dùng cho `restrictToAuthor`). */
+    private ownerId: string | null = null;
+    /** Hàng đợi tuần tự hóa các lần chuyển trang để tránh race khi bấm liên tục. */
+    private queue: Promise<unknown> = Promise.resolve();
     /**
      * Khởi tạo một instance PaginationBuilder
      * 
@@ -1024,6 +1031,10 @@ export class PaginationBuilder<T> {
      * - Gửi message thất bại
      */
     public async start(source: Message | ChatInputCommandInteraction) {
+        if (this.totalPages < 1) {
+            throw new Error("PaginationBuilder: không có trang nào để hiển thị (totalPages = 0).");
+        }
+        this.ownerId = source instanceof Message ? source.author.id : source.user.id;
         const data = await this.getPageData(this.page);
         const content = await this.options.renderPage({
             totalPages: this.totalPages,
@@ -1034,6 +1045,8 @@ export class PaginationBuilder<T> {
         const components = await this.buildComponents(data);
         if (source instanceof Message) {
             this.message = await source.reply({ ...content, components: components });
+        } else if (source.replied || source.deferred) {
+            this.message = await source.editReply({ ...content, components: components }) as Message;
         } else {
             await source.reply({ ...content, components: components });
             this.message = await source.fetchReply() as Message;
@@ -1130,7 +1143,7 @@ export class PaginationBuilder<T> {
                 }
                 return data;
             } catch (error) {
-                this.onError(error);
+                // Lỗi được ném lên cho nơi gọi xử lý (và báo onError đúng 1 lần ở đó).
                 throw error;
             }
         }
@@ -1140,7 +1153,7 @@ export class PaginationBuilder<T> {
      * Xây dựng danh sách components (buttons, select menu) cho trang hiện tại
      * @hidden  
      */
-    private async buildComponents(data: T) {
+    private async makeComponentBuilder(data: T): Promise<ComponentBuilder<AnyComponent>> {
         const { navigation = {}, selectMenu } = this.options;
         const config = {
             first: true,
@@ -1153,7 +1166,7 @@ export class PaginationBuilder<T> {
         };
 
         const isFirstPage = this.page === 0;
-        const isLastPage = this.page === this.totalPages - 1;
+        const isLastPage = this.page >= this.totalPages - 1;
 
         const buttonMap: Record<string, ButtonInput> = {
             first: {
@@ -1194,13 +1207,14 @@ export class PaginationBuilder<T> {
             }
         ];
 
-        if (config.menu) {
+        if (config.menu && this.totalPages > 1) {
             schemas.push({
                 type: "stringmenu",
                 options: {
                     customId: "pagination:select",
                     placeholder: selectMenu?.placeholder ?? "Nhảy đến trang",
-                    options: Array.from({ length: this.totalPages }, (_, i) => ({
+                    // Discord giới hạn 25 lựa chọn: hiển thị cửa sổ 25 trang quanh trang hiện tại
+                    options: Array.from({ length: Math.min(this.totalPages, 25) }, (_, n) => n + Math.max(0, Math.min(this.page - 12, this.totalPages - 25))).map((i) => ({
                         label: selectMenu?.pageLabel ? selectMenu.pageLabel(i) : `Trang ${i + 1}`,
                         value: String(i),
                         default: i === this.page
@@ -1212,16 +1226,39 @@ export class PaginationBuilder<T> {
         const componentBuilder = new ComponentBuilder(schemas);
 
         if (this.options.buildComponents) {
-            this.options.buildComponents({
+            // await + dùng giá trị trả về (trước đây bị bỏ qua nên callback async/trả builder mới không có tác dụng)
+            const custom = await this.options.buildComponents({
                 page: this.page,
                 totalPages: this.totalPages,
                 data: data,
                 pagination: this,
                 components: componentBuilder,
             });
+            if (custom) return custom;
         }
 
-        return componentBuilder.build();
+        return componentBuilder;
+    }
+    /**
+     * Dựng danh sách action row cho trang hiện tại.
+     * @hidden
+     */
+    private async buildComponents(data: T) {
+        return (await this.makeComponentBuilder(data)).build();
+    }
+    /**
+     * Vô hiệu hóa toàn bộ component khi pagination kết thúc (tránh nút "chết" còn bấm được).
+     * @hidden
+     */
+    private async disableComponents(data: T | undefined) {
+        if (!this.message || data === undefined) return;
+        try {
+            const builder = await this.makeComponentBuilder(data);
+            builder.disableAll();
+            await this.message.edit({ components: builder.build() });
+        } catch {
+            // Message có thể đã bị xóa / bot mất quyền: bỏ qua.
+        }
     }
     /**
      * Khởi tạo InteractionCollector để xử lý button và select menu interactions.
@@ -1230,10 +1267,17 @@ export class PaginationBuilder<T> {
     private async createCollector() {
         const collector = this.message.createMessageComponentCollector({
             time: this.options.timeout ? parseTime(this.options.timeout) : undefined,
-            filter: (interaction) => this.options.interactionFilter ? this.options.interactionFilter(interaction as any) : true,
         });
         collector.on("collect", async (interaction) => {
             try {
+                // Mặc định chỉ người gọi lệnh được điều khiển.
+                if (this.options.restrictToAuthor !== false && this.ownerId && interaction.user.id !== this.ownerId) {
+                    await interaction.reply({
+                        content: "Chỉ người gọi lệnh mới có thể điều khiển trang này.",
+                        flags: MessageFlags.Ephemeral,
+                    });
+                    return;
+                }
                 if (this.options.interactionFilter && !this.options.interactionFilter(interaction as any)) return;
                 if (interaction.customId === "pagination:jump") {
                     const modal = new ModalBuilder({
@@ -1249,57 +1293,68 @@ export class PaginationBuilder<T> {
                     try {
                         const submit = await interaction.awaitModalSubmit({
                             time: this.options.timeout ? parseTime(this.options.timeout) : parseTime("240s"),
-                            filter: (i) => i.user.id === interaction.user.id,
+                            filter: (i) => i.user.id === interaction.user.id && i.customId === "pagination:jumpModal",
                         });
                         await submit.deferUpdate();
-                        const page = Number(submit.fields.getTextInputValue("page")) - 1;
-                        if (Number.isNaN(page) || page < 0) return;
-                        await this.goto(page);
+                        const raw = submit.fields.getTextInputValue("page").trim();
+                        // Chỉ nhận số nguyên dương ("1.5", "abc", "-3" bị bỏ qua).
+                        if (!/^\d+$/.test(raw)) return;
+                        const target = Number(raw) - 1;
+                        if (target < 0) return;
+                        await this.goto(target);
                     } catch (error) {
-                        this.onError(error);
+                        // Người dùng đóng modal / hết giờ không phải lỗi thật.
+                        if ((error as { code?: string } | null)?.code !== "InteractionCollectorError") await this.onError(error);
                     }
                     return;
                 }
                 if (interaction.isButton()) {
-                    if (interaction.customId === "pagination:first") return this.first(interaction);
-                    if (interaction.customId === "pagination:prev") return this.prev(interaction);
-                    if (interaction.customId === "pagination:next") return this.next(interaction);
-                    if (interaction.customId === "pagination:last") return this.last(interaction);
+                    if (interaction.customId === "pagination:first") return await this.first(interaction);
+                    if (interaction.customId === "pagination:prev") return await this.prev(interaction);
+                    if (interaction.customId === "pagination:next") return await this.next(interaction);
+                    if (interaction.customId === "pagination:last") return await this.last(interaction);
                 } else if (interaction.isStringSelectMenu()) {
-                    if (interaction.customId === "pagination:select") return this.goto(Number(interaction.values[0]), interaction);
+                    if (interaction.customId === "pagination:select") return await this.goto(Number(interaction.values[0]), interaction);
                 }
-                // custom 
+                // custom
                 const data = await this.getPageData(this.page);
                 await this.options.onComponent?.({
                     interaction: interaction as | ButtonInteraction | StringSelectMenuInteraction,
                     pagination: this,
                     page: this.page,
                     totalPages: this.totalPages,
-                    data: data     
-                });
-            } catch (error) {
-                this.onError(error);
-            }
-        })
-
-        collector.on("end", async (_, reason) => {
-            const data = await this.getPageData(this.page);
-            if (reason === "time") {
-                this.options.onTimeout?.({
-                    message: this.message,
-                    pagination: this,
                     data: data
                 });
-            }
-            if (this.options.onStop) {
-                this.options.onStop({
-                    message: this.message,
-                    pagination: this,
-                    data: data,
-                });
+            } catch (error) {
+                await this.onError(error);
             }
         })
-
+        collector.on("end", async (_, reason) => {
+            try {
+                let data: T | undefined;
+                try {
+                    data = await this.getPageData(this.page);
+                } catch {
+                    data = undefined;
+                }
+                await this.disableComponents(data);
+                if (reason === "time") {
+                    await this.options.onTimeout?.({
+                        message: this.message,
+                        pagination: this,
+                        data: data as T
+                    });
+                }
+                // onStop chỉ được gọi tại đây (đúng 1 lần), kể cả khi dừng bằng stop().
+                await this.options.onStop?.({
+                    message: this.message,
+                    pagination: this,
+                    data: data as T,
+                });
+            } catch (error) {
+                await this.onError(error);
+            }
+        })
         this.collector = collector;
     }
     /**
@@ -1383,33 +1438,59 @@ export class PaginationBuilder<T> {
      * @see PaginationOptions.onPageChange
      */
     public async goto(page: number, interaction?: | ButtonInteraction | StringSelectMenuInteraction) {
-        if (page < 0) page = 0;
-        if (page >= this.totalPages) page = this.totalPages - 1;
-
-        const oldPage = this.page;
-        this.page = page;
-
-        const data = await this.getPageData(page);
-        const content = await this.options.renderPage({
-            page: page,
-            totalPages: this.totalPages,
-            data: data,
-            pagination: this
-        });
-
-        const components = await this.buildComponents(data);
-        if (interaction) {
-            await interaction.update({ ...content, components });
+        const result = await this.enqueue(() => this.gotoNow(page, interaction));
+        // Gọi ngoài hàng đợi: callback có thể gọi lại next()/goto() mà không bị deadlock.
+        if (result && interaction) {
             await this.options.onPageChange?.({
                 interaction: interaction,
-                oldPage: oldPage,
-                newPage: page,
+                oldPage: result.oldPage,
+                newPage: result.newPage,
                 pagination: this,
-                data: data,
+                data: result.data,
             });
-        } else {
-            await this.message.edit({ ...content, components });
         }
+    }
+    /**
+     * Xếp một tác vụ vào hàng đợi tuần tự (lỗi của tác vụ trước không chặn tác vụ sau).
+     * @hidden
+     */
+    private enqueue<R>(task: () => Promise<R>): Promise<R> {
+        const run = this.queue.then(task, task);
+        this.queue = run.catch(() => undefined);
+        return run;
+    }
+    /**
+     * Chuyển trang thật sự. Chỉ cập nhật `this.page` SAU khi lấy dữ liệu thành công,
+     * và hoàn tác nếu render/gửi thất bại để trạng thái luôn khớp với message.
+     * @hidden
+     */
+    private async gotoNow(page: number, interaction?: | ButtonInteraction | StringSelectMenuInteraction): Promise<{ oldPage: number; newPage: number; data: T } | null> {
+        if (this.totalPages < 1) return null;
+        page = Number.isFinite(page) ? Math.trunc(page) : 0;
+        page = Math.min(Math.max(page, 0), this.totalPages - 1);
+        const oldPage = this.page;
+        // Phản hồi ngay để pageLoader chậm (>3s) không làm interaction hết hạn.
+        if (interaction && !interaction.deferred && !interaction.replied) await interaction.deferUpdate();
+        const data = await this.getPageData(page);
+        this.page = page;
+        try {
+            const content = await this.options.renderPage({
+                page: page,
+                totalPages: this.totalPages,
+                data: data,
+                pagination: this
+            });
+            const components = await this.buildComponents(data);
+            if (interaction) {
+                await interaction.editReply({ ...content, components });
+            } else {
+                await this.message.edit({ ...content, components });
+            }
+        } catch (error) {
+            this.page = oldPage;
+            throw error;
+        }
+        return { oldPage, newPage: page, data };
     }
     /**
      * Cập nhật lại toàn bộ danh sách pages (dữ liệu tĩnh) và render lại pagination
@@ -1475,6 +1556,11 @@ export class PaginationBuilder<T> {
         this.clearCache();
         this.pages = pages;
         this.totalPages = pages.length;
+        if (this.totalPages < 1) {
+            // Không còn trang nào để hiển thị → kết thúc pagination.
+            await this.stop();
+            return;
+        }
         if (this.page >= this.totalPages) {
             this.page = this.totalPages - 1;
         }
@@ -1542,18 +1628,8 @@ export class PaginationBuilder<T> {
      * @see PaginationOptions.onError
      */
     public async stop() {
-        const data = await this.getPageData(this.page);
-        if (this.collector) this.collector.stop();
-        try {
-            if (!this.message) return;
-            this.options.onStop?.({
-                message: this.message,
-                pagination: this,
-                data: data
-            });
-        } catch (error) {
-            this.onError(error);
-        }
+        // `onStop` được kích hoạt bởi sự kiện "end" của collector (đúng 1 lần).
+        this.collector?.stop();
     }
     /**
      * Xử lý lỗi phát sinh trong quá trình thực thi

@@ -23,7 +23,9 @@ export class AsyncQueue {
     public run<T>(task: () => Promise<T> | T): Promise<T> {
         this.pending++;
         const result = this.tail.then(task, task);
-        this.tail = result.then(() => undefined, () => undefined).finally(() => { this.pending--; });
+        this.tail = result.then(() => undefined, () => undefined).finally(() => { 
+            this.pending--; 
+        });
         return result;
     }
     /**

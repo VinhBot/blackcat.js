@@ -9,7 +9,6 @@ import { Guild, Role } from "discord.js";
  * - Role name (exact match)
  * - Role name (partial match)
  * - Role color (hex, ví dụ `#ff0000`)
- * - Role position (số thứ tự role trong hierarchy)
  *
  * Thứ tự tìm kiếm:
  * 1. Role mention
@@ -17,10 +16,9 @@ import { Guild, Role } from "discord.js";
  * 3. Exact name match
  * 4. Partial name match
  * 5. Color match
- * 6. Position match
  *
  * @param guild Guild nơi cần tìm role.
- * @param query Chuỗi dùng để tìm role (mention, ID, name, color hoặc position).
+ * @param query Chuỗi dùng để tìm role (mention, ID, name hoặc color).
  *
  * @returns Promise trả về:
  * - `Role` nếu tìm thấy
@@ -37,6 +35,7 @@ import { Guild, Role } from "discord.js";
  * ```
  */
 export const findRole = async (guild: Guild, query: string): Promise<Role | null> => {
+    query = query?.trim();
     if (!query) return null;
     let roleId: string | null = null;
     // 1. Role mention <@&123456789>
@@ -56,7 +55,7 @@ export const findRole = async (guild: Guild, query: string): Promise<Role | null
             const fetched = await guild.roles.fetch(roleId);
             if (fetched) return fetched;
         } catch {
-            console.log("[findRole]: có lỗi sảy ra vui lòng thử lại sau")
+            // Không tìm thấy theo ID → tiếp tục thử tìm theo tên.
         }
     }
     const lowerQuery = query.toLowerCase();
@@ -69,14 +68,12 @@ export const findRole = async (guild: Guild, query: string): Promise<Role | null
     // 5. Color match (#hex)
     if (/^#?[0-9a-f]{6}$/i.test(query)) {
         const hex = query.replace("#", "").toLowerCase();
-        const byColor = guild.roles.cache.find((r) => r.colors.toString().padStart(6, "0") === hex);
+        const byColor = guild.roles.cache.find((r) => {
+            // discord.js >= 14.22: `colors.primaryColor`; bản cũ hơn: `color` (đều là số nguyên RGB)
+            const color = (r as any).colors?.primaryColor ?? (r as any).color;
+            return typeof color === "number" && color.toString(16).padStart(6, "0") === hex;
+        });
         if (byColor) return byColor;
-    }
-    // 6. Position match
-    if (!isNaN(Number(query))) {
-        const pos = Number(query);
-        const byPosition = guild.roles.cache.find((r) => r.position === pos);
-        if (byPosition) return byPosition;
     }
     return null;
 }

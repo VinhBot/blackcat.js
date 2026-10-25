@@ -1,10 +1,12 @@
-import type { ChatInputCommandInteraction, GuildMember, User } from "discord.js";
-import { Events, MessageFlags, REST, Routes } from "discord.js";
-import path from "path";
-import url from "url";
-import fs from "fs";
+import type { AutocompleteInteraction, ChatInputCommandInteraction, InteractionReplyOptions, User } from "discord.js";
+import { Events, GuildMember, MessageFlags, Routes } from "discord.js";
+import path from "node:path";
+import url from "node:url";
+import fs from "node:fs";
 
-import { Client, cooldownManager, PermissionManager, SlashCommandBuilder } from "..";
+import type { Client, SlashCommandBuilder } from "..";
+import { cooldownManager, PermissionManager, CommandToggle, toGuildIDList } from ".";
+import type { CommandToggleInfo, DisabledCommandsSnapshot } from ".";
 
 /**
  * Tùy chọn khi load một file slash command riêng lẻ.
@@ -87,6 +89,15 @@ export interface SlashCommandManagerOptions {
      */
     autoRegister?: boolean;
     /**
+     * Tuỳ biến tin nhắn khi lệnh bị tắt trong guild (xem `disable()`).
+     * Trả về `null` để không phản hồi gì. Mặc định: tin nhắn ephemeral "lệnh đã bị tắt".
+     */
+    disabledResponse?: (ctx: { commandName: string; guildID: string }) => string | InteractionReplyOptions | null;
+    /**
+     * Được gọi mỗi khi lệnh được bật/tắt — dùng để lưu trạng thái xuống file/database.
+     */
+    onToggle?: (info: CommandToggleInfo) => void;
+    /**
      * Callback được gọi sau khi một file command được load thành công.
      *
      * @param command - Instance slash command đã load.
@@ -108,7 +119,7 @@ export interface SlashCommandManagerOptions {
  *
  * Một module command phải export {@link SlashCommandBuilder} dưới dạng
  * default export hoặc export trực tiếp command object. Mỗi command bắt buộc
- * phải có `commandName`, `execute` và `build`.
+ * phải có `commandName`, `execute`.
  *
  * @example
  * ```ts
@@ -137,6 +148,8 @@ export class SlashCommandManager {
     private readonly autoRegister: boolean;
     private readonly onLoad?: SlashCommandManagerOptions["onLoad"];
     private readonly onError?: SlashCommandManagerOptions["onError"];
+    private readonly disabledResponse: NonNullable<SlashCommandManagerOptions["disabledResponse"]>;
+    private readonly toggle: CommandToggle;
     private interactionListenerAttached = false;
     private registrationListenerAttached = false;
     private readonly loadedFiles = new Map<string, string>();
@@ -154,6 +167,8 @@ export class SlashCommandManager {
         this.autoRegister = options?.autoRegister ?? true;
         this.onLoad = options?.onLoad;
         this.onError = options?.onError;
+        this.disabledResponse = options?.disabledResponse ?? ((ctx) => `⛔ Lệnh **${ctx.commandName}** đã bị tắt trong server này.`);
+        this.toggle = new CommandToggle(options?.onToggle);
     }
     /**
      * Gán Discord client được manager sử dụng.
@@ -177,12 +192,14 @@ export class SlashCommandManager {
      * @returns Promise được resolve sau khi load xong và thiết lập đăng ký nếu cần.
      */
     public async loadAll(): Promise<void> {
-        if (!this.directory) return;
-
         this.ensureClient();
+        // Luôn gắn listener (kể cả khi không có `directory`) để lệnh nạp thủ công qua loadFile() vẫn chạy được.
         this.attachInteractionListener();
-        await this.loadDirectory(this.directory);
-
+        if (this.directory) {
+            await this.loadDirectory(this.directory);
+        } else if (!this.client.contextMenuManager) {
+            return;
+        }
         if (this.autoRegister) {
             await this.registerWhenReady();
         }
@@ -193,10 +210,10 @@ export class SlashCommandManager {
      * @param directory - Thư mục cần quét. Mặc định là thư mục đã cấu hình.
      * @returns Số lượng command mới được thêm.
      */
-    public async loadDirectory(directory = this.directory): Promise<number> {
+    public async loadDirectory(directory = this.directory, cacheBust = false): Promise<number> {
         if (!directory) return 0;
         const before = this.getCommandCount();
-        await this.readDirectory(path.resolve(directory));
+        await this.readDirectory(path.resolve(directory), cacheBust);
         return this.getCommandCount() - before;
     }
     /**
@@ -218,6 +235,8 @@ export class SlashCommandManager {
             const command = this.resolveCommand(imported);
 
             this.validateCommand(command, absolutePath);
+            // Build thử ngay: một lệnh có định nghĩa sai chỉ làm hỏng chính nó, không làm hỏng cả đợt đăng ký.
+            command.build().toJSON();
 
             if (slashCommands.has(command.commandName) && !options.overwrite) {
                 throw new Error(`Lệnh trùng lặp: ${command.commandName}`);
@@ -243,8 +262,15 @@ export class SlashCommandManager {
      */
     public async reload(client?: Client): Promise<void> {
         if (client) this.setClient(client);
+        this.ensureClient();
         this.clearCommands();
-        await this.loadAll();
+        this.attachInteractionListener();
+        if (!this.directory) return;
+        // cacheBust: bắt buộc để import lại nội dung file mới thay vì dùng module đã cache.
+        await this.loadDirectory(this.directory, true);
+        if (this.autoRegister) {
+            await this.registerWhenReady();
+        }
     }
     /**
      * Reload một command theo `commandName`.
@@ -297,24 +323,80 @@ export class SlashCommandManager {
     public async registerCommands(): Promise<void> {
         const client = this.ensureClient();
         if (!client.discord.user) return;
-        const applicationId = client.discord.user.id;
-        const rest = this.createRest();
-        const commands = this.getCommandPayloads();
+        const applicationId = client.discord.application?.id ?? client.discord.user.id;
+        // Dùng REST của discord.js client để dùng chung rate-limit handler/proxy/agent.
+        const rest = client.discord.rest;
+        // Discord ghi đè toàn bộ lệnh mỗi lần PUT → phải gộp cả context menu vào cùng payload.
+        const commands = [...this.getCommandPayloads(), ...(client.contextMenuManager?.getCommandPayloads() ?? [])];
         const guildIDs = this.getGuildIDs();
-        if (this.reset?.global) {
-            await rest.put(Routes.applicationCommands(applicationId), { body: [] });
-        }
         if (guildIDs.length > 0) {
+            if (this.reset?.global) {
+                await rest.put(Routes.applicationCommands(applicationId), { body: [] });
+            }
             for (const guildID of guildIDs) {
-                const route = Routes.applicationGuildCommands(applicationId, guildID);
-                if (this.reset?.guild) {
-                    await rest.put(route, { body: [] });
+                try {
+                    // PUT là bulk-overwrite: tự thay thế toàn bộ lệnh cũ nên không cần xóa trước (`reset.guild`).
+                    await rest.put(Routes.applicationGuildCommands(applicationId, guildID), { body: commands });
+                } catch (error) {
+                    // Một guild lỗi (bot bị kick, thiếu scope...) không được chặn các guild còn lại.
+                    this.emitError(`SlashCommandManager.registerCommands(guild:${guildID})`, error);
                 }
-                await rest.put(route, { body: commands });
             }
             return;
         }
         await rest.put(Routes.applicationCommands(applicationId), { body: commands });
+    }
+    /**
+     * Tắt slash command trong một hoặc nhiều guild.
+     *
+     * Lệnh vẫn hiện trong Discord nhưng sẽ trả lời "đã bị tắt" khi được dùng
+     * (và không gợi ý autocomplete). Trạng thái lưu trong bộ nhớ — dùng `onToggle` + `importDisabled()` để lưu bền vững.
+     *
+     * @returns `false` nếu không tìm thấy lệnh.
+     *
+     * @example
+     * ```ts
+     * client.slashCommandManager.disable("ping", "123456789012345678");
+     * ```
+     */
+    public disable(commandName: string, guildID: string | string[]): boolean {
+        if (!this.hasCommand(commandName)) return false;
+        for (const id of toGuildIDList(guildID)) this.toggle.disable(commandName, id);
+        return true;
+    }
+    /**
+     * Bật lại slash command trong một hoặc nhiều guild.
+     *
+     * @returns `false` nếu không tìm thấy lệnh.
+     */
+    public enable(commandName: string, guildID: string | string[]): boolean {
+        if (!this.hasCommand(commandName)) return false;
+        for (const id of toGuildIDList(guildID)) this.toggle.enable(commandName, id);
+        return true;
+    }
+    /**
+     * Kiểm tra lệnh có đang bị tắt trong guild hay không (trong DM luôn là `false`).
+     */
+    public isDisabled(commandName: string, guildID?: string | null): boolean {
+        return this.toggle.isDisabled(commandName, guildID);
+    }
+    /**
+     * Danh sách lệnh đang bị tắt trong một guild.
+     */
+    public getDisabledCommands(guildID: string): string[] {
+        return this.toggle.list(guildID);
+    }
+    /**
+     * Xuất trạng thái bật/tắt để lưu xuống file/database.
+     */
+    public exportDisabled(): DisabledCommandsSnapshot {
+        return this.toggle.export();
+    }
+    /**
+     * Nạp lại trạng thái bật/tắt đã lưu (mặc định thay thế hoàn toàn, `merge: true` để gộp).
+     */
+    public importDisabled(data: DisabledCommandsSnapshot, options?: { merge?: boolean }): void {
+        this.toggle.import(data, options);
     }
     /**
      * Lấy command đã load theo tên.
@@ -416,18 +498,18 @@ export class SlashCommandManager {
         this.loadedFiles.clear();
     }
 
-    private async readDirectory(directory: string): Promise<void> {
-        const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+    private async readDirectory(directory: string, cacheBust = false): Promise<void> {
+        const entries = (await fs.promises.readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
         for (const entry of entries) {
             const fullPath = path.join(directory, entry.name);
             if (entry.isDirectory()) {
                 if (this.recursive) {
-                    await this.readDirectory(fullPath);
+                    await this.readDirectory(fullPath, cacheBust);
                 }
                 continue;
             }
             if (!this.isCommandFile(entry.name)) continue;
-            await this.loadFile(fullPath);
+            await this.loadFile(fullPath, { cacheBust });
         }
     }
 
@@ -435,6 +517,10 @@ export class SlashCommandManager {
         if (this.interactionListenerAttached) return;
         this.interactionListenerAttached = true;
         this.client.discord.on(Events.InteractionCreate, async (interaction) => {
+            if (interaction.isAutocomplete()) {
+                await this.handleAutocomplete(interaction);
+                return;
+            }
             if (!interaction.isChatInputCommand()) return;
             await this.handleChatInputCommand(interaction);
         });
@@ -445,6 +531,7 @@ export class SlashCommandManager {
         if (!command) return;
 
         try {
+            if (await this.checkDisabled(interaction, command)) return;
             if (await this.checkPermission(interaction, command)) return;
             if (await this.checkCooldown(interaction, command)) return;
             await command.execute(this.client, interaction);
@@ -453,6 +540,36 @@ export class SlashCommandManager {
         }
     }
 
+    /**
+     * Xử lý autocomplete: tìm lệnh, chạy handler của option đang focus và phản hồi gợi ý.
+     * Nếu có lỗi hoặc lệnh đang bị tắt, trả về danh sách gợi ý rỗng để Discord không treo.
+     */
+    private async handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+        const command = this.getCommand(interaction.commandName);
+        if (!command) return;
+        try {
+            const disabled = interaction.guildId && this.toggle.isDisabled(command.commandName, interaction.guildId);
+            const handled = disabled ? false : await command.autocomplete(this.client, interaction);
+            if (!handled && !interaction.responded) await interaction.respond([]);
+        } catch (error) {
+            console.error(`Error handling autocomplete for ${interaction.commandName}:`, error);
+            try {
+                if (!interaction.responded) await interaction.respond([]);
+            } catch {
+                // interaction đã hết hạn (3 giây) — bỏ qua
+            }
+        }
+    }
+    /**
+     * Phản hồi khi lệnh đang bị tắt trong guild hiện tại.
+     * @returns `true` nếu lệnh bị tắt (đã chặn thực thi).
+     */
+    private async checkDisabled(interaction: ChatInputCommandInteraction, command: SlashCommandBuilder): Promise<boolean> {
+        if (!interaction.guildId || !this.toggle.isDisabled(command.commandName, interaction.guildId)) return false;
+        const response = this.disabledResponse({ commandName: command.commandName, guildID: interaction.guildId });
+        if (response !== null) await interaction.reply(this.toEphemeral(response));
+        return true;
+    }
     private async checkPermission(interaction: ChatInputCommandInteraction, command: SlashCommandBuilder,): Promise<boolean> {
         if (!command.permission) return false;
         const permission = new PermissionManager(command.permission);
@@ -460,13 +577,17 @@ export class SlashCommandManager {
             client: this.client,
             commandName: command.commandName,
             userID: interaction.user.id,
-            guildID: interaction.guild?.id,
-            member: interaction.member as GuildMember,
+            guildID: interaction.guildId ?? undefined,
+            guild: interaction.guild,
+            channel: interaction.channel,
+            member: (await this.resolveMember(interaction)) ?? undefined,
+            memberPermissions: interaction.memberPermissions,
+            appPermissions: interaction.appPermissions,
             user: interaction.user as User,
             bot: interaction.client.user!,
         });
         if (result.success) return false;
-        await interaction.reply(result.message);
+        await interaction.reply(this.toEphemeral(result.message));
         return true;
     }
 
@@ -477,14 +598,26 @@ export class SlashCommandManager {
             client: this.client,
             userId: interaction.user.id,
             guildId: interaction.guildId,
-            member: interaction.member as GuildMember,
+            member: await this.resolveMember(interaction),
             commandName: command.commandName,
         });
         if (!cooldownMessage) return false;
-        await interaction.reply(cooldownMessage);
+        await interaction.reply(this.toEphemeral(cooldownMessage));
         return true;
     }
-
+    /**
+     * Thông báo từ chối/cooldown chỉ hiển thị cho người dùng (ephemeral) để không spam kênh.
+     * @hidden
+     */
+    private toEphemeral(payload: string | InteractionReplyOptions): InteractionReplyOptions {
+        const base: InteractionReplyOptions = typeof payload === "string" ? { content: payload } : { ...payload };
+        if (base.flags !== undefined) return base;
+        return { ...base, flags: MessageFlags.Ephemeral } as InteractionReplyOptions;
+    }
+    /**
+     * Phản hồi người dùng khi lệnh ném lỗi (reply hoặc followUp tùy trạng thái interaction).
+     * @hidden
+     */
     private async handleExecutionError(interaction: ChatInputCommandInteraction, error: unknown,): Promise<void> {
         console.error(`Error executing ${interaction.commandName}:`, error);
         try {
@@ -503,10 +636,18 @@ export class SlashCommandManager {
             console.error(`Error replying after ${interaction.commandName} failed:`, replyError);
         }
     }
-
+    /**
+     * Đăng ký lệnh ngay nếu bot đã sẵn sàng, ngược lại đợi sự kiện `ClientReady`.
+     * Lỗi đăng ký được chuyển vào `onError` (không làm sập `client.start()`).
+     * @hidden
+     */
     private async registerWhenReady(): Promise<void> {
         if (this.client.discord.user) {
-            await this.registerCommands();
+            try {
+                await this.registerCommands();
+            } catch (error) {
+                this.emitError("SlashCommandManager.registerCommands", error);
+            }
             return;
         }
         if (this.registrationListenerAttached) return;
@@ -520,10 +661,19 @@ export class SlashCommandManager {
             }
         });
     }
-
-    private createRest(): REST {
-        const token = this.client.discord.token ?? this.client.config?.botToken ?? "";
-        return new REST({ version: "10" }).setToken(token);
+    /**
+     * Lấy GuildMember thật. `interaction.member` có thể là dữ liệu API thô (không phải GuildMember)
+     * khi guild không nằm trong cache; khi đó thử fetch, nếu không được thì trả về null.
+     * @hidden
+     */
+    private async resolveMember(interaction: ChatInputCommandInteraction): Promise<GuildMember | null> {
+        if (!interaction.inGuild()) return null;
+        if (interaction.member instanceof GuildMember) return interaction.member;
+        try {
+            return (await interaction.guild?.members.fetch(interaction.user.id)) ?? null;
+        } catch {
+            return null;
+        }
     }
 
     private resolveCommand(imported: unknown): SlashCommandBuilder {

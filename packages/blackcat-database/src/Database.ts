@@ -130,12 +130,16 @@ export class Database<V = any> {
         }
         const root = await this.load();
         let dirty = false;
-        if (this.config.defaults && fillDefaults(root, this.config.defaults)) dirty = true;
+        if (this.config.defaults && fillDefaults(root, this.config.defaults)) { 
+            dirty = true; 
+        }
         const map = this.ttlMap(root);
         if (map && Object.keys(map).length) {
             this.hasTTL = true;
             this.startSweeper();
-            if (this.purgeExpired(root).length) dirty = true;
+            if (this.purgeExpired(root).length) { 
+                dirty = true; 
+            }
         }
         if (dirty) await this.save(root);
         this.initialized = true;
@@ -1103,8 +1107,6 @@ export class Database<V = any> {
         for (const entry of await this.entries()) yield entry as [string, any];
     }
 
-    // ───────────────────────────── Query (find / map / filter ...) ─────────────────────────────
-
     private async queryValues(first: unknown, second: unknown): Promise<{ values: any[]; fn: (...args: any[]) => any }> {
         const [key, fn] = typeof first === "function" ? [undefined, first] : [first as string | undefined, second];
         if (typeof fn !== "function") {
@@ -1178,8 +1180,6 @@ export class Database<V = any> {
         const { values, fn } = await this.queryValues(first, second);
         return values.every(fn);
     }
-
-    // ───────────────────────────── Transaction ─────────────────────────────
 
     /**
      * Chạy nhiều thao tác **nguyên tử**: đọc một lần, ghi một lần, và nếu `fn` ném lỗi thì **không ghi gì** (rollback).
@@ -1310,46 +1310,59 @@ interface TransactionContext {
 }
 
 /**
- * Đối tượng thao tác đồng bộ trong {@link Database.transaction}. Mọi thay đổi chỉ áp dụng
- * khi `transaction` hoàn tất thành công.
+ * Đối tượng thao tác đồng bộ trong {@link Database.transaction}. Mọi thay đổi chỉ áp dụng khi `transaction` hoàn tất thành công.
  */
 export class Transaction {
-    /** `true` nếu đã có thay đổi. */
+    /** 
+     * `true` nếu đã có thay đổi. 
+     */
     public changed = false;
     /** @hidden */
     constructor(private readonly root: Record<string, any>, private readonly ctx: TransactionContext) { }
-    /** Lấy giá trị (`null` nếu không tồn tại). */
+    /** 
+     * Lấy giá trị (`null` nếu không tồn tại). 
+     */
     public get(key: string): any {
         const parts = key.split(this.ctx.delimiter);
         if (hasUnsafeSegment(parts)) return null;
         return getByPath(this.root, parts) ?? null;
     }
-    /** Kiểm tra key tồn tại. */
+    /** 
+     * Kiểm tra key tồn tại. 
+     */
     public has(key: string): boolean {
         return this.get(key) !== null;
     }
-    /** Gán giá trị. */
+    /** 
+     * Gán giá trị. 
+     */
     public set(key: string, value: unknown): void {
         const parts = this.ctx.parseKey(key);
         this.ctx.validate(key, value, "set");
         setByPath(this.root, parts, value);
         this.changed = true;
     }
-    /** Lấy giá trị, nếu chưa có thì gán mặc định. */
+    /** 
+     * Lấy giá trị, nếu chưa có thì gán mặc định. 
+     */
     public ensure<T>(key: string, defaultValue: T): T {
         const current = this.get(key);
         if (current !== null) return current;
         this.set(key, defaultValue);
         return defaultValue;
     }
-    /** Cập nhật (merge object / nối mảng). */
+    /** 
+     * Cập nhật (merge object / nối mảng). 
+     */
     public update(key: string, value: unknown): any {
         const parts = this.ctx.parseKey(key);
         this.ctx.validate(key, value, "update");
         this.changed = true;
         return applyUpdate(this.root, parts, value, this.ctx.uniqueBy);
     }
-    /** Xóa key. */
+    /** 
+     * Xóa key. 
+     */
     public delete(key: string): boolean {
         const parts = key.split(this.ctx.delimiter);
         if (hasUnsafeSegment(parts)) return false;
@@ -1357,21 +1370,27 @@ export class Transaction {
         if (removed) this.changed = true;
         return removed;
     }
-    /** Cộng số. */
+    /** 
+     * Cộng số. 
+     */
     public add(key: string, amount: number): number {
         const value = assertAmount("numberToAdd", amount);
         const result = applyNumber(this.root, this.ctx.parseKey(key), value);
         this.changed = true;
         return result;
     }
-    /** Trừ số. */
+    /** 
+     * Trừ số. 
+     */
     public subtract(key: string, amount: number): number {
         const value = assertAmount("numberToSubtract", amount);
         const result = applyNumber(this.root, this.ctx.parseKey(key), -value);
         this.changed = true;
         return result;
     }
-    /** Thêm vào cuối mảng. */
+    /** 
+     * Thêm vào cuối mảng. 
+     */
     public push(key: string, ...values: unknown[]): any[] {
         if (!values.length) throw new BlackCatError("REQUIRED_PARAMETER_MISSING", "values");
         const { array, added } = applyInsert(this.root, this.ctx.parseKey(key), key, values, "end", this.ctx.autoCreateArrays);

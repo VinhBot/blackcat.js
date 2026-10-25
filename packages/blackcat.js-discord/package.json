@@ -1,6 +1,6 @@
 {
   "name": "blackcat.js-discord",
-  "version": "1.0.17",
+  "version": "1.1.0",
   "description": "Một lớp bao bọc mạnh mẽ cho discord.js được thiết kế bởi framework blackcat.js.",
   "author": "Nguyen Vinh",
   "license": "MIT",
@@ -20,8 +20,11 @@
   ],
   "scripts": {
     "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
     "docs": "typedoc",
-    "build:all": "node --run build && node --run docs"
+    "build:all": "node --run build && node --run docs",
+    "prepublishOnly": "node --run typecheck && node --run build"
   },
   "repository": {
     "type": "git",
@@ -36,7 +39,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "sideEffects": false,
   "keywords": [
@@ -49,15 +52,14 @@
     "blackcat.js-discord"
   ],
   "dependencies": {
-    "discord.js": "^14.25.1",
-    "eventemitter3": "^5.0.4"
+    "discord.js": "^14.25.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "blackcat.js-database": "^1.0.5",
     "tsup": "^8.5.1",
     "typedoc": "^0.28.17",
     "typedoc-rhineai-theme": "^1.2.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "tsx": "^4.19.0"
   }
 }

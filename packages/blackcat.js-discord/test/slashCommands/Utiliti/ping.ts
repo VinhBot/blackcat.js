@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "blackcat.js-discord";
+import { SlashCommandBuilder } from "../../../src";
 
 class PingCommands extends SlashCommandBuilder {
     constructor() {
@@ -19,7 +19,7 @@ class PingCommands extends SlashCommandBuilder {
             })
         }))
         super.setExecute(async (client, interaction, options) => {
-            return interaction.reply({ content: `pong ${client.ws.ping}......` });
+            return interaction.reply({ content: `pong ${client.discord.ws.ping}......` });
         });
     }
 }

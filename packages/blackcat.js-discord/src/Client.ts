@@ -1,8 +1,8 @@
 import { Client as DiscordClient, Collection, Partials, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
 import type { ClientOptions as DiscordClientOptions, PermissionsBitField } from "discord.js";
 
-import type { CommandBuilder, SlashCommandBuilder } from "./builder";
-import { CommandManager, EventManager, SlashCommandManager } from "./manager";
+import type { CommandBuilder, ContextMenuBuilder, SlashCommandBuilder } from "./builder";
+import { CommandManager, ContextMenuManager, EventManager, SlashCommandManager } from "./manager";
 
 /**
  * Cấu hình cơ bản của bot.
@@ -47,7 +47,7 @@ export interface ClientOptions {
      * const client = new Client({
      *   discordClientOptions: {
      *     intents: ["Guilds", "GuildMessages", "MessageContent"],
-     *     partials: ["CHANNEL"]
+     *     partials: [Discord.Partials.Channel]
      *   }
      * });
      * ```
@@ -331,6 +331,12 @@ export interface ClientOptions {
      * @see SlashCommandManager
      */
     slashCommandManager?: SlashCommandManager;
+    /**
+     * Quản lý **Context Menu Command** (chuột phải vào người dùng / tin nhắn).
+     *
+     * Nếu bot đồng thời có `slashCommandManager`, context menu sẽ được đăng ký cùng slash command.
+     */
+    contextMenuManager?: ContextMenuManager;
 }
 
 interface Stats {
@@ -364,23 +370,9 @@ interface Stats {
     uptime: number | null;
 }
 
-interface Events {
-    ready: void;
-
-    login: {
-        id: number;
-        username: string;
-    };
-
-    message: {
-        author: string;
-        content: string;
-    };
-
-    error: Error;
-}
 /**
- * Client mở rộng từ {@link DiscordClient}.
+ * Client bọc (wrap) {@link DiscordClient}: client discord.js gốc nằm ở `client.discord`
+ * (ví dụ `client.discord.ws.ping`, `client.discord.user`).
  *
  * Đây là class trung tâm của framework bot, chịu trách nhiệm quản lý toàn bộ hệ thống:
  * - Cấu hình (config)
@@ -450,7 +442,7 @@ export class Client<Ready extends boolean = boolean> {
      * Collection này được populate bởi {@link CommandManager}
      * trong quá trình load command.
      */
-    public readonly commands: Collection<string, CommandBuilder>;
+    public readonly commands: Collection<string, CommandBuilder<any, any>>;
     /**
      * Danh sách aliases của command.
      * 
@@ -472,6 +464,10 @@ export class Client<Ready extends boolean = boolean> {
      */
     public readonly slashCommands: Collection<string, SlashCommandBuilder>;
     /**
+     * Danh sách context menu đã nạp, khoá theo `"<type>:<tên>"` (ví dụ `"user:Xem thông tin"`).
+     */
+    public readonly contextMenuCommands: Collection<string, ContextMenuBuilder<any>>;
+    /**
      * Danh sách categories của command.
      *
      * Key: category name  
@@ -482,7 +478,7 @@ export class Client<Ready extends boolean = boolean> {
      * - Tạo help command
      * - Group command theo chức năng
      */
-    public readonly categories: Collection<string, Collection<string, CommandBuilder>>;
+    public readonly categories: Collection<string, Collection<string, CommandBuilder<any, any>>>;
     /**
      * Manager quản lý events.
      * 
@@ -517,6 +513,12 @@ export class Client<Ready extends boolean = boolean> {
      */
     public readonly slashCommandManager: SlashCommandManager | undefined;
     /**
+     * Quản lý context menu (nếu có).
+     */
+    public readonly contextMenuManager: ContextMenuManager | undefined;
+    /** Cache danh sách ID owner lấy từ application (tránh gọi API mỗi lần kiểm tra). */
+    private ownerIdsCache: Set<string> | null = null;
+    /**
      * Khởi tạo Client.
      *
      * @param options - Tùy chọn khởi tạo client
@@ -540,10 +542,11 @@ export class Client<Ready extends boolean = boolean> {
         })
         this.config = options.config ?? {} as Config;
         // Collection
-        this.commands = new Collection<string, CommandBuilder>();
+        this.commands = new Collection<string, CommandBuilder<any, any>>();
         this.aliases = new Collection<string, string>();
         this.slashCommands = new Collection<string, SlashCommandBuilder>();
-        this.categories = new Collection<string, Collection<string, CommandBuilder>>();
+        this.contextMenuCommands = new Collection<string, ContextMenuBuilder<any>>();
+        this.categories = new Collection<string, Collection<string, CommandBuilder<any, any>>>();
         // eventManager
         if (options.eventManager) {
             options.eventManager.setClient(this);
@@ -560,6 +563,12 @@ export class Client<Ready extends boolean = boolean> {
             slashCommandManager.setClient(this);
         }
         this.slashCommandManager = slashCommandManager;
+        // contextMenuManager
+        const contextMenuManager = options.contextMenuManager;
+        if (contextMenuManager) {
+            contextMenuManager.setClient(this);
+        }
+        this.contextMenuManager = contextMenuManager;
     }
     /**
      * Thiết lập hoặc cập nhật cấu hình bot.
@@ -619,11 +628,20 @@ export class Client<Ready extends boolean = boolean> {
         const ownerID = this.config.ownerID;
         // Ưu tiên config
         if (ownerID) return Array.isArray(ownerID) ? ownerID.includes(userID) : ownerID === userID;
-        // Fallback lấy từ application
-        const app = await this.discord.application?.fetch();
-        if (!app?.owner) return false;
-        if ("members" in app.owner) return app.owner.members.some((m) => m.id === userID);
-        return app.owner.id === userID;
+        // Fallback lấy từ application (chỉ gọi API 1 lần, sau đó dùng cache)
+        if (!this.ownerIdsCache) {
+            const app = await this.discord.application?.fetch();
+            if (!app?.owner) return false;
+            const ids = new Set<string>();
+            if ("members" in app.owner) {
+                for (const member of app.owner.members.values()) ids.add(member.id);
+                if (app.owner.ownerId) ids.add(app.owner.ownerId);
+            } else {
+                ids.add(app.owner.id);
+            }
+            this.ownerIdsCache = ids;
+        }
+        return this.ownerIdsCache.has(userID);
     }
     /**
      * Kiểm tra xem một đối tượng có quyền quản trị viên (Administrator) hay không.
@@ -746,19 +764,16 @@ export class Client<Ready extends boolean = boolean> {
      * ```
      */
     public async start(): Promise<string> {
-        // Load event, command, slashCommand
+        // Kiểm tra token TRƯỚC khi load để lỗi cấu hình báo sớm.
+        const token = this.config.botToken;
+        if (!token) throw new Error("Bot token chưa được thiết lập.");
+        // Load event, command, slashCommand (slash được load trước khi login để không bỏ lỡ sự kiện ready).
         await Promise.all([
             this.eventManager?.load(),
             this.commandManager?.loadAll(),
+            this.slashCommandManager?.loadAll(),
+            this.contextMenuManager?.loadAll(),
         ]);
-        const token = this.config.botToken;
-        if (!token) throw new Error("Bot token chưa được thiết lập.");
-        const result = await this.discord.login(token);
-        // SlashCommand
-        if (this.slashCommandManager) {
-            await this.slashCommandManager.loadAll();
-        }
-
-        return result;
+        return this.discord.login(token);
     }
 }

@@ -6,7 +6,7 @@ import type { Client } from "..";
  * Function này hỗ trợ các dạng input phổ biến mà Discord cho phép:
  * - Channel mention (`<#channelId>`)
  * - Channel ID
- * - Channel URL (`https://discord.com/channels/guildId/channelId`)
+ * - Channel URL (`https://discord.com/channels/guildId/channelId`, phải thuộc đúng guild)
  * - Channel name (exact match)
  * - Channel name (partial match)
  * - Channel topic (đối với text channels)
@@ -44,28 +44,30 @@ import type { Client } from "..";
  * ```
  */
 export const findChannel = async (client: Client, guild: Guild, query: string): Promise<Channel | null> => {
+    query = query?.trim();
     if (!query) return null;
     let channelId: string | null = null;
     // 1. Channel Mention <#123456789>
-    const mentionMatch = query.match(/^<#(\d+)>$/);
+    const mentionMatch = query.match(/^<#(\d{17,20})>$/);
     if (mentionMatch) {
         channelId = mentionMatch[1];
     }
-    // 2. Channel URL
-    const urlMatch = query.match(/discord\.com\/channels\/\d+\/(\d+)/);
+    // 2. Channel URL (discord.com / discordapp.com / ptb. / canary.) — phải đúng guild hiện tại
+    const urlMatch = query.match(/(?:^|\/\/)(?:[a-z]+\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)/i);
     if (urlMatch) {
-        channelId = urlMatch[1];
+        if (urlMatch[1] !== guild.id) return null;
+        channelId = urlMatch[2];
     }
     // 3. Raw ID
     if (!channelId && /^\d{17,20}$/.test(query)) {
         channelId = query;
     }
-    // Nếu tìm được ID thì ưu tiên lấy từ cache hoặc fetch API
+    // Chỉ chấp nhận channel thuộc ĐÚNG guild (không tra toàn cục) để không thể trỏ sang server khác.
     if (channelId) {
-        const cached = client.discord.channels.cache.get(channelId);
+        const cached = guild.channels.cache.get(channelId);
         if (cached) return cached;
         try {
-            const fetched = await client.discord.channels.fetch(channelId);
+            const fetched = await guild.channels.fetch(channelId);
             if (fetched) return fetched;
         } catch {}
     }

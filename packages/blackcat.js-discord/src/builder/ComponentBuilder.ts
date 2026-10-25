@@ -72,6 +72,11 @@ type ResolveInteraction<CT extends MessageComponentType, IG extends boolean> = C
 export interface CreateMessageComponentCollector<ComponentType extends MessageComponentType, InGuild extends boolean = boolean> extends MessageCollectorOptionsParams<ComponentType, InGuild> {
     source: Message | ChatInputCommandInteraction
     /**
+     * Được gọi khi `onCollector`/`onEnd` ném lỗi. Nếu bỏ trống, lỗi được ghi ra `console.error`
+     * (thay vì gây `unhandledRejection` làm sập tiến trình).
+     */
+    onError?: (error: unknown) => any;
+    /**
      * Callback được gọi mỗi khi collector nhận interaction.
      *
      * @param ctx - Context chứa thông tin interaction và collector.
@@ -225,7 +230,7 @@ export type ButtonInput = | {
     /**
      * Kiểu button tương tác
      */
-    style: | "Primary" | "Secondary" | "Success" | "Danger" | "Premium";
+    style: | "Primary" | "Secondary" | "Success" | "Danger";
     /**
      * Custom ID để xử lý interaction
      * 
@@ -244,6 +249,14 @@ export type ButtonInput = | {
     /**
      * Trạng thái disable
      */
+    disabled?: boolean;
+} | {
+    /**
+     * Button Premium (mua SKU). Discord không cho phép `customId`, `label`, `emoji` với kiểu này.
+     */
+    style: "Premium";
+    /** ID của SKU cần mua. */
+    skuId: string;
     disabled?: boolean;
 };
 
@@ -719,11 +732,13 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
                     const button = new ButtonBuilder();
                     if (btn.style === "Link") {
                         button.setStyle(ButtonStyle.Link).setURL(btn.url);
+                    } else if (btn.style === "Premium") {
+                        button.setStyle(ButtonStyle.Premium).setSKUId(btn.skuId);
                     } else {
                         button.setCustomId(btn.customId).setStyle(btn.style as any);
                     }
-                    if (btn.label) button.setLabel(btn.label);
-                    if (btn.emoji) button.setEmoji(btn.emoji);
+                    if ("label" in btn && btn.label) button.setLabel(btn.label);
+                    if ("emoji" in btn && btn.emoji) button.setEmoji(btn.emoji);
                     if (btn.disabled) button.setDisabled(true);
                     row.addComponents(button);
                 });
@@ -735,8 +750,8 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
                 if (comp.type === "stringmenu") {
                     const menu = new StringSelectMenuBuilder().setCustomId(comp.options.customId);
                     if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
-                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
-                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues)
+                    if (comp.options.minValues !== undefined) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues !== undefined) menu.setMaxValues(comp.options.maxValues);
                     if (comp.type === "stringmenu" && !comp.options.options.length) {
                         throw new Error("stringmenu phải có options");
                     }
@@ -745,28 +760,28 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
                 } else if (comp.type === "rolemenu") {
                     const menu = new RoleSelectMenuBuilder().setCustomId(comp.options.customId);
                     if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
-                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
-                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    if (comp.options.minValues !== undefined) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues !== undefined) menu.setMaxValues(comp.options.maxValues);
                     row.addComponents(menu);
                 } else if (comp.type === "usermenu") {
                     const menu = new UserSelectMenuBuilder().setCustomId(comp.options.customId);
                     if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
-                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
-                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    if (comp.options.minValues !== undefined) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues !== undefined) menu.setMaxValues(comp.options.maxValues);
                     row.addComponents(menu);
                 } else if (comp.type === "channelmenu") {
                     const menu = new ChannelSelectMenuBuilder().setCustomId(comp.options.customId);
                     if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
-                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
-                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    if (comp.options.minValues !== undefined) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues !== undefined) menu.setMaxValues(comp.options.maxValues);
                     if (comp.options.channelTypes) menu.setChannelTypes(comp.options.channelTypes);
                     row.addComponents(menu);
                 } else if (comp.type === "mentionmenu") {
                     const opt = comp.options;
                     const menu = new MentionableSelectMenuBuilder().setCustomId(opt.customId);
                     if (comp.options.placeholder) menu.setPlaceholder(comp.options.placeholder);
-                    if (comp.options.minValues) menu.setMinValues(comp.options.minValues);
-                    if (comp.options.maxValues) menu.setMaxValues(comp.options.maxValues);
+                    if (comp.options.minValues !== undefined) menu.setMinValues(comp.options.minValues);
+                    if (comp.options.maxValues !== undefined) menu.setMaxValues(comp.options.maxValues);
                     row.addComponents(menu);
                 }
                 this.rows.push(row);
@@ -1116,7 +1131,7 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
      */
     public replace(index: number, components: ComponentInput[]) {
         if (index < 0 || index >= this.rows.length) {
-            throw new Error(`Index ${index} nằm ngoài phạm vi (0 → ${this.rows.length})`);
+            throw new Error(`Index ${index} nằm ngoài phạm vi (0 → ${this.rows.length - 1})`);
         }
         const originalRows = this.rows;
         this.rows = [];
@@ -1421,6 +1436,9 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
      * @see ActionRowBuilder
      */
     public build(): ActionRowBuilder<T>[] {
+        if (this.rows.length > 5) {
+            throw new Error(`ComponentBuilder: một message chỉ có tối đa 5 hàng component (đang có ${this.rows.length}).`);
+        }
         return this.rows;
     }
     /**
@@ -1498,28 +1516,37 @@ export class ComponentBuilder<T extends AnyComponent = AnyComponent> {
      */
     public async createCollector<ComponentType extends MessageComponentType, InGuild extends boolean = boolean>(options: CreateMessageComponentCollector<ComponentType, InGuild>): Promise<InteractionCollector<ResolveInteraction<ComponentType, InGuild>>> {
         const message = options.source instanceof Message ? options.source : await options.source.fetchReply();
+        const report = (error: unknown) => options.onError ? options.onError(error) : console.error("[ComponentBuilder] collector:", error);
         const collector = message.createMessageComponentCollector(options) as unknown as InteractionCollector<ResolveInteraction<ComponentType, InGuild>>;
         if (options.onCollector) {
             collector.on("collect", async (interaction) => {
-                return options.onCollector!({
-                    interaction: interaction,
-                    customId: interaction.customId,
-                    userId: interaction.user.id,
-                    values: "values" in interaction ? interaction.values : undefined,
-                    message: message,
-                    collector: collector,
-                    stop: () => collector.stop(),
-                });
+                try {
+                    return await options.onCollector!({
+                        interaction: interaction,
+                        customId: interaction.customId,
+                        userId: interaction.user.id,
+                        values: "values" in interaction ? interaction.values : undefined,
+                        message: message,
+                        collector: collector,
+                        stop: () => collector.stop(),
+                    });
+                } catch (error) {
+                    report(error);
+                }
             });
         }
         if (options.onEnd) {
-            collector.on("end", (collected, reason) => {
-                return options.onEnd!({
-                    message: message,
-                    reason: reason,
-                    total: collected.size,
-                    edit: (editOptions) => message.edit(editOptions as MessageEditOptions),
-                });
+            collector.on("end", async (collected, reason) => {
+                try {
+                    return await options.onEnd!({
+                        message: message,
+                        reason: reason,
+                        total: collected.size,
+                        edit: (editOptions) => message.edit(editOptions as MessageEditOptions),
+                    });
+                } catch (error) {
+                    report(error);
+                }
             });
         }
         return collector;

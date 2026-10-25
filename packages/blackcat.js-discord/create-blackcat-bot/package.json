@@ -1,0 +1,39 @@
+{
+  "name": "create-blackcat-bot",
+  "version": "1.0.0",
+  "description": "Tạo nhanh dự án Discord bot dùng blackcat.js-discord: npx create-blackcat-bot",
+  "author": "Nguyen Vinh",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-blackcat-bot": "./bin/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VinhBot/blackcat.js.git",
+    "directory": "packages/create-blackcat-bot"
+  },
+  "keywords": [
+    "discord",
+    "discord.js",
+    "discord bot",
+    "create",
+    "scaffold",
+    "template",
+    "blackcat.js-discord"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

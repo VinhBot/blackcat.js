@@ -26,7 +26,8 @@
  *
  * @returns Thời gian sau khi chuyển đổi sang **milliseconds**
  *
- * @throws {Error} Nếu gặp đơn vị thời gian không hợp lệ.
+ * @throws {Error} Nếu chuỗi rỗng, chứa ký tự thừa (vd `"5s abc"`, `"1d2"`), có đơn vị không hợp lệ,
+ * hoặc số âm / `NaN` / `Infinity` (không còn âm thầm trả về `0`).
  *
  * @example
  * ```ts
@@ -56,47 +57,60 @@ export const parseTime = (input: string | number): number => {
         y: 365 * 24 * 60 * 60 * 1000,
     };
     const UNIT_ALIASES: Record<string, "ms" | "s" | "m" | "h" | "d" | "mo" | "y"> = {
-        // millisecond
+        // milli giây
         ms: "ms",
         millisecond: "ms",
         milliseconds: "ms",
-        // seconds
+        // giây
         s: "s",
         sec: "s",
         secs: "s",
         second: "s",
         seconds: "s",
-        // minutes
+        // phút
         m: "m",
         min: "m",
         mins: "m",
         minute: "m",
         minutes: "m",
-        // hours
+        // giờ
         h: "h",
         hr: "h",
         hrs: "h",
         hour: "h",
         hours: "h",
-        // days
+        // ngày
         d: "d",
         day: "d",
         days: "d",
-        // months
+        // tháng
         mo: "mo",
         month: "mo",
         months: "mo",
-        // years
+        // năm
         y: "y",
         yr: "y",
         yrs: "y",
         year: "y",
         years: "y",
     };
-    if (typeof input === "number") return input * UNIT_VALUES.s;
+    if (typeof input === "number") {
+        if (!Number.isFinite(input) || input < 0) {
+            throw new RangeError(`Thời gian không hợp lệ: ${input}`);
+        }
+        return input * UNIT_VALUES.s;
+    }
+    if (typeof input !== "string") {
+        throw new TypeError(`parseTime chỉ nhận string hoặc number, nhận được: ${typeof input}`);
+    }
     const str = input.trim().toLowerCase();
+    if (!str) throw new Error("Chuỗi thời gian không được rỗng.");
     // auto detect: "60" -> 60s
     if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str) * UNIT_VALUES.s;
+    // Toàn bộ chuỗi phải là dãy "<số><đơn vị>" (cho phép khoảng trắng giữa các cụm).
+    if (!/^(?:\d+(?:\.\d+)?\s*[a-z]+\s*)+$/.test(str)) {
+        throw new Error(`Chuỗi thời gian không hợp lệ: "${input}"`);
+    }
     let total = 0;
     const regex = /(\d+(?:\.\d+)?)\s*([a-z]+)/g;
     let match: RegExpExecArray | null;
@@ -110,4 +124,4 @@ export const parseTime = (input: string | number): number => {
         total += value * UNIT_VALUES[unit];
     }
     return total;
-}
+};

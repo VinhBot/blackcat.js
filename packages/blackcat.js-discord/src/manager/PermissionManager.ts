@@ -1,5 +1,5 @@
-import type { User, GuildMember, ClientUser, PermissionResolvable, MessagePayload, MessageReplyOptions, InteractionReplyOptions } from "discord.js";
-import type { Client } from "..";
+import type { User, Guild, GuildMember, ClientUser, PermissionResolvable, MessagePayload, MessageReplyOptions, InteractionReplyOptions } from "discord.js";
+import type { Client } from "../Client.ts";
 
 /**
  * Context được truyền vào khi kiểm tra hoặc xử lý quyền (permission).
@@ -44,11 +44,30 @@ export interface PermissionContext {
      * Chỉ được gán khi quá trình check quyền không thành công.
      */
     reason?: PermissionFailReason;
+    /**
+     * Guild nơi command được dùng (nếu có). Dùng để kiểm tra quyền của bot.
+     */
+    guild?: Guild | null;
+    /**
+     * Channel nơi command được dùng. Nếu có `permissionsFor`, quyền của bot sẽ được
+     * tính theo channel (đã bao gồm permission overwrites) thay vì chỉ theo role ở cấp guild.
+     */
+    channel?: unknown;
+    /**
+     * Quyền của người dùng do Discord tính sẵn trong interaction (đã gồm channel overwrites).
+     * Dùng khi không có `member` (guild không nằm trong cache, user-install app).
+     */
+    memberPermissions?: { has(permission: PermissionResolvable): boolean } | null;
+    /**
+     * Quyền của bot trong ngữ cảnh interaction (`interaction.appPermissions`).
+     */
+    appPermissions?: { has(permission: PermissionResolvable): boolean } | null;
 }
 /**
- * @private
+ * Lý do một lần kiểm tra quyền thất bại.
+ * @public
  */
-type PermissionFailReason = | "ONLY_OWNER" | "USER_BLOCKED" | "DM_NOT_ALLOWED" | "GUILD_NOT_ALLOWED" | "MISSING_ROLE" | "MISSING_USER_PERMISSIONS" | "MISSING_BOT_PERMISSIONS";
+export type PermissionFailReason = | "ONLY_OWNER" | "USER_BLOCKED" | "DM_NOT_ALLOWED" | "GUILD_NOT_ALLOWED" | "MISSING_ROLE" | "MISSING_USER_PERMISSIONS" | "MISSING_BOT_PERMISSIONS";
 /**
  * @private
  */
@@ -198,37 +217,35 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      */
     public async check(client: Client, ctx: PermissionContext): Promise<PermissionResult<T>> {
         const isDM = !ctx.guildID;
+        const ok = { success: true } as PermissionResult<T>;
+        // 1. Bị chặn → luôn từ chối đầu tiên.
+        if (this.config.blockedUserIds.includes(ctx.userID)) return this.fail("USER_BLOCKED", ctx);
+        // 2. Chỉ owner.
         if (this.config.onlyOwner) {
             if (!ctx.userID) return this.fail("ONLY_OWNER", ctx);
             const isOwner = await client.isOwner(ctx.userID);
             if (!isOwner) return this.fail("ONLY_OWNER", ctx);
         }
-
-        if (this.config.blockedUserIds.includes(ctx.userID)) return this.fail("USER_BLOCKED", ctx);
-
-        if (isDM && !this.config.allowDM) {
-            return this.fail("DM_NOT_ALLOWED", ctx);
-        }
-
-        if (!isDM && !this.config.allowGuild) {
-            return this.fail("GUILD_NOT_ALLOWED", ctx);
-        }
-
+        // 3. Phạm vi sử dụng.
+        if (isDM && !this.config.allowDM) return this.fail("DM_NOT_ALLOWED", ctx);
+        if (!isDM && !this.config.allowGuild) return this.fail("GUILD_NOT_ALLOWED", ctx);
+        // 4. Whitelist user: bỏ qua quyền của user nhưng VẪN phải kiểm tra quyền của bot.
         if (this.config.allowedUserIds.includes(ctx.userID)) {
-            return { success: true } as PermissionResult<T>;
+            if (this.getMissingBotPermissions(ctx, isDM).length) return this.fail("MISSING_BOT_PERMISSIONS", ctx);
+            return ok;
         }
-
-        if (!isDM && this.config.allowedRoleIds.length > 0 && ctx.member) {
-            const hasRole = ctx.member.roles.cache.some((role) => this.config.allowedRoleIds.includes(role.id));
-            if (hasRole) return { success: true } as PermissionResult<T>;;
+        // 5. Whitelist role: phải có member để xác minh (fail-closed).
+        if (!isDM && this.config.allowedRoleIds.length > 0) {
+            const hasRole = !!ctx.member && ctx.member.roles.cache.some((role) => this.config.allowedRoleIds.includes(role.id));
             if (!hasRole) return this.fail("MISSING_ROLE", ctx);
+            if (this.getMissingBotPermissions(ctx, isDM).length) return this.fail("MISSING_BOT_PERMISSIONS", ctx);
+            return ok;
         }
-
-        if (this.getMissingUserPermissions(ctx).length) return this.fail("MISSING_USER_PERMISSIONS", ctx);
-        if (this.config.botPermissions && !isDM && this.getMissingBotPermissions(ctx).length) {
-            return this.fail("MISSING_BOT_PERMISSIONS", ctx);
-        }
-        return { success: true } as PermissionResult<T>;;
+        // 6. Quyền của user (fail-closed nếu trong guild mà không xác định được member).
+        if (this.getMissingUserPermissions(ctx, isDM).length) return this.fail("MISSING_USER_PERMISSIONS", ctx);
+        // 7. Quyền của bot.
+        if (this.getMissingBotPermissions(ctx, isDM).length) return this.fail("MISSING_BOT_PERMISSIONS", ctx);
+        return ok;
     }
     /**
      * Lấy danh sách quyền user còn thiếu.
@@ -236,9 +253,13 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      * @param ctx - Context thực thi
      * @returns Mảng PermissionResolvable bị thiếu
      */
-    private getMissingUserPermissions(ctx: PermissionContext): PermissionResolvable[] {
-        if (!this.config.userPermissions.length || !ctx.member) return [];
-        return this.config.userPermissions.filter((p) => !ctx.member!.permissions.has(p));
+    private getMissingUserPermissions(ctx: PermissionContext, isDM: boolean): PermissionResolvable[] {
+        const required = this.config.userPermissions;
+        if (!required.length || isDM) return [];
+        const perms = ctx.member?.permissions ?? ctx.memberPermissions;
+        // Trong guild mà không xác định được quyền → coi như thiếu (fail-closed).
+        if (!perms) return required;
+        return required.filter((p) => !perms.has(p));
     }
     /**
      * Lấy danh sách quyền bot còn thiếu trong guild.
@@ -246,11 +267,17 @@ export class PermissionManager<T extends "message" | "interaction" = "message"> 
      * @param ctx - Context thực thi
      * @returns Mảng PermissionResolvable bị thiếu
      */
-    private getMissingBotPermissions(ctx: PermissionContext): PermissionResolvable[] {
-        if (!this.config.botPermissions.length || !ctx.member) return [];
-        const botMember = ctx.member.guild.members.me;
-        if (!botMember) return this.config.botPermissions;
-        return this.config.botPermissions.filter((p) => !botMember.permissions.has(p));
+    private getMissingBotPermissions(ctx: PermissionContext, isDM: boolean): PermissionResolvable[] {
+        const required = this.config.botPermissions;
+        if (!required.length || isDM) return [];
+        if (ctx.appPermissions) return required.filter((p) => !ctx.appPermissions!.has(p));
+        const guild = ctx.guild ?? ctx.member?.guild;
+        const me = guild?.members.me;
+        if (!guild || !me) return required;
+        const channel = ctx.channel as { permissionsFor?: (member: GuildMember) => { has(p: PermissionResolvable): boolean } | null } | null | undefined;
+        const perms = typeof channel?.permissionsFor === "function" ? channel.permissionsFor(me) : me.permissions;
+        if (!perms) return required;
+        return required.filter((p) => !perms.has(p));
     }
     /**
      * Tạo kết quả fail chuẩn hóa.

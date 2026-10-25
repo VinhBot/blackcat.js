@@ -1,4 +1,4 @@
-import { Client, CommandBuilder, PermissionLevel } from "blackcat.js-discord";
+import { Client, CommandBuilder, PermissionLevel } from "../../../src";
 
 const helpCommand = new CommandBuilder<true>({
     commandName: "help",

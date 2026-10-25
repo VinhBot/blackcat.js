@@ -1,5 +1,4 @@
-// import { CommandBuilder, PaginationBuilder, PermissionLevel } from "blackcat.js-discord";
-import { CommandBuilder, PaginationBuilder, PermissionLevel } from "../../../src";
+import { CommandBuilder, PermissionLevel } from "../../../src";
 
 const pingCommand = new CommandBuilder<true>()
 pingCommand.setName("ping");
@@ -7,7 +6,7 @@ pingCommand.setDescription("Replies with Pong!");
 pingCommand.setCooldown({
     duration: 5,
     scope: ["role"],
-    // permissionBypass: PermissionLevel.ADMIN,
+    permissionBypass: PermissionLevel.ADMIN,
     message: (ms, ctx) => ({
         content: `này <@${ctx.userId}> vui lòng chờ ${ms} giây trước khi sử dụng lại lệnh ${ctx.commandName}.`,
     }),
@@ -19,7 +18,7 @@ pingCommand.setPermission({
 })
 pingCommand.setExecute(async (client, message, args) => {
     message.reply({
-        content: `Ping của tôi là: ${client.ws.ping}`,
+        content: `Ping của tôi là: ${client.discord.ws.ping}`,
     })
 });
 

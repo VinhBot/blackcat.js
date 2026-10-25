@@ -1,16 +1,26 @@
-import { Client, CommandBuilder, CommandManager, EventManager, SlashCommandManager } from "../src";
-import { GatewayIntentBits, Partials } from "discord.js";
+import path from "node:path";
+
+import { Client, CommandBuilder, CommandManager, ContextMenuManager, EventManager, SlashCommandManager, Discord } from "../src";
+import ban from "./commands/Moderation/ban";
+import toggle from "./commands/Admin/toggle";
+
+// Token & ID lấy từ biến môi trường (xem .env.example). TUYỆT ĐỐI không hardcode token vào source.
+try { process.loadEnvFile(); } catch { /* không có file .env: dùng biến môi trường của hệ thống */ }
+const botToken = process.env.BOT_TOKEN;
+if (!botToken) throw new Error("Thiếu BOT_TOKEN. Hãy copy .env.example thành .env và điền token.");
 
 const config = {
-    botToken: "ODgxNzA5MTQ2Njk1NjY3Nzcz.G7MCBb.g1o1EJWqB7a9Lfen7ZzdPu30bXSWiuZwxcETqA",
+    botToken,
     prefix: "!",
-    guildID: ["1055150050357022840", "1330081862609272905"],
+    guildID: (process.env.GUILD_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean),
 };
+
+const dir = (name: string) => path.join(import.meta.dirname, name);
 
 const client = new Client<false>({
     discordClientOptions: {
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
-        partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
+        intents: [Discord.GatewayIntentBits.Guilds, Discord.GatewayIntentBits.GuildMessages, Discord.GatewayIntentBits.MessageContent, Discord.GatewayIntentBits.GuildMembers],
+        partials: [Discord.Partials.Channel, Discord.Partials.Message, Discord.Partials.Reaction, Discord.Partials.User],
         allowedMentions: {
             parse: ["users", "roles"],
             repliedUser: false
@@ -18,7 +28,7 @@ const client = new Client<false>({
     },
     config: config,
     eventManager: new EventManager({
-        directory: "./events",
+        directory: dir("events"),
         scopes: ["client"],
         onLoad: (event) => {
             console.log(`${event.file} - ok`);
@@ -39,12 +49,18 @@ const client = new Client<false>({
         onError: (command) => console.error(`${command.file}:`, command.error),
     }),
     slashCommandManager: new SlashCommandManager({
-        directory: "./slashCommands",
+        directory: dir("slashCommands"),
         guildID: config.guildID,
         reset: {
             guild: true
         },
         onLoad: (command) => console.log(`slashCommands: ${command.commandName} - ok`),
+        onError: (command) => console.error(`${command.file}:`, command.error),
+    }),
+    // Context menu (chuột phải vào người dùng / tin nhắn). Được đăng ký CHUNG với slash command.
+    contextMenuManager: new ContextMenuManager({
+        directory: dir("contextMenus"),
+        onLoad: (command) => console.log(`contextMenus: ${command.commandName} (${command.type}) - ok`),
         onError: (command) => console.error(`${command.file}:`, command.error),
     }),
 });
@@ -56,6 +72,6 @@ const pings = new CommandBuilder({
     },  
 });
 
-client.commandManager.registerCommand([pings]);
+client.commandManager.registerCommand([pings, ban, toggle]);
 
 client.start();

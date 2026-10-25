@@ -1,4 +1,4 @@
-import { EventBuilder } from "blackcat.js-discord";
+import { EventBuilder } from "../../../src";
 
 const exampleEvent = new EventBuilder({
     eventName: "clientReady",

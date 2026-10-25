@@ -4,7 +4,19 @@ import { pathToFileURL } from "url";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { Client, CommandBuilder, cooldownManager, PermissionManager } from "..";
+import type { Client } from "../Client.ts";
+import type { CommandBuilder } from "../builder/CommandBuilder.ts";
+import type { CommandToggleInfo, DisabledCommandsSnapshot } from ".";
+import {
+    ArgumentParseError,
+    PermissionManager,
+    buildUsage,
+    cooldownManager,
+    parseArguments,
+    validateArgumentDefinitions,
+    CommandToggle,
+    toGuildIDList
+} from ".";
 /**
  * @hidden
  */
@@ -140,6 +152,26 @@ export interface CommandManagerOptions {
      */
     mentionPrefixResponse?: (prefix: string[]) => string | MessageReplyOptions;
     /**
+     * Tuỳ biến thông báo khi người dùng nhập sai/thiếu argument (chỉ áp dụng cho lệnh có `options`).
+     *
+     * Mặc định gửi: nội dung lỗi + dòng "Cách dùng". Trả về `null` để không phản hồi gì.
+     *
+     * @example
+     * ```ts
+     * argumentErrorResponse: (error, ctx) => `❌ ${error.message}\n📖 Cách dùng: \`${ctx.usage}\``
+     * ```
+     */
+    argumentErrorResponse?: (error: ArgumentParseError, ctx: { prefix: string; usage: string; command: CommandBuilder<any, any> }) => string | MessageReplyOptions | null;
+    /**
+     * Tuỳ biến tin nhắn khi lệnh bị tắt trong guild (xem `disable()`).
+     * Trả về `null` để không phản hồi gì. Mặc định: "⛔ Lệnh ... đã bị tắt trong server này."
+     */
+    disabledResponse?: (ctx: { commandName: string; guildID: string; prefix: string }) => string | MessageReplyOptions | null;
+    /**
+     * Được gọi mỗi khi lệnh được bật/tắt — dùng để lưu trạng thái xuống file/database.
+     */
+    onToggle?: (info: CommandToggleInfo) => void;
+    /**
      * Callback được gọi sau khi một command được load thành công.
      *
      * Hữu ích để log, thống kê hoặc kiểm tra command trong quá trình khởi động bot.
@@ -196,7 +228,11 @@ export class CommandManager {
     private readonly mentionPrefixResponse: (prefix: string[]) => string | MessageReplyOptions;
     private readonly onLoad?: CommandManagerOptions["onLoad"];
     private readonly onError?: CommandManagerOptions["onError"];
+    private readonly argumentErrorResponse?: CommandManagerOptions["argumentErrorResponse"];
+    private readonly disabledResponse?: CommandManagerOptions["disabledResponse"];
+    private readonly toggle: CommandToggle;
     private readonly attachedClients = new WeakSet<Client>();
+    private readonly loadedFiles = new Map<string, string>();
     /**
      * Tạo một CommandManager mới.
      *
@@ -222,6 +258,9 @@ export class CommandManager {
         this.mentionPrefixResponse = options.mentionPrefixResponse ?? ((prefixes) => `Prefix của tôi là: ${prefixes.map((p) => `\`${p}\``).join(", ")}`);
         this.onLoad = options.onLoad;
         this.onError = options.onError;
+        this.argumentErrorResponse = options.argumentErrorResponse;
+        this.disabledResponse = options.disabledResponse;
+        this.toggle = new CommandToggle(options.onToggle);
     }
     /**
      * Gán instance client cho manager.
@@ -268,21 +307,33 @@ export class CommandManager {
      * ]);
      * ```
      */
-    public registerCommand(command: CommandBuilder<boolean> | CommandBuilder<boolean>[]): void {
+    public registerCommand(command: CommandBuilder<any, any> | CommandBuilder<any, any>[]): void {
         for (const cmd of Array.isArray(command) ? command : [command]) {
             this.validateCommand(cmd);
-            const commandName = this.normalize(cmd.commandName);
-            if (this.client.commands.has(commandName)) {
-                throw new Error(`Lệnh bị trùng lặp: ${commandName}`);
-            }
-            cmd.commandName = commandName;
-            const category = cmd.category ?? "unknown";
-            cmd.category = category;
-            this.client.commands.set(commandName, cmd);
-            this.registerAliases(cmd);
-            this.registerCategory(category, cmd);
-            this.onLoad?.(cmd, this);
+            this.addCommand(cmd, cmd.category ?? "unknown");
         }
+    }
+    /**
+     * Đăng ký lệnh theo kiểu "tất cả hoặc không gì cả": kiểm tra mọi xung đột (tên, alias)
+     * TRƯỚC khi ghi vào collection nên không bao giờ để lại lệnh đăng ký dở dang.
+     * @hidden
+     */
+    private addCommand(command: CommandBuilder<any, any>, category: string, filePath?: string, silent = false): void {
+        const commandName = this.normalize(command.commandName);
+        const taken = (key: string) => this.client.commands.has(key) || this.client.aliases.has(key);
+        if (taken(commandName)) throw new Error(`Lệnh bị trùng lặp: ${commandName}`);
+        const aliases = [...new Set((command.aliases ?? []).map((alias) => this.normalize(alias)).filter(Boolean))];
+        for (const alias of aliases) {
+            if (alias === commandName || taken(alias)) throw new Error(`Lệnh phụ trùng lặp: ${alias}`);
+        }
+        command.commandName = commandName;
+        command.category = category;
+        command.aliases = aliases;
+        this.client.commands.set(commandName, command);
+        for (const alias of aliases) this.client.aliases.set(alias, commandName);
+        this.registerCategory(category, command);
+        if (filePath) this.loadedFiles.set(commandName, filePath);
+        if (!silent) this.onLoad?.(command, this);
     }
     /**
      * Load toàn bộ command từ thư mục đã cấu hình.
@@ -312,6 +363,68 @@ export class CommandManager {
         }
     }
     /**
+     * Tắt một lệnh trong một hoặc nhiều guild. Có thể truyền tên lệnh hoặc alias.
+     *
+     * Người dùng gọi lệnh bị tắt sẽ nhận thông báo "đã bị tắt" (tuỳ biến bằng `disabledResponse`).
+     * Trong DM lệnh không bị ảnh hưởng. Trạng thái lưu trong bộ nhớ — dùng `onToggle` +
+     * `importDisabled()` nếu cần lưu bền vững.
+     *
+     * @returns `false` nếu không tìm thấy lệnh.
+     *
+     * @example
+     * ```ts
+     * client.commandManager.disable("ping", "123456789012345678");
+     * client.commandManager.disable("ping", [guildA, guildB]);
+     * ```
+     */
+    public disable(commandName: string, guildID: string | string[]): boolean {
+        const command = this.resolve(commandName);
+        if (!command) return false;
+        for (const id of toGuildIDList(guildID)) this.toggle.disable(command.commandName, id);
+        return true;
+    }
+    /**
+     * Bật lại một lệnh trong một hoặc nhiều guild.
+     *
+     * @returns `false` nếu không tìm thấy lệnh.
+     */
+    public enable(commandName: string, guildID: string | string[]): boolean {
+        const command = this.resolve(commandName);
+        if (!command) return false;
+        for (const id of toGuildIDList(guildID)) this.toggle.enable(command.commandName, id);
+        return true;
+    }
+    /**
+     * Kiểm tra lệnh (hoặc alias) có đang bị tắt trong guild hay không. Trong DM luôn là `false`.
+     */
+    public isDisabled(commandName: string, guildID?: string | null): boolean {
+        const command = this.resolve(commandName);
+        return command ? this.toggle.isDisabled(command.commandName, guildID) : false;
+    }
+    /**
+     * Danh sách lệnh đang bị tắt trong một guild.
+     */
+    public getDisabledCommands(guildID: string): string[] {
+        return this.toggle.list(guildID);
+    }
+    /**
+     * Xuất trạng thái bật/tắt để lưu xuống file/database.
+     *
+     * @example
+     * ```ts
+     * fs.writeFileSync("disabled.json", JSON.stringify(client.commandManager.exportDisabled()));
+     * ```
+     */
+    public exportDisabled(): DisabledCommandsSnapshot {
+        return this.toggle.export();
+    }
+    /**
+     * Nạp lại trạng thái bật/tắt đã lưu (mặc định thay thế hoàn toàn, `merge: true` để gộp).
+     */
+    public importDisabled(data: DisabledCommandsSnapshot, options?: { merge?: boolean }): void {
+        this.toggle.import(data, options);
+    }
+    /**
      * Lấy command theo tên chính xác sau khi normalize.
      *
      * Hàm này chỉ tìm trong `client.commands`, không resolve alias.
@@ -329,7 +442,7 @@ export class CommandManager {
      * }
      * ```
      */
-    public getCommand(commandName: string): CommandBuilder<boolean> | undefined {
+    public getCommand(commandName: string): CommandBuilder<any, any> | undefined {
         return this.client.commands.get(this.normalize(commandName));
     }
     /**
@@ -369,9 +482,10 @@ export class CommandManager {
      * }
      * ```
      */
-    public resolve(commandName: string): CommandBuilder<boolean> | null {
-        const aliasTarget = this.client.aliases.get(commandName);
-        return this.getCommand(commandName) ?? this.getCommand(aliasTarget ?? "") ?? null;
+    public resolve(commandName: string): CommandBuilder<any, any> | null {
+        const key = this.normalize(commandName);
+        const aliasTarget = this.client.aliases.get(key);
+        return this.client.commands.get(key) ?? (aliasTarget ? this.client.commands.get(aliasTarget) : undefined) ?? null;
     }
     /**
      * Lấy danh sách tên command đã load.
@@ -399,7 +513,7 @@ export class CommandManager {
      * }
      * ```
      */
-    public getAllCommands(): CommandBuilder<boolean>[] {
+    public getAllCommands(): CommandBuilder<any, any>[] {
         return [...this.client.commands.values()];
     }
     /**
@@ -432,7 +546,7 @@ export class CommandManager {
      * }
      * ```
      */
-    public getCategory(category: string): Collection<string, CommandBuilder<boolean>> | undefined {
+    public getCategory(category: string): Collection<string, CommandBuilder<any, any>> | undefined {
         return this.client.categories.get(category);
     }
     /**
@@ -462,7 +576,7 @@ export class CommandManager {
      * }
      * ```
      */
-    public getCategories(): Collection<string, Collection<string, CommandBuilder<boolean>>> {
+    public getCategories(): Collection<string, Collection<string, CommandBuilder<any, any>>> {
         return this.client.categories;
     }
     /**
@@ -502,7 +616,12 @@ export class CommandManager {
         this.client.commands.clear();
         this.client.aliases.clear();
         this.client.categories.clear();
-        await this.loadAll();
+        this.loadedFiles.clear();
+        if (this.registerMessageCreateEvent) this.attachMessageListener();
+        if (this.directory !== undefined) {
+            // cacheBust: bắt buộc để ESM import lại nội dung file mới thay vì dùng module đã cache.
+            await this.readDirectory(path.resolve(this.directory), true);
+        }
     }
     /**
      * Gỡ một command khỏi client.
@@ -527,6 +646,7 @@ export class CommandManager {
         if (!command) return false;
         const key = this.normalize(command.commandName);
         this.client.commands.delete(key);
+        this.loadedFiles.delete(key);
         for (const [alias, target] of this.client.aliases) {
             if (this.normalize(target) === key) this.client.aliases.delete(alias);
         }
@@ -555,12 +675,20 @@ export class CommandManager {
      * ```
      */
     public async reloadCommand(commandName: string): Promise<boolean> {
-        if (!this.directory) return false;
-        const command = this.resolve(commandName);
-        if (!command) return false;
-        this.unloadCommand(command.commandName);
-        await this.readDirectory(path.resolve(this.directory));
-        return this.hasCommand(command.commandName);
+        const previous = this.resolve(commandName);
+        if (!previous) return false;
+        const name = previous.commandName;
+        const filePath = this.loadedFiles.get(name);
+        // Lệnh đăng ký thủ công (registerCommand) hoặc đã bị xóa file thì không có gì để reload.
+        if (!filePath) return false;
+        this.unloadCommand(name);
+        await this.loadFile(filePath, true);
+        if (this.hasCommand(name)) return true;
+        // Reload thất bại (lỗi cú pháp, ...): khôi phục lệnh cũ để bot không mất lệnh.
+        try {
+            this.addCommand(previous, previous.category ?? "unknown", filePath, true);
+        } catch { /* bỏ qua */ }
+        return false;
     }
     /**
      * Quét đệ quy một thư mục và load mọi file command hợp lệ.
@@ -574,19 +702,21 @@ export class CommandManager {
      * await this.readDirectory(path.resolve("./commands"));
      * ```
      */
-    private async readDirectory(directory: string): Promise<void> {
+    private async readDirectory(directory: string, cacheBust = false): Promise<void> {
         if (!directory) return;
-        const entries = await fs.readdir(directory, {
+        const entries = (await fs.readdir(directory, {
             withFileTypes: true,
-        });
-        await Promise.all(entries.map(async (entry) => {
+        })).sort((a, b) => a.name.localeCompare(b.name));
+        // Tuần tự + sắp xếp để thứ tự load/phát hiện trùng lặp luôn ổn định.
+        for (const entry of entries) {
             const fullPath = path.join(directory, entry.name);
             if (entry.isDirectory()) {
-                return await this.readDirectory(fullPath);
+                await this.readDirectory(fullPath, cacheBust);
+                continue;
             }
-            if (!this.isCommandFile(entry.name)) return;
-            await this.loadFile(fullPath);
-        }));
+            if (!this.isCommandFile(entry.name)) continue;
+            await this.loadFile(fullPath, cacheBust);
+        }
     }
     /**
      * Import một file command và đăng ký command đó vào client.
@@ -613,29 +743,19 @@ export class CommandManager {
      * await this.loadFile("C:/bot/commands/info/help.ts");
      * ```
      */
-    private async loadFile(filePath: string): Promise<void> {
+    private async loadFile(filePath: string, cacheBust = false): Promise<void> {
         if (!filePath) return;
         try {
-            const imported = await import(pathToFileURL(filePath).href);
+            const fileURL = pathToFileURL(filePath);
+            if (cacheBust) fileURL.searchParams.set("update", Date.now().toString());
+            const imported = await import(fileURL.href);
             const command = this.createCommand(imported);
             this.validateCommand(command);
-            const commandName = this.normalize(command.commandName);
-            if (this.client.commands.has(commandName)) {
-                throw new Error(`Lệnh bị trùng lặp: ${commandName}`);
-            }
-
-            const category = this.getCategoryFromPath(filePath);
-            command.commandName = commandName;
-            command.category = category;
-            this.client.commands.set(commandName, command);
-
-            this.registerAliases(command);
-            this.registerCategory(category, command);
-            this.onLoad?.(command, this);
+            this.addCommand(command, this.getCategoryFromPath(filePath), filePath);
         } catch (error) {
             this.onError?.({
                 file: filePath,
-                error: error as Error,
+                error: error instanceof Error ? error : new Error(String(error)),
             });
         }
     }
@@ -659,36 +779,65 @@ export class CommandManager {
     private attachMessageListener(): void {
         if (this.attachedClients.has(this.client)) return;
         this.attachedClients.add(this.client);
-
         this.client.discord.on("messageCreate", async (message) => {
-            if (message.author.bot) return;
-
-            const usedPrefix = await this.resolvePrefix(message.content, message.guildId ?? "");
-            if (!usedPrefix) return;
-
-            const content = message.content.slice(usedPrefix.length).trim();
-            if (!content) {
-                const prefixes = await this.getPrefixes(message.guildId ?? "");
-                await message.reply(this.mentionPrefixResponse(prefixes));
-                return;
-            }
-
-            const [rawCommandName, ...args] = content.split(/\s+/);
-            const command = this.resolve(rawCommandName);
-            if (!command) return;
-
             try {
-                // cooldown
-                const cooldownMessage = await this.checkCooldown(message, command);
-                if (cooldownMessage) return message.reply(cooldownMessage);
-                // permission
-                const permission = await this.checkPermission(message, command);
-                if (permission && !permission.success) return message.reply(permission.message);
-                await command.execute(this.client as Client<true>, message, args);
+                await this.handleMessage(message);
             } catch (error) {
-                console.error(`[Command Error] ${rawCommandName}`, error);
+                // Không để lỗi bất kỳ (prefix function, reply thất bại, ...) thành unhandledRejection.
+                console.error("[CommandManager] messageCreate:", error);
             }
         });
+    }
+    /**
+     * Xử lý một tin nhắn: tách prefix, tìm lệnh, kiểm tra quyền → cooldown → thực thi.
+     * @hidden
+     */
+    private async handleMessage(message: OmitPartialGroupDMChannel<Message>): Promise<void> {
+        if (message.author.bot || message.system || message.webhookId) return;
+        const prefixes = await this.getPrefixes(message.guildId ?? "");
+        const resolved = this.resolvePrefix(message.content, prefixes);
+        if (!resolved) return;
+        const content = message.content.slice(resolved.prefix.length).trim();
+        if (!content) {
+            // Chỉ trả lời "prefix của tôi là..." khi người dùng MENTION bot, không phải khi gõ mỗi prefix.
+            if (resolved.viaMention) await message.reply(this.mentionPrefixResponse(prefixes));
+            return;
+        }
+        const [rawCommandName, ...args] = content.split(/\s+/);
+        const command = this.resolve(rawCommandName);
+        if (!command) return;
+        try {
+            // lệnh bị tắt trong guild này → báo và dừng.
+            if (await this.replyIfDisabled(message, command, resolved.prefix)) return;
+            // permission TRƯỚC cooldown: người không có quyền không được phép "đốt" cooldown của người khác.
+            const permission = await this.checkPermission(message, command);
+            if (permission && !permission.success) {
+                // User bị chặn: bỏ qua im lặng (tránh bot bị lợi dụng để spam).
+                if (permission.reason !== "USER_BLOCKED") await message.reply(permission.message);
+                return;
+            }
+            // Parse argument TRƯỚC cooldown: nhập sai cú pháp không bị tính là đã dùng lệnh.
+            let options: Record<string, unknown> = {};
+            if (command.options) {
+                try {
+                    options = await parseArguments(this.client, message, content.slice(rawCommandName.length), command.options);
+                } catch (error) {
+                    if (error instanceof ArgumentParseError) {
+                        await this.replyArgumentError(message, command, error, resolved.prefix);
+                        return;
+                    }
+                    throw error;
+                }
+            }
+            const cooldownMessage = await this.checkCooldown(message, command);
+            if (cooldownMessage) {
+                await message.reply(cooldownMessage);
+                return;
+            }
+            await command.execute(this.client as Client<true>, message, args, options as never);
+        } catch (error) {
+            console.error(`[Command Error] ${rawCommandName}`, error);
+        }
     }
     /**
      * Xác định prefix được sử dụng trong nội dung tin nhắn.
@@ -714,36 +863,14 @@ export class CommandManager {
      * }
      * ```
      */
-    private async resolvePrefix(content: string, guildID: string): Promise<string | null> {
-        const prefixes = await this.getPrefixes(guildID);
-        const prefix = prefixes.find((item) => item && content.startsWith(item));
-        if (prefix) return prefix;
-        if (!this.mentionPrefix || !this.client.discord.user?.id) return null;
-        return content.match(new RegExp(`^<@!?${this.client.discord.user.id}>\\s*`))?.[0] ?? null;
-    }
-    /**
-     * Đăng ký toàn bộ alias của command vào client.
-     *
-     * Mỗi alias sẽ được normalize trước khi lưu. Nếu alias trùng với command đã có
-     * hoặc trùng với alias khác, hàm sẽ ném lỗi để tránh resolve sai command.
-     *
-     * @internal
-     * @param command - Command cần đăng ký alias.
-     * @throws Error nếu alias bị trùng với command hoặc alias đã tồn tại.
-     *
-     * @example
-     * ```ts
-     * this.registerAliases(command);
-     * ```
-     */
-    private registerAliases(command: CommandBuilder<boolean>): void {
-        for (const alias of command.aliases ?? []) {
-            const normalizedAlias = this.normalize(alias);
-            if (this.client.aliases.has(normalizedAlias) || this.client.commands.has(normalizedAlias)) {
-                throw new Error(`Lệnh phụ trùng lặp: ${normalizedAlias}`);
-            }
-            this.client.aliases.set(normalizedAlias, command.commandName);
-        }
+    private resolvePrefix(content: string, prefixes: string[]): { prefix: string; viaMention: boolean } | null {
+        // Ưu tiên prefix dài nhất để "!!" không bị nhận nhầm thành "!".
+        const prefix = [...prefixes].filter(Boolean).sort((a, b) => b.length - a.length).find((item) => content.startsWith(item));
+        if (prefix) return { prefix, viaMention: false };
+        const botID = this.client.discord.user?.id;
+        if (!this.mentionPrefix || !botID) return null;
+        const mention = content.match(new RegExp(`^<@!?${botID}>\\s*`))?.[0];
+        return mention ? { prefix: mention, viaMention: true } : null;
     }
     /**
      * Đăng ký command vào category tương ứng.
@@ -761,8 +888,8 @@ export class CommandManager {
      * this.registerCategory("admin", command);
      * ```
      */
-    private registerCategory(category: string, command: CommandBuilder<boolean>): void {
-        const commands = this.getCategory(category) ?? new Collection<string, CommandBuilder<boolean>>();
+    private registerCategory(category: string, command: CommandBuilder<any, any>): void {
+        const commands = this.getCategory(category) ?? new Collection<string, CommandBuilder<any, any>>();
         commands.set(command.commandName, command);
         this.client.categories.set(category, commands);
     }
@@ -786,7 +913,7 @@ export class CommandManager {
      * const command = this.createCommand(imported);
      * ```
      */
-    public createCommand(imported: any): CommandBuilder<boolean> {
+    public createCommand(imported: any): CommandBuilder<any, any> {
         const value = imported.default ?? imported;
         return this.client.isClass(value) ? new value() : value;
     }
@@ -808,9 +935,10 @@ export class CommandManager {
      * this.validateCommand(command);
      * ```
      */
-    public validateCommand(command: CommandBuilder<boolean>): void {
+    public validateCommand(command: CommandBuilder<any, any>): void {
         if (!command?.commandName) throw new Error("Thiếu commandName");
         if (typeof command.execute !== "function") throw new Error("Thiếu execute function");
+        validateArgumentDefinitions(command.options, command.commandName);
     }
     /**
      * Lấy tên category từ đường dẫn file command.
@@ -832,7 +960,9 @@ export class CommandManager {
      */
     public getCategoryFromPath(filePath: string): string {
         if (!this.directory) return "unknown";
-        return path.relative(path.resolve(this.directory), filePath).split(path.sep)[0] || "default";
+        const parts = path.relative(path.resolve(this.directory), filePath).split(path.sep);
+        // File nằm ngay thư mục gốc (không có thư mục con) → "default" thay vì tên file.
+        return parts.length > 1 ? parts[0] : "default";
     }
     /**
      * Kiểm tra một file có phải file command hợp lệ hay không.
@@ -853,7 +983,7 @@ export class CommandManager {
      * ```
      */
     public isCommandFile(fileName: string): boolean {
-        return /\.(js|ts)$/.test(fileName) && !fileName.endsWith(".d.ts");
+        return /\.(js|ts|mjs|mts)$/.test(fileName) && !/\.d\.m?ts$/.test(fileName);
     }
     /**
      * Chuẩn hóa tên command hoặc alias.
@@ -877,9 +1007,31 @@ export class CommandManager {
         return value.trim().toLowerCase();
     }
     /**
+     * Phản hồi khi lệnh đang bị tắt trong guild hiện tại.
+     * @returns `true` nếu lệnh bị tắt (đã chặn thực thi).
+     */
+    private async replyIfDisabled(message: OmitPartialGroupDMChannel<Message>, command: CommandBuilder<any, any>, prefix: string): Promise<boolean> {
+        if (!message.guildId || !this.toggle.isDisabled(command.commandName, message.guildId)) return false;
+        const response = this.disabledResponse ? this.disabledResponse({
+            commandName: command.commandName,
+            guildID: message.guildId,
+            prefix: prefix
+        }) : `⛔ Lệnh **${command.commandName}** đã bị tắt trong server này.`;
+        if (response !== null) await message.reply(response);
+        return true;
+    }
+    /**
+     * Gửi thông báo lỗi argument kèm cách dùng.
+     */
+    private async replyArgumentError(message: OmitPartialGroupDMChannel<Message>, command: CommandBuilder<any, any>, error: ArgumentParseError, prefix: string): Promise<void> {
+        const usage = command.usage ?? buildUsage(prefix, command.commandName, command.options);
+        const response = this.argumentErrorResponse ? this.argumentErrorResponse(error, { prefix, usage, command }) : `❌ ${error.message}\nCách dùng: \`${usage}\``;
+        if (response !== null) await message.reply(response);
+    }
+    /**
      * Kiểm tra cooldown của command đối với người dùng hiện tại.
      */
-    private async checkCooldown<InGuild extends boolean = boolean>(message: OmitPartialGroupDMChannel<Message<InGuild>>, command: CommandBuilder<boolean>) {
+    private async checkCooldown<InGuild extends boolean = boolean>(message: OmitPartialGroupDMChannel<Message<InGuild>>, command: CommandBuilder<any, any>) {
         if (!command.cooldown) return;
         return cooldownManager.check(command, {
             type: "message",
@@ -893,7 +1045,7 @@ export class CommandManager {
     /**
      * Kiểm tra quyền của người dùng trước khi thực thi command.
      */
-    private async checkPermission<InGuild extends boolean = boolean>(message: OmitPartialGroupDMChannel<Message<InGuild>>, command: CommandBuilder<boolean>,) {
+    private async checkPermission<InGuild extends boolean = boolean>(message: OmitPartialGroupDMChannel<Message<InGuild>>, command: CommandBuilder<any, any>,) {
         if (!command.permission) return;
         const manager = new PermissionManager(command.permission);
         return manager.check(this.client, {
@@ -901,6 +1053,8 @@ export class CommandManager {
             commandName: command.commandName,
             userID: message.author.id,
             guildID: message.guild?.id,
+            guild: message.guild,
+            channel: message.channel,
             member: message.member ?? undefined,
             user: message.author,
             bot: message.client.user!,

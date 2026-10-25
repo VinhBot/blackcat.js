@@ -1,6 +1,11 @@
 # Coverage directory
 coverage
 
+# Secrets
+.env
+.env.*
+!.env.example
+
 # Compiled folder
 dist
 

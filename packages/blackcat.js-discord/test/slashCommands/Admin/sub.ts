@@ -58,14 +58,14 @@ const exampleCommand = new SlashCommandBuilder({
     /* EXECUTE */
     execute: async (client, interaction, options) => {
         // sub commands
-        if (options.payload?.type === "sub") {
+        if (options.payload && options.payload.type === "sub") {
             if (options.payload.sub === "reload") {
                 const channel = options.payload.options.channel;
                 console.log(channel);
             }
         }
         // group commands
-        if (options.payload?.type === "group") {
+        if (options.payload && options.payload.type === "group") {
             // sub commands
             if (options.payload.group === "user" && options.payload.sub === "ban") {
                 console.log(options.payload.options.user);
